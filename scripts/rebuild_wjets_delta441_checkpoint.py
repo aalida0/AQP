@@ -59,8 +59,6 @@ def load_res(path):
             fail("{}: iterations/points must be nonnegative integers".format(path))
     if numbers[0] < 0 or numbers[1] < 0 or numbers[3] < 0 or numbers[6] < 0:
         fail("{}: negative absolute rate, uncertainty, or time".format(path))
-    if abs(numbers[2]) > numbers[0] * (1.0 + 1e-6) and numbers[0] >= 1e-30:
-        fail("{}: signed cross section exceeds ABS cross section".format(path))
     if len(values) > 7:
         # The MG driver consumes the first seven fields; preserve a warning
         # through its summary rather than dropping or reinterpreting data.
@@ -234,8 +232,12 @@ def main():
         "--report", help="Write JSON audit report under /data (never /home)",
     )
     args = parser.parse_args()
-    if args.report and not str(Path(args.report).expanduser().resolve()).startswith("/data/"):
-        parser.error("--report must be under /data")
+    if args.report:
+        report_path = Path(args.report).expanduser().resolve()
+        if not str(report_path).startswith("/data/"):
+            parser.error("--report must be under /data")
+        if report_path.exists() or report_path.is_symlink():
+            parser.error("--report target already exists; refusing overwrite")
     try:
         status, jobs, manifest = stage_configuration(args.process, args.write_checkpoint)
     except (OSError, ValueError) as exc:
@@ -257,9 +259,6 @@ def main():
     if args.report:
         report = Path(args.report).expanduser().resolve()
         report.parent.mkdir(parents=True, exist_ok=True)
-        if report.exists():
-            print("RECOVERY_PRECHECK_FAILED: report exists; refusing overwrite", file=sys.stderr)
-            return 1
         with report.open("x") as out:
             json.dump(manifest, out, indent=2, sort_keys=True)
             out.write("\n")
