@@ -91,13 +91,16 @@ for CFG in "$@"; do
     --transform="flags=r;s@^${PROC_NAME}@madevent@" \
     -C "$BASE/$CFG" "$PROC_NAME"
 
-  # Full archive listing also forces gzip decompression/CRC validation.
+  # Listing the entire archive verifies gzip integrity and required members.
+  # Do not use awk's reserved function names (e.g. "sub") as variables.
   # awk must read all records to avoid SIGPIPE under pipefail.
   if ! tar -tzf "$TMPFILE" | awk '
-    $0=="madevent/" {root=1}
-    $0=="madevent/SubProcesses/" {sub=1}
-    $0=="madevent/Cards/run_card.dat" {card=1}
-    END { if (!(root && sub && card)) exit 1 }
+    $0=="madevent/" {has_root=1}
+    $0=="madevent/SubProcesses/" {has_subprocesses=1}
+    $0=="madevent/Cards/run_card.dat" {has_run_card=1}
+    END {
+      if (!(has_root && has_subprocesses && has_run_card)) exit 1
+    }
   '; then
     echo "ERROR: archive missing required structure or unreadable: $CFG" >&2
     exit 1
