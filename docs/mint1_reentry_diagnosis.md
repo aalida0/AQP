@@ -79,3 +79,11 @@ MG5_aMC@NLO v3.5.11 source confirms update_jobs_to_run (lines 2672-2707) assigns
 MG5's documented --only_generation option skips integration, but loads SubProcesses/job_status.pkl (create_jobs_to_run, lines 2125-2134). The file is written after the MINT1 result collection (collect_the_results, lines 2300-2309); an interrupted collection may mean it is absent for delta441_backup. clean_previous_results (lines 3131-3162) may delete split-event directories even when only_generation is set. Therefore inspect status and run only in a disposable, quota-safe recovery copy. Do not execute a fresh launch in the original directories.
 
 Next read-only checks: job_status.pkl existence and size, nevents_unweighted (count jobs with positive event allocation), number of event-producing GF directories, output LHE files, log final status, existing tarballs. A full successful standalone generation is the acceptance test for recovered gridpacks.
+
+## Event-allocation metadata audit (October 21, 2026)
+
+standard111, delta111 and delta221 each have nonempty SubProcesses/job_status.pkl, nevents_unweighted, orderstags_glob.dat, and Events/run_01/events.lhe.gz. All allocate 1,000 parton-level events; positive-event GF entries are 167, 164, and 167 respectively. Prior normal imode2 GF log counts were 167, 164, and 165: the delta221 difference of two should be resolved explicitly, not assumed harmless.
+
+delta441_backup has nonempty orderstags_glob.dat and 300/300 structurally present integration artifact sets but lacks job_status.pkl, nevents_unweighted and combined LHE. Standard MG --only_generation will not start without reconstructing the job state after MINT1 collection. Never use unguarded launch; work on an isolated recovery copy with archived originals.
+
+Read-only checker: scripts/check_wjets_generation.py validates allocation totals, missing/abnormal imode2 logs and full gzip LHE event counts. The earlier standard111 recovery using a tar root named madevent passed a 100-event Gen_tf.py smoke test; use that layout as the packaging reference after LHE checks.
