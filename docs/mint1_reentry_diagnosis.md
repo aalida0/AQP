@@ -69,3 +69,13 @@ The generated ATLAS 3.5.11 `mint_module.f90` matches upstream in the relevant bl
 **Important correction:** `GF6.0/log.txt` and `GF7.0/log.txt` both explicitly say `Generating events, doing only one iteration` and `imode is 2`. They are NOT recovered MINT1 logs. GF7.0 `log_MINT1.txt` has a bad-real parse error; its separate `imode=2` event generation log has a normal-looking completion, indicating the stored MINT grids were readable in the subsequent phase. Full numerical integrity of all 26 affected GF targets remains to be validated.
 
 Next focus: compare event-generation outputs and gridpack contents for standard111, delta111 and delta221; validate the 15 suspect `delta441_backup` GF integration artifacts and finalize without an unguarded `launch` or blanket recomputation. Timing estimates remain provisional while job provenance is unresolved.
+
+## Recovery update: 300/300 artifact sets and targeted MINT2 event generation
+
+Audits report 300/300 GF directories with populated mint_grids (including MAX/SUM/QSM) and nonempty grid.MC_integer/res.dat/results.dat for all four W+jets configurations. The three runs that reached MINT2 have normal imode=2 log.txt on 167/164/165 GF directories, while delta441_backup has no imode=2 logs. These counts alone do not imply failed event generation.
+
+MG5_aMC@NLO v3.5.11 source confirms update_jobs_to_run (lines 2672-2707) assigns an integer event count per GF, and check_the_need_to_split (lines 2573-2612) excludes zero-event GF targets from the event-generation worklist. Thus MINT2 logs need not occur in every integrated GF directory. Source: https://github.com/mg5amcnlo/mg5amcnlo/blob/v3.5.11/madgraph/interface/amcatnlo_run_interface.py
+
+MG5's documented --only_generation option skips integration, but loads SubProcesses/job_status.pkl (create_jobs_to_run, lines 2125-2134). The file is written after the MINT1 result collection (collect_the_results, lines 2300-2309); an interrupted collection may mean it is absent for delta441_backup. clean_previous_results (lines 3131-3162) may delete split-event directories even when only_generation is set. Therefore inspect status and run only in a disposable, quota-safe recovery copy. Do not execute a fresh launch in the original directories.
+
+Next read-only checks: job_status.pkl existence and size, nevents_unweighted (count jobs with positive event allocation), number of event-producing GF directories, output LHE files, log final status, existing tarballs. A full successful standalone generation is the acceptance test for recovered gridpacks.
