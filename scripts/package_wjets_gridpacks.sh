@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Package existing W+jets MG5 3.5.11 process directories without touching source
 # files or consuming home-directory disk space for intermediate archives.
-# Usage: bash package_wjets_gridpacks.sh standard111 delta111 delta221
+# Usage: bash package_wjets_gridpacks.sh standard111 delta111 delta221 delta441_backup
 # Optional: AQP_WENU_HOME=... AQP_WENU_DATA=...
 set -euo pipefail
 
@@ -18,8 +18,7 @@ cleanup() {
 trap cleanup EXIT
 
 if (( $# == 0 )); then
-  echo "Usage: $0 standard111 [delta111] [delta221]" >&2
-  echo "delta441_backup is deliberately not eligible yet." >&2
+  echo "Usage: $0 standard111 [delta111] [delta221] [delta441_backup]" >&2
   exit 2
 fi
 
@@ -39,7 +38,7 @@ echo "Archive output: $DEST_REAL"
 df -h "$DEST_REAL"
 for CFG in "$@"; do
   case "$CFG" in
-    standard111|delta111|delta221) ;;
+    standard111|delta111|delta221|delta441_backup) ;;
     *) echo "ERROR: unknown or not-yet-validated configuration: $CFG" >&2; exit 2;;
   esac
 
@@ -48,9 +47,27 @@ for CFG in "$@"; do
     echo "ERROR: missing process: $SRC" >&2
     exit 1
   fi
-  if [[ ! -s "$SRC/SubProcesses/job_status.pkl" ||
-        ! -s "$SRC/Events/run_01/events.lhe.gz" ]]; then
-    echo "ERROR: source does not have saved job-state and combined LHE: $CFG" >&2
+  if [[ ! -s "$SRC/SubProcesses/job_status.pkl" ]]; then
+    echo "ERROR: no saved MadGraph job-state for $CFG" >&2
+    exit 1
+  fi
+  if [[ "$CFG" == delta441_backup ]]; then
+    # This is an integration-only NLO gridpack: no MINT2 LHE yet.
+    # It was allowed only after separately validating the 300-job
+    # reconstructed checkpoint against a genuine MG5 checkpoint.
+    if [[ ! -s "$SRC/Cards/run_card.dat" ||
+          ! -s "$SRC/SubProcesses/randinit" ||
+          ! -s "$SRC/SubProcesses/orderstags_glob.dat" ]]; then
+      echo "ERROR: delta441 recovery prerequisites absent" >&2
+      exit 1
+    fi
+    if ! grep -Eiq '^[[:space:]]*4[[:space:]]*,[[:space:]]*4[[:space:]]*,[[:space:]]*1[[:space:]]*=[[:space:]]*folding' "$SRC/Cards/run_card.dat"; then
+      echo "ERROR: delta441 run card lacks folding 4,4,1" >&2
+      exit 1
+    fi
+    echo "NOTE: packaging integration-only delta441_backup (no events LHE yet)"
+  elif [[ ! -s "$SRC/Events/run_01/events.lhe.gz" ]]; then
+    echo "ERROR: $CFG has no combined LHE; not qualified for packaging" >&2
     exit 1
   fi
 
