@@ -56,6 +56,16 @@ def main():
         "\n".format(a.cores, a.cores)
     )
     amended = original.replace(marker, patch + "modify_config_card(", 1)
+    # A failed/missing --inputGenConfFile MUST NOT fall through to
+    # new_process() and trigger MINT0/1. Abort before that branch.
+    fail_closed_guard = (
+        "# AQP smoke safety: NEVER create a fresh process here.\n"
+        "if not is_gen_from_gridpack():\n"
+        "    raise RuntimeError('AQP_SMOKE_ABORT_NO_EXTRACTED_GRIDPACK')\n"
+        "\n"
+    )
+    amended = amended.replace("if not is_gen_from_gridpack():",
+                              fail_closed_guard + "if not is_gen_from_gridpack():", 1)
     # Parse, but DO NOT execute the JO outside Athena.
     ast.parse(amended, filename=str(src))
     if src.parent.is_symlink() or dst.parent.is_symlink():
