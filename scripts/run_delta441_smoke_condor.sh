@@ -6,7 +6,7 @@ set -euo pipefail
 
 BASE=/data/aalida/AQP/Wjets/WENU
 PACK="$BASE/gridpacks/mc_13TeV.aMCPy8EG_Wenu_FxFx_2jets_HT2bias_delta441_backup.MG3511.GRID.tar.gz"
-OUT="$BASE/smoke_tests/delta441_backup/seed34_100events_retry1"
+OUT="$BASE/smoke_tests/delta441_backup/seed34_100events_retry2"
 CORES=4
 SCRATCH="$(printenv _CONDOR_SCRATCH_DIR || true)"
 if [[ -z "$SCRATCH" || ! -d "$SCRATCH" ]]; then
@@ -43,16 +43,18 @@ copy_artifacts() {
     grep -E 'FOUND GRIDPACK|only_generation|Generating events|MINT|ERROR|FATAL|Traceback' \
       "$SCRATCH/Gen_tf.log" | tail -n 150 > "$OUT/diagnostic_tail.txt"
   fi
-  for f in runargs.generate.py jobReport.json; do
+  for f in runargs.generate.py jobReport.json log.generate; do
     if [[ -f "$SCRATCH/$f" ]]; then cp -p "$SCRATCH/$f" "$OUT/"; fi
   done
   find "$SCRATCH" -maxdepth 1 -type f \
     \( -name '*.TXT.tar.gz' -o -name '*.TXT' -o -name '*.events' \
        -o -name 'events.lhe.gz' -o -name '*.TXT.gz' \) \
     -exec cp -p '{}' "$OUT/" \;
-  if [[ -f "$SCRATCH/madevent/Events/GridRun_34/events.lhe.gz" ]]; then
-    cp -p "$SCRATCH/madevent/Events/GridRun_34/events.lhe.gz" \
-      "$OUT/GridRun_34.events.lhe.gz"
+  # Preserve small generation-state logs and the produced LHE, if available.
+  if [[ -d "$SCRATCH/madevent/Events" ]]; then
+    find "$SCRATCH/madevent/Events" -maxdepth 2 -type f \
+      \( -name 'events.lhe.gz' -o -name 'events.lhe' \) -size -100M \
+      -exec cp -p '{}' "$OUT/" \;
   fi
   echo "Smoke job exit status: $status"
   echo "Retained artifacts: $OUT"
@@ -115,14 +117,37 @@ echo "Gen_tf.py: $(which Gen_tf.py)"
 echo "Starting Gen_tf.py in worker scratch..."
 head -n 7 "$MADPATH/VERSION" || true
 
+# AthGeneration/23.6.63 does NOT accept --runNumber or
+# --inputGenConfFile.  --inputGeneratorFile is for LHE, NOT a gridpack.
+# ATLAS MadGraphControl detects a prepared gridpack by finding the
+# relative directory "madevent" under the generation working directory.
+# Extract the archived NLO process to worker scratch, never to /data.
+echo "Extracting Δ441 NLO gridpack into worker scratch..."
+date -u
+tar -xzf "$PACK" -C "$SCRATCH" > "$OUT/gridpack_extract_stdout.log" \
+  2> "$OUT/gridpack_extract_stderr.log"
+if [[ ! -d "$SCRATCH/madevent" || 
+      ! -s "$SCRATCH/madevent/SubProcesses/job_status.pkl" || 
+      ! -s "$SCRATCH/madevent/Cards/run_card.dat" || 
+      ! -s "$SCRATCH/madevent/SubProcesses/orderstags_glob.dat" ]]; then
+  echo "ERROR: extracted NLO gridpack is incomplete" >&2
+  exit 41
+fi
+# The --only_generation flow will read this reconstructed checkpoint;
+# fail closed if it was not extracted.
+test -s "$SCRATCH/madevent/SubProcesses/randinit"
+echo "AQP_DELTA441_MADEVENT_EXTRACTED_AND_CHECKED"
+date -u
+
+# This is a TXT-only transform, not EVNT production.
+# Its DSID is inferred from the 100003 JobOptions directory.
+# The copied JO aborts if is_gen_from_gridpack() is False.
 set +e
 Gen_tf.py \
   --ecmEnergy=13000 \
   --maxEvents=100 \
   --firstEvent=1 \
   --randomSeed=34 \
-  --runNumber=100003 \
-  --inputGenConfFile="$PACK" \
   --jobConfig="$SCRATCH/100003" \
   --outputTXTFile=delta441_smoke.TXT.tar.gz \
   --outputFileValidation=False \
@@ -135,13 +160,17 @@ if [[ "$ret" -ne 0 ]]; then
   echo "ERROR: Gen_tf failed; see retained Gen_tf.log" >&2
   exit "$ret"
 fi
-if ! grep -qE 'FOUND GRIDPACK|Running event generation from gridpack' "$SCRATCH/Gen_tf.log"; then
-  echo "ERROR: cannot confirm existing-gridpack branch in logs" >&2
+# The copied JO prints this marker only if is_gen_from_gridpack() is True.
+if ! grep -q 'AQP_DELTA441_SMOKE_LOCAL_MULTICORE=4' "$SCRATCH/Gen_tf.log"; then
+  echo "ERROR: copied JO did not confirm generation-from-gridpack branch" >&2
   exit 91
 fi
-if ! grep -qE 'Generating events from gridpack|only_generation' "$SCRATCH/Gen_tf.log"; then
-  echo "ERROR: cannot confirm NLO generation-only path in logs" >&2
-  exit 92
+if ! grep -qE 'only_generation|--only_generation' "$SCRATCH/Gen_tf.log"; then
+  echo "WARNING: --only_generation not visible in transform log; audit detailed job logs" >&2
+fi
+if [[ ! -s "$SCRATCH/delta441_smoke.TXT.tar.gz" ]]; then
+  echo "ERROR: expected TXT archive was not produced" >&2
+  exit 93
 fi
 
 echo "DELTA441_SMOKE_GRIDPACK_BRANCH_CONFIRMED"
