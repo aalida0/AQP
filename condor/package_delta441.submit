@@ -1,0 +1,31 @@
+# Recovered delta441 backup: package validated MINT1 integration into NLO gridpack.
+# Code/source script lives in /home; heavy inputs and compressed output in /data.
+# Worker executes the transferred script from HTCondor scratch.
+# No FileSystemDomain, no MYFilesystem, no Ceph event logs.
+
+universe = vanilla
+
+executable = /home/aalida/AQP/Wjets/WENU/package_wjets_gridpacks.sh
+arguments = delta441_backup
+
+initialdir = /home/aalida/AQP/Wjets/WENU
+getenv = True
+
+should_transfer_files = YES
+transfer_executable = True
+when_to_transfer_output = ON_EXIT
+transfer_output_files = ""
+
+environment = "AQP_WENU_HOME=/data/aalida/AQP/Wjets/WENU AQP_WENU_DATA=/data/aalida/AQP/Wjets/WENU/gridpacks"
+
+request_cpus = 1
+request_memory = 2048MB
+request_disk = 2048MB
+
+output = /home/aalida/AQP/Wjets/WENU/packaging_logs/delta441.$(Cluster).out
+error  = /home/aalida/AQP/Wjets/WENU/packaging_logs/delta441.$(Cluster).err
+log    = /home/aalida/AQP/Wjets/WENU/packaging_logs/delta441.$(Cluster).log
+
+notification = Never
+
+queue
