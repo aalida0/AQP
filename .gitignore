@@ -1,0 +1,44 @@
+# AQP: commit source code and JobOptions, never generated production outputs.
+# ATLAS / MadGraph generated process directories and event samples
+PROCNLO_*/
+madevent/
+aqp_condor_timing/
+recovery/
+smoke_*/
+timing_test/
+*_backup/
+*.GRID.tar.gz
+*.tar.gz
+*.lhe
+*.lhe.gz
+*.root
+*.pool.root
+*.hepmc
+*.hepmc.gz
+*.yoda
+*.yoda.gz
+
+# Run-time and debugging output
+*.log
+*.log.*
+prmon.*
+runargs.generate.py
+runwrapper.generate.sh
+.asetup.save
+
+# Python/build/editor artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+build/
+dist/
+*.egg-info/
+.DS_Store
+
+# Personal credentials and secrets
+.env
+.env.*
+*.pem
+*.key
