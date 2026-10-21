@@ -39,7 +39,7 @@ def main():
         "p_dir", "channel", "split", "accuracy", "niters", "npoints",
         "mint_mode", "run_mode", "wgt_frac", "dirname", "resultABS",
         "errorABS", "result", "error", "niters_done", "npoints_done",
-        "time_spend", "nevents", "err_percABS", "err_perc",
+        "time_spend", "nevents", "err_percABS", "err_perc", "fold_string",
     }
 
     problems = []
@@ -56,6 +56,12 @@ def main():
         if pair in pairs:
             problems.append("Duplicate job: {}".format(pair))
         pairs.add(pair)
+        if set(job) != original_keys:
+            problems.append("Field mismatch vs trusted checkpoint at index {}: missing={} extra={}".format(
+                i, sorted(original_keys - set(job)), sorted(set(job) - original_keys)))
+        if job.get("fold_string") != "4 4 1":
+            problems.append("Incorrect delta441 fold_string at index {}: {!r}".format(
+                i, job.get("fold_string")))
         if job["mint_mode"] != 2 or job["run_mode"] != "all" or job["split"] != 0:
             problems.append("Wrong MINT2 metadata at index {}".format(i))
         if not str(path).startswith("/data/"):
