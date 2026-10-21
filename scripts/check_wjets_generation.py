@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Read-only AQP W+jets MINT2/LHE checks (Python 3.8+).
 
-Checks allocation, per-GF imode2 logs, combined gzip LHE event count,
+Checks allocation, archived per-GF MINT2 logs, combined gzip LHE event count,
 and MINT1 res_1.dat files. Does not modify production files or unpickle.
 """
 import argparse
@@ -61,18 +61,34 @@ def inspect(base, cfg):
                 active.append((str(gfrel), n))
         print("Allocation: %d active / %d entries; %d events; malformed=%d" %
               (len(active), entries, allocated, bad))
-        no_imode = []
-        abnormal = []
+        missing_archive = []
+        abnormal_archive = []
+        normal_archive = 0
+        fallback_working = 0
         for gfrel, n in active:
-            log = sub / gfrel / "log.txt"
-            content = log.read_text(errors="replace") if log.is_file() else ""
+            folder = sub / gfrel
+            archived = folder / "log_MINT2.txt"
+            working = folder / "log.txt"
+            content = (archived.read_text(errors="replace")
+                       if archived.is_file() else "")
             if not IMODE2.search(content):
-                no_imode.append((gfrel, n))
+                missing_archive.append((gfrel, n))
+                if working.is_file() and IMODE2.search(
+                        working.read_text(errors="replace")):
+                    fallback_working += 1
             elif "Time spent in Total" not in content or "Fortran runtime error" in content:
-                abnormal.append((gfrel, n))
-        print("Allocated GF without imode2 log: %d" % len(no_imode))
-        print("Allocated GF with abnormal imode2 log: %d" % len(abnormal))
-        for title, rows in (("NO_IMODE2", no_imode), ("ABNORMAL_IMODE2", abnormal)):
+                abnormal_archive.append((gfrel, n))
+            else:
+                normal_archive += 1
+        print("Normal archived MINT2 logs: %d" % normal_archive)
+        print("Allocated GF without usable archived MINT2 log: %d" %
+              len(missing_archive))
+        print("Allocated GF with abnormal archived MINT2 log: %d" %
+              len(abnormal_archive))
+        print("Missing archived logs with imode2 in working log.txt: %d" %
+              fallback_working)
+        for title, rows in (("NO_ARCHIVED_MINT2", missing_archive),
+                            ("ABNORMAL_ARCHIVED_MINT2", abnormal_archive)):
             for gfrel, n in rows[:20]:
                 print("  %s: %s (allocation %d)" % (title, gfrel, n))
             if len(rows) > 20:
