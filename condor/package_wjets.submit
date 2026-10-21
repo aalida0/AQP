@@ -1,0 +1,29 @@
+# HTCondor packaging of completed W+jets MG5 FxFx gridpacks.
+# Submit from a UChicago AF login node after creating the /home log folder.
+# Input directory: /home/aalida/AQP/Wjets/WENU/<config>/PROCNLO_*
+# Output directory: /data/aalida/AQP/Wjets/WENU/gridpacks
+# All paths are absolute; no MYFilesystem or filesystem-domain requirements.
+# To package migrated process dirs, change AQP_WENU_HOME below to their
+# new common absolute parent under /data, keeping log/output/error under /home.
+
+universe = vanilla
+executable = /bin/bash
+arguments = /home/aalida/AQP/Wjets/WENU/package_wjets_gridpacks.sh standard111 delta111 delta221
+
+initialdir = /home/aalida/AQP/Wjets/WENU
+getenv = True
+should_transfer_files = NO
+environment = "AQP_WENU_HOME=/home/aalida/AQP/Wjets/WENU AQP_WENU_DATA=/data/aalida/AQP/Wjets/WENU/gridpacks"
+
+request_cpus = 1
+request_memory = 2048MB
+request_disk = 2048MB
+
+# The HTCondor event log is written on the submit host.
+# UChicago AF prohibits Ceph (/data) event logs, so use NFS (/home).
+output = /home/aalida/AQP/Wjets/WENU/packaging_logs/package.$(Cluster).out
+error = /home/aalida/AQP/Wjets/WENU/packaging_logs/package.$(Cluster).err
+log = /home/aalida/AQP/Wjets/WENU/packaging_logs/package.$(Cluster).log
+notification = Never
+
+queue
