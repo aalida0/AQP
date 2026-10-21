@@ -6,7 +6,7 @@ set -euo pipefail
 
 BASE=/data/aalida/AQP/Wjets/WENU
 PACK="$BASE/gridpacks/mc_13TeV.aMCPy8EG_Wenu_FxFx_2jets_HT2bias_delta441_backup.MG3511.GRID.tar.gz"
-OUT="$BASE/smoke_tests/delta441_backup/seed34_100events_retry2"
+OUT="$BASE/smoke_tests/delta441_backup/seed34_100events_retry3"
 CORES=4
 SCRATCH="$(printenv _CONDOR_SCRATCH_DIR || true)"
 if [[ -z "$SCRATCH" || ! -d "$SCRATCH" ]]; then
@@ -40,7 +40,7 @@ copy_artifacts() {
   echo "$status" > "$OUT/runner_exit_code"
   if [[ -f "$SCRATCH/Gen_tf.log" ]]; then
     cp -p "$SCRATCH/Gen_tf.log" "$OUT/Gen_tf.log"
-    grep -E 'FOUND GRIDPACK|only_generation|Generating events|MINT|ERROR|FATAL|Traceback' \
+    grep -E 'AQP_DELTA441|FOUND GRIDPACK|only_generation|Generating events|MINT|ERROR|FATAL|Traceback' \
       "$SCRATCH/Gen_tf.log" | tail -n 150 > "$OUT/diagnostic_tail.txt"
   fi
   for f in runargs.generate.py jobReport.json log.generate; do
@@ -161,6 +161,10 @@ if [[ "$ret" -ne 0 ]]; then
   exit "$ret"
 fi
 # The copied JO prints this marker only if is_gen_from_gridpack() is True.
+if ! grep -q 'AQP_DELTA441_MGCONTROL_GRIDPACK_INIT_PASS' "$SCRATCH/Gen_tf.log"; then
+  echo "ERROR: existing-gridpack MGControl was not initialized by smoke JO" >&2
+  exit 90
+fi
 if ! grep -q 'AQP_DELTA441_SMOKE_LOCAL_MULTICORE=4' "$SCRATCH/Gen_tf.log"; then
   echo "ERROR: copied JO did not confirm generation-from-gridpack branch" >&2
   exit 91
