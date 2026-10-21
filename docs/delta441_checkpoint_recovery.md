@@ -22,3 +22,11 @@ The checkpoint builder was amended to match MG5 write_res_txt_file ordering (des
 Next, re-download the latest scripts/rebuild_wjets_delta441_checkpoint.py into /home, re-run audit, and explicitly write a checkpoint with --write-checkpoint --report /data/aalida/AQP/Wjets/WENU/recovery_reports/delta441_checkpoint_audit.json. Run scripts/validate_delta441_checkpoint.py against the trusted standard111 job_status.pkl and new Delta441 pickle. If comparison signals missing keys, halt and investigate; do not launch generation.
 
 The next stage will need a no-execution-from-/data runtime design. Do not invoke MG5's only_generation from the /data process tree or rerun MINT0/1.
+
+## Recovery checkpoint schema audit (October 21, 2026)
+
+Following successful 300/300 GF preflight and initial checkpoint creation, comparison with the trusted `standard111` pickle found 20 reconstructed keys versus 21 reference keys. Only the key `fold_string` was missing. MG5 v3.5.11 `write_input_file` (called during MINT1 setup) populates `fold_string=' '.join(map(str, run_card['folding']))`; for Δ441 this is `4 4 1`. No MINT grid/integral rerun is warranted.
+
+A separate repair utility (`scripts/repair_delta441_fold_string.py`) defaults to audit-only and, with `--apply`, hard-links the original checkpoint to `SubProcesses/job_status.pre_fold_string.pkl` and atomically replaces just `job_status.pkl` with the 300-job list amended. It writes only to the /data recovery copy. The checkpoint builder has also been fixed for *future fresh reconstructions*. The validator now requires all original reference keys in each job and `fold_string='4 4 1'` for all 300.
+
+After repair, rerun `scripts/validate_delta441_checkpoint.py` from /home, comparing /data Δ441 checkpoint against a trusted original standard111 checkpoint from /home. Wait for `CHECKPOINT_SCHEMA_PASS` before attempting MadGraph generation-only. No original home process files must be changed.
