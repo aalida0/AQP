@@ -1,18 +1,24 @@
 # HTCondor packaging of completed W+jets MG5 FxFx gridpacks.
 # Submit from a UChicago AF login node after creating the /home log folder.
-# Input directory: /home/aalida/AQP/Wjets/WENU/<config>/PROCNLO_*
-# Output directory: /data/aalida/AQP/Wjets/WENU/gridpacks
-# All paths are absolute; no MYFilesystem or filesystem-domain requirements.
-# To package migrated process dirs, change AQP_WENU_HOME below to their
-# new common absolute parent under /data, keeping log/output/error under /home.
+# Data access is by absolute path. Only the small script is transferred.
+# Output gridpacks go directly to /data. Scheduler event/stdout/stderr logs
+# live on /home (NFS); no logs are written to Ceph.
+# NOTE: /home input paths are not guaranteed on execute nodes. If absent,
+# copy the source process directories to /data, then change AQP_WENU_HOME.
 
 universe = vanilla
-executable = /bin/bash
-arguments = /home/aalida/AQP/Wjets/WENU/package_wjets_gridpacks.sh standard111 delta111 delta221
+executable = /home/aalida/AQP/Wjets/WENU/package_wjets_gridpacks.sh
+arguments = standard111 delta111 delta221
 
 initialdir = /home/aalida/AQP/Wjets/WENU
 getenv = True
-should_transfer_files = NO
+# YES avoids implicit TARGET.FileSystemDomain == MY.FileSystemDomain
+# and transfers only the small executable; heavy process files are NOT
+# included in transfer_input_files.
+should_transfer_files = YES
+transfer_executable = True
+when_to_transfer_output = ON_EXIT
+transfer_output_files = ""
 environment = "AQP_WENU_HOME=/home/aalida/AQP/Wjets/WENU AQP_WENU_DATA=/data/aalida/AQP/Wjets/WENU/gridpacks"
 
 request_cpus = 1
