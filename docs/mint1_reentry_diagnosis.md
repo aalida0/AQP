@@ -61,3 +61,11 @@ Before any attempted recovery, verify that the actual generated `mint_module.f90
 5. Recompute timing with the original completed worker attempts, excluding failed rereads. The earlier one-duration-per-GF timing parser is provisional.
 
 The current run cards and exact ATLAS source remain authoritative; upstream is a reference, not a substitute for an ATLAS-specific source audit.
+
+## Confirmed local source check (21 October 2026)
+
+The generated ATLAS 3.5.11 `mint_module.f90` matches upstream in the relevant blocks: the `imode.ge.1` writer includes `MAX` records, whereas the `imode.ge.2` reader consumes them. Both GF6.0 and GF7.0 in `standard111/P2_gu_vedepg` contain these records before `SUM/QSM/SPE`.
+
+**Important correction:** `GF6.0/log.txt` and `GF7.0/log.txt` both explicitly say `Generating events, doing only one iteration` and `imode is 2`. They are NOT recovered MINT1 logs. GF7.0 `log_MINT1.txt` has a bad-real parse error; its separate `imode=2` event generation log has a normal-looking completion, indicating the stored MINT grids were readable in the subsequent phase. Full numerical integrity of all 26 affected GF targets remains to be validated.
+
+Next focus: compare event-generation outputs and gridpack contents for standard111, delta111 and delta221; validate the 15 suspect `delta441_backup` GF integration artifacts and finalize without an unguarded `launch` or blanket recomputation. Timing estimates remain provisional while job provenance is unresolved.
