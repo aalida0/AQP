@@ -163,6 +163,9 @@ def stage_configuration(process, allow_write):
     if any(j["resultABS"] == 0 for j in jobs):
         fail("Zero-ABS channel present: upstream MG step-1 allocation divides by resultABS. "
              "Do not resume until audited: {}".format(anomalous[:20]))
+    # v3.5.11 write_res_txt_file() sorts jobs before saving checkpoint.
+    # MINT2 weighted assignment uses the same order.
+    jobs.sort(key=lambda job: -job["errorABS"])
     cards = process / "Cards" / "run_card.dat"
     randinit = sub / "randinit"
     if not cards.is_file() or not randinit.is_file():
@@ -171,6 +174,32 @@ def stage_configuration(process, allow_write):
     if not re.fullmatch(r"r=\d+", rand):
         fail("Unexpected randinit format: {!r}".format(rand))
     card_text = cards.read_text(errors="replace")
+    # The MG RunCardNLO parser lowercases names and the last occurrence wins.
+    card_values = {}
+    for line in card_text.splitlines():
+        line = line.split("#", 1)[0].split("!", 1)[0]
+        if "=" not in line:
+            continue
+        value, name = line.rsplit("=", 1)
+        card_values[name.strip().lower()] = value.strip().lower()
+    desired = {"nevents": "1000", "req_acc": "0.0001",
+               "ickkw": "3", "mcatnlo_delta": "true", "nevt_job": "-1"}
+    for key, wanted in desired.items():
+        actual = card_values.get(key)
+        if key == "req_acc":
+            try:
+                ok = math.isclose(float(actual.replace("d", "e")), 1e-4,
+                                  rel_tol=1e-12, abs_tol=0)
+            except (ValueError, AttributeError):
+                ok = False
+        else:
+            ok = (actual == wanted)
+        if not ok:
+            fail("Run card {}: expected {}, found {}".format(key, wanted, actual))
+    folding = [int(x) for x in re.split(r"[ ,]+", card_values.get("folding", ""))
+               if x.isdigit()]
+    if folding != [4, 4, 1]:
+        fail("Unexpected delta441 folding: {}".format(card_values.get("folding")))
     def card_entries(key):
         return [line.strip() for line in card_text.splitlines()
                 if re.match(r"^\s*[^#!\n]*=\s*{}\s*(?:[#!]|$)".format(re.escape(key)), line, re.I)]
@@ -189,6 +218,10 @@ def stage_configuration(process, allow_write):
         "negative_signed_channels": sum(job["result"] < 0 for job in jobs),
         "seed": rand,
         "run_card_sha256": sha256(cards),
+        "effective_run_card": {key: card_values[key] for key in
+                               ("nevents", "req_acc", "ickkw",
+                                "mcatnlo_delta", "folding", "nevt_job")},
+        "checkpoint_sorting": "descending errorABS (MG5 v3.5.11)",
         "run_card_config": {
             key: card_entries(key)
             for key in ("nevents", "req_acc", "folding", "ickkw", "mcatnlo_delta", "nevt_job")
@@ -251,6 +284,8 @@ def main():
     print("quadrature ABS error:", "%.12g" % manifest["quadrature_abs_error"])
     print("negative signed channels:", manifest["negative_signed_channels"])
     print("randinit:", manifest["seed"])
+    print("Effective MC@NLO-Delta:", manifest["effective_run_card"]["mcatnlo_delta"])
+    print("Checkpoint job ordering:", manifest["checkpoint_sorting"])
     print("Run card configuration:")
     for key, lines in manifest["run_card_config"].items():
         print("  {}: {}".format(key, " ; ".join(lines) if lines else "NOT FOUND"))
