@@ -135,6 +135,7 @@ def stage_configuration(process, allow_write):
                 "npoints": -1,   # historical MINT0 default (not used in MINT2)
                 "mint_mode": 2,  # after collecting MINT1, before generation
                 "run_mode": "all",
+                "fold_string": "4 4 1",  # propagated from MINT1 prepare_directories
                 "wgt_frac": 1.0,
                 "dirname": str(gf),
                 "resultABS": nums[0],
