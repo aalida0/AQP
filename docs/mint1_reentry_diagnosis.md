@@ -87,3 +87,10 @@ standard111, delta111 and delta221 each have nonempty SubProcesses/job_status.pk
 delta441_backup has nonempty orderstags_glob.dat and 300/300 structurally present integration artifact sets but lacks job_status.pkl, nevents_unweighted and combined LHE. Standard MG --only_generation will not start without reconstructing the job state after MINT1 collection. Never use unguarded launch; work on an isolated recovery copy with archived originals.
 
 Read-only checker: scripts/check_wjets_generation.py validates allocation totals, missing/abnormal imode2 logs and full gzip LHE event counts. The earlier standard111 recovery using a tar root named madevent passed a 100-event Gen_tf.py smoke test; use that layout as the packaging reference after LHE checks.
+
+
+## Archived MINT2 confirmation (October 21)
+
+Delta221's two purportedly missing generating channels are verified by archived `log_MINT2.txt`: `P2_gu_vedepg/GF7.0` (5 allocated events, Fortran total 35.7384 s), and `P2_dg_emuvexg/GF4.0` (2 allocated events, Fortran total 8.5149 s). Both have `events.lhe`, `res_2.dat`, and the expected `imode is 2` marker. The transient `log.txt` was overwritten by later MINT1 activity. Delta221's combined compressed LHE has 1000 event blocks, matching allocation. No regeneration is justified by these two log discrepancies.
+
+The original `check_wjets_generation.py` output has old labels even after a fetch in the user terminal. The development branch now contains an updated version that inspects `log_MINT2.txt`. Pin raw downloads to commit `a469ea01068d868502f526e56f6e4256b8585ae3` if a CDN serves the old branch version.
