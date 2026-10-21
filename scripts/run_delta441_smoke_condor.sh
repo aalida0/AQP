@@ -6,7 +6,7 @@ set -euo pipefail
 
 BASE=/data/aalida/AQP/Wjets/WENU
 PACK="$BASE/gridpacks/mc_13TeV.aMCPy8EG_Wenu_FxFx_2jets_HT2bias_delta441_backup.MG3511.GRID.tar.gz"
-OUT="$BASE/smoke_tests/delta441_backup/seed34_100events"
+OUT="$BASE/smoke_tests/delta441_backup/seed34_100events_retry1"
 CORES=4
 SCRATCH="$(printenv _CONDOR_SCRATCH_DIR || true)"
 if [[ -z "$SCRATCH" || ! -d "$SCRATCH" ]]; then
@@ -65,24 +65,54 @@ echo "Worker scratch: $PWD"
 echo "Archive: $PACK"
 echo "Results: $OUT"
 
-# ATLAS setup scripts may use unset variables.
-set +u
+# ATLAS setup scripts are not safe with Bash -e/-u:
+# earlier run 3897674 died in atlasLocalSetup.sh with "-e is set".
+# Capture both setup steps independently and preserve their diagnostics
+# under /data even if Gen_tf never starts.
 export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase
-source "$ATLAS_LOCAL_ROOT_BASE/user/atlasLocalSetup.sh"
-asetup AthGeneration,23.6.63
+SETUP_LOG="$OUT/atlas_environment_setup.log"
+echo "Starting ATLAS environment setup" | tee "$SETUP_LOG"
+set +e
+set +u
+source "$ATLAS_LOCAL_ROOT_BASE/user/atlasLocalSetup.sh" >> "$SETUP_LOG" 2>&1
+als_exit=$?
+echo "atlasLocalSetup.sh exit code: $als_exit" | tee -a "$SETUP_LOG"
+if [[ "$als_exit" -eq 0 ]]; then
+  asetup AthGeneration,23.6.63 >> "$SETUP_LOG" 2>&1
+  asetup_exit=$?
+  echo "asetup AthGeneration,23.6.63 exit code: $asetup_exit" | tee -a "$SETUP_LOG"
+else
+  asetup_exit=99
+fi
+set -e
 set -u
+tail -n 35 "$SETUP_LOG"
+if [[ "$als_exit" -ne 0 || "$asetup_exit" -ne 0 ]]; then
+  echo "ERROR: ATLAS environment setup failed. See $SETUP_LOG" >&2
+  exit 11
+fi
 
 # MadGraphUtils.setNCores() uses ATHENA_CORE_NUMBER to override any
 # cluster_type/run_mode settings inherited from the old gridpack.
 export ATHENA_CORE_NUMBER="$CORES"
 export OMP_NUM_THREADS=1
-command -v Gen_tf.py >/dev/null
-test -n "$(printenv MADPATH || true)"
-test -n "$(printenv PY8PATH || true)"
+if ! command -v Gen_tf.py >/dev/null; then
+  echo "ERROR: Gen_tf.py unavailable after asetup" >&2
+  exit 12
+fi
+if [[ -z "$(printenv MADPATH || true)" ]]; then
+  echo "ERROR: MADPATH not defined by AthGeneration setup" >&2
+  exit 13
+fi
+if [[ -z "$(printenv PY8PATH || true)" ]]; then
+  echo "ERROR: PY8PATH not defined by AthGeneration setup" >&2
+  exit 14
+fi
 echo "MADPATH=$MADPATH"
 echo "PY8PATH=$PY8PATH"
 echo "ATHENA_CORE_NUMBER=$ATHENA_CORE_NUMBER"
 echo "Gen_tf.py: $(which Gen_tf.py)"
+echo "Starting Gen_tf.py in worker scratch..."
 head -n 7 "$MADPATH/VERSION" || true
 
 set +e
