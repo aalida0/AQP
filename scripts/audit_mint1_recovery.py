@@ -81,13 +81,13 @@ def main():
                 flags["short"] += 1
             if suspect:
                 flags["suspect"] += 1
-                # log.txt is usually an alias/copy, but check for a
-                # distinct apparently successful log before rerunning.
+                # log.txt can belong to a later step (e.g. event generation).
+                # It is not evidence of successful MINT1.
                 different = False
                 if alias["present"] and actual["present"]:
                     different = (gf / "log.txt").read_bytes() != (
                         gf / "log_MINT1.txt").read_bytes()
-                alternative = different and alias["total"] and not alias["crash_marker"]
+                other_phase_log_has_total = different and alias["total"] and not alias["crash_marker"]
                 rows.append({
                     "configuration": cfg,
                     "subprocess": gf.parent.name,
@@ -96,7 +96,7 @@ def main():
                     "has_fortran_total": actual["total"],
                     "has_crash_marker": actual["crash_marker"],
                     "error_or_signal": actual["reason"],
-                    "log_txt_distinct_and_complete": alternative,
+                    "log_txt_has_total_phase_unverified": other_phase_log_has_total,
                     "results_dat_nonempty": (
                         (gf / "results.dat").is_file()
                         and (gf / "results.dat").stat().st_size > 0),
@@ -113,7 +113,7 @@ def main():
                flags["crash_marker"], flags["missing"], flags["short"]))
     keys = ("configuration", "subprocess", "GF", "mint1_wall_seconds",
             "has_fortran_total", "has_crash_marker", "error_or_signal",
-            "log_txt_distinct_and_complete", "results_dat_nonempty",
+            "log_txt_has_total_phase_unverified", "results_dat_nonempty",
             "mint_grids_nonempty", "mint1_mtime")
     with open(args.csv, "w", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=keys)
@@ -121,11 +121,12 @@ def main():
         writer.writerows(rows)
     print("\nSUSPECT TARGETS:")
     for row in rows:
-        print("%-16s %-29s %-6s %8s s | %-65s | alternative=%s" %
+        print("%-16s %-29s %-6s %8s s | %-65s | log_txt_has_total_phase_unverified=%s" %
               (row["configuration"], row["subprocess"], row["GF"],
                str(row["mint1_wall_seconds"]), row["error_or_signal"][:65],
-               row["log_txt_distinct_and_complete"]))
+               row["log_txt_has_total_phase_unverified"]))
     print("\nCSV: %s (%d targets)" % (args.csv, len(rows)))
+    print("NOTE: log.txt may be from a later phase; it does not certify MINT1 success.")
     print("This audit identifies suspicious files, not the cause of failure.")
     print("Never overwrite or recompute a GF based only on these flags.")
 
