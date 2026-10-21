@@ -3,8 +3,9 @@
 # Data access is by absolute path. Only the small script is transferred.
 # Output gridpacks go directly to /data. Scheduler event/stdout/stderr logs
 # live on /home (NFS); no logs are written to Ceph.
-# NOTE: /home input paths are not guaranteed on execute nodes. If absent,
-# copy the source process directories to /data, then change AQP_WENU_HOME.
+# The three complete process trees must first be copied to /data at
+# /data/aalida/AQP/Wjets/WENU/<config>/PROCNLO_loop_sm-no_b_mass_0.
+# No symbolic links or /home source access from worker nodes required.
 
 universe = vanilla
 executable = /home/aalida/AQP/Wjets/WENU/package_wjets_gridpacks.sh
@@ -19,7 +20,7 @@ should_transfer_files = YES
 transfer_executable = True
 when_to_transfer_output = ON_EXIT
 transfer_output_files = ""
-environment = "AQP_WENU_HOME=/home/aalida/AQP/Wjets/WENU AQP_WENU_DATA=/data/aalida/AQP/Wjets/WENU/gridpacks"
+environment = "AQP_WENU_HOME=/data/aalida/AQP/Wjets/WENU AQP_WENU_DATA=/data/aalida/AQP/Wjets/WENU/gridpacks"
 
 request_cpus = 1
 request_memory = 2048MB
