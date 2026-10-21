@@ -125,7 +125,7 @@ def main():
 
     print("GF directories:                 ", len(rows))
     print("Complete MINT1 timing fields:   ", len(with_mint))
-    print("Matched Condor timing records:  ", len(paired))
+    print("Paired positive MINT/Condor times:", len(paired))\n    print("Condor durations available:       ", len(condor))\n    print("Zero/nonpositive MINT1 times:     ", sum(1 for r in rows if r["mint_seconds"] is not None and r["mint_seconds"] <= 0))\n    print("Zero/nonpositive Condor times:    ", sum(1 for r in rows if r["condor_last_attempt_seconds"] is not None and r["condor_last_attempt_seconds"] <= 0))
     print("Total MINT1 hours:               %.3f" % (sum(with_mint) / 3600))
     print("Total Fortran timing hours:      %.3f" % (sum(fortran) / 3600))
     print("Total selected Condor hours:     %.3f" % (sum(condor) / 3600))
