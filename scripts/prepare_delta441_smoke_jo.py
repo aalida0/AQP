@@ -3,7 +3,8 @@
 
 The original JO in /home is NEVER modified. This creates a complete copy
 of its JO directory in /home/.../smoke_jo/100003/, and changes only
-the gridpack-generation config to run_mode=2 and nb_core=4.
+the gridpack-generation config to run_mode=2 and nb_core=4,
+and explicitly initializes MGControl from the already-extracted madevent.  
 
 Only the already-extracted input gridpack takes the gridpack branch.
 There is no MadGraph reintegration. No files are written to /data here.
@@ -56,7 +57,7 @@ def main():
         "\n".format(a.cores, a.cores)
     )
     amended = original.replace(marker, patch + "modify_config_card(", 1)
-    # A failed/missing --inputGenConfFile MUST NOT fall through to
+    # A missing/extraction-failed gridpack MUST NOT fall through to
     # new_process() and trigger MINT0/1. Abort before that branch.
     fail_closed_guard = (
         "# AQP smoke safety: NEVER create a fresh process here.\n"
@@ -66,6 +67,42 @@ def main():
     )
     amended = amended.replace("if not is_gen_from_gridpack():",
                               fail_closed_guard + "if not is_gen_from_gridpack():", 1)
+
+    # In the AthGeneration/23.6.63 legacy MGControl API, new_process()
+    # normally initializes MadGraphUtils.my_MGC_instance. On gridpack
+    # generation, new_process() is correctly skipped; however, the
+    # release's modify_run_card() has no None guard and fails attempting
+    # my_MGC_instance.runCardDict.update(settings). Initialize the
+    # existing-gridpack-only object explicitly from 'madevent/' instead.
+    # Place this after MADGRAPH_PDFSETTING is defined and BEFORE the
+    # first modify_run_card() call.
+    if amended.count("\nmodify_run_card(") != 1:
+        raise ValueError("Expected exactly one top-level modify_run_card call")
+    mg_init = (
+        "\n# AQP smoke fix: legacy MadGraphControl needs an MGControl object\n"
+        "# when loading an already-extracted NLO gridpack. Never call\n"
+        "# new_process() from this path: that would recreate integration.\n"
+        "if is_gen_from_gridpack():\n"
+        "    import MadGraphControl.MadGraphUtils as _aqp_mg_utils\n"
+        "    from MadGraphControl.MGC import MGControl as _AQP_MGControl\n"
+        "    if _aqp_mg_utils.my_MGC_instance is None:\n"
+        "        _aqp_mg_utils.my_MGC_instance = _AQP_MGControl(\n"
+        "            pdf_setting=_aqp_mg_utils.MADGRAPH_PDFSETTING\n"
+        "        )\n"
+        "    _aqp_mgc = _aqp_mg_utils.my_MGC_instance\n"
+        "    if not getattr(_aqp_mgc, 'is_gen_from_gridpack', False):\n"
+        "        raise RuntimeError('AQP_SMOKE_ABORT_MGCONTROL_NOT_GRIDPACK')\n"
+        "    if _aqp_mgc.process_dir != str(MADGRAPH_GRIDPACK_LOCATION):\n"
+        "        raise RuntimeError('AQP_SMOKE_ABORT_WRONG_PROCESS_DIR')\n"
+        "    if not getattr(_aqp_mgc, 'isNLO', False):\n"
+        "        raise RuntimeError('AQP_SMOKE_ABORT_NOT_NLO')\n"
+        "    if not getattr(_aqp_mgc, 'runCardDict', None):\n"
+        "        raise RuntimeError('AQP_SMOKE_ABORT_MISSING_RUN_CARD')\n"
+        "    print('AQP_DELTA441_MGCONTROL_GRIDPACK_INIT_PASS')\n"
+        "\n"
+    )
+    amended = amended.replace("\nmodify_run_card(", mg_init + "modify_run_card(", 1)
+
     # Parse, but DO NOT execute the JO outside Athena.
     ast.parse(amended, filename=str(src))
     if src.parent.is_symlink() or dst.parent.is_symlink():
@@ -89,6 +126,7 @@ def main():
     print("Original (unchanged):", src)
     print("Full JO copy:", jo_out)
     print("Run-mode override: 2 (local multicore), cores:", a.cores)
+    print("MGControl initialization: existing-gridpack branch only, no new_process")
     print("Original JO size:", len(original), "patched JO size:", len(amended))
     print("No new-process generation or MadGraph executable was invoked.")
 
