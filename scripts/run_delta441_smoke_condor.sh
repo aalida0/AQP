@@ -140,6 +140,37 @@ test -s "$SCRATCH/madevent/SubProcesses/randinit"
 echo "AQP_DELTA441_MADEVENT_EXTRACTED_AND_CHECKED"
 date -u
 
+# The archived process has a collector makefile linking '-lc++'.  On the
+# AthGeneration/23.6.63 GCC14 EL9 toolchain, GCC uses '-lstdc++'.
+# Patch the worker-local extracted copy ONLY. Preserve the original gridpack.
+COLLECT_MAKE="$SCRATCH/madevent/SubProcesses/makefile"
+if [[ ! -f "$COLLECT_MAKE" ]]; then
+  echo "ERROR: missing collect_events makefile: $COLLECT_MAKE" >&2
+  exit 42
+fi
+LIBSTDCXX="$(gfortran -print-file-name=libstdc++.so)"
+if [[ "$LIBSTDCXX" == "libstdc++.so" || ! -f "$LIBSTDCXX" ]]; then
+  echo "ERROR: GCC toolchain cannot locate libstdc++.so" >&2
+  exit 43
+fi
+if grep -Fq -- '-lc++' "$COLLECT_MAKE"; then
+  cp -p "$COLLECT_MAKE" "$COLLECT_MAKE.before_stdlib_linkfix"
+  sed -i 's/-lc++/-lstdc++/g' "$COLLECT_MAKE"
+  echo "AQP_DELTA441_SCRATCH_COLLECTOR_LINK_FIX_APPLIED"
+else
+  echo "AQP_DELTA441_SCRATCH_COLLECTOR_LINK_FIX_NOT_NEEDED"
+fi
+# Compile this small collector before launching MINT2, so any remaining
+# toolchain/linker incompatibility fails cheaply instead of after events.
+if ! make -C "$SCRATCH/madevent/SubProcesses" collect_events \
+  > "$OUT/collect_events_link_preflight.log" 2>&1; then
+  echo "ERROR: collect_events link preflight failed" >&2
+  tail -n 60 "$OUT/collect_events_link_preflight.log" >&2
+  exit 44
+fi
+test -x "$SCRATCH/madevent/SubProcesses/collect_events"
+echo "AQP_DELTA441_COLLECT_EVENTS_LINK_PASS"
+
 # This is a TXT-only transform, not EVNT production.
 # Its DSID is inferred from the 100003 JobOptions directory.
 # The copied JO aborts if is_gen_from_gridpack() is False.
