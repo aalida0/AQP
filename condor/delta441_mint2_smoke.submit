@@ -14,7 +14,9 @@ transfer_input_files = /home/aalida/AQP/Wjets/WENU/smoke_jo/100003
 when_to_transfer_output = ON_EXIT
 transfer_output_files = ""
 
-request_cpus = 4
+# The dedicated event-generation JO uses run_mode=0, nb_core=1.
+# Request exactly one CPU; no nested Condor or Athena multicore.
+request_cpus = 1
 request_memory = 8192MB
 request_disk = 45000MB
 
