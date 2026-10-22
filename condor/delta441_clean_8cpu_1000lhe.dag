@@ -1,0 +1,7 @@
+# One submission: create the corrected archive, then run the multicore test.
+# DAGMan does not run the 8-core job if the packager fails.
+JOB CLEAN delta441_gridpack_clean_v1.submit
+JOB LHE delta441_clean_v1_8cpu_seed137_1000lhe.submit
+PARENT CLEAN CHILD LHE
+RETRY CLEAN 0
+RETRY LHE 0
