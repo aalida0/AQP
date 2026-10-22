@@ -2,6 +2,9 @@
 # DAGMan does not run the 8-core job if the packager fails.
 JOB CLEAN delta441_gridpack_clean_v1.submit
 JOB LHE delta441_clean_v1_8cpu_seed137_1000lhe.submit
+JOB SHOWER delta441_clean_v1_seed137_fxfx_shower.submit
 PARENT CLEAN CHILD LHE
+PARENT LHE CHILD SHOWER
 RETRY CLEAN 0
 RETRY LHE 0
+RETRY SHOWER 0
