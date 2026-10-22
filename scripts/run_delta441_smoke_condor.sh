@@ -6,8 +6,8 @@ set -euo pipefail
 
 BASE=/data/aalida/AQP/Wjets/WENU
 PACK="$BASE/gridpacks/mc_13TeV.aMCPy8EG_Wenu_FxFx_2jets_HT2bias_delta441_backup.MG3511.GRID.tar.gz"
-OUT="$BASE/smoke_tests/delta441_backup/seed34_100events_retry5"
-CORES=4
+OUT="$BASE/smoke_tests/delta441_backup/seed34_100events_generation_jo"
+CORES=1
 SCRATCH="$(printenv _CONDOR_SCRATCH_DIR || true)"
 if [[ -z "$SCRATCH" || ! -d "$SCRATCH" ]]; then
   echo "ERROR: no worker-local Condor scratch detected" >&2
@@ -94,9 +94,10 @@ if [[ "$als_exit" -ne 0 || "$asetup_exit" -ne 0 ]]; then
   exit 11
 fi
 
-# MadGraphUtils.setNCores() uses ATHENA_CORE_NUMBER to override any
-# cluster_type/run_mode settings inherited from the old gridpack.
-export ATHENA_CORE_NUMBER="$CORES"
+# Match the established Wenu gridpack event-generation JO:
+# run_mode=0, nb_core=1, no nested HTCondor or multicore override.
+# An inherited ATHENA_CORE_NUMBER would defeat these tested settings.
+unset ATHENA_CORE_NUMBER
 export OMP_NUM_THREADS=1
 if ! command -v Gen_tf.py >/dev/null; then
   echo "ERROR: Gen_tf.py unavailable after asetup" >&2
@@ -112,7 +113,7 @@ if [[ -z "$(printenv PY8PATH || true)" ]]; then
 fi
 echo "MADPATH=$MADPATH"
 echo "PY8PATH=$PY8PATH"
-echo "ATHENA_CORE_NUMBER=$ATHENA_CORE_NUMBER"
+echo "AQP_DELTA441_SMOKE_SERIAL_RUN_MODE=0; ATHENA_CORE_NUMBER is unset"
 echo "Gen_tf.py: $(which Gen_tf.py)"
 echo "Starting Gen_tf.py in worker scratch..."
 head -n 7 "$MADPATH/VERSION" || true
@@ -160,13 +161,13 @@ if [[ "$ret" -ne 0 ]]; then
   echo "ERROR: Gen_tf failed; see retained Gen_tf.log" >&2
   exit "$ret"
 fi
-# The copied JO prints this marker only if is_gen_from_gridpack() is True.
-if ! grep -q 'AQP_DELTA441_MGCONTROL_GRIDPACK_INIT_PASS' "$SCRATCH/Gen_tf.log"; then
-  echo "ERROR: existing-gridpack MGControl was not initialized by smoke JO" >&2
+# The dedicated generation JO prints these markers after accepting madevent/.
+if ! grep -q 'AQP_DELTA441_EXISTING_GRIDPACK_ONLY' "$SCRATCH/log.generate"; then
+  echo "ERROR: standalone JO did not confirm the existing-gridpack-only branch" >&2
   exit 90
 fi
-if ! grep -q 'AQP_DELTA441_SMOKE_LOCAL_MULTICORE=4' "$SCRATCH/Gen_tf.log"; then
-  echo "ERROR: copied JO did not confirm generation-from-gridpack branch" >&2
+if ! grep -q 'AQP_DELTA441_MGCONTROL_CARDS_LOADED' "$SCRATCH/log.generate"; then
+  echo "ERROR: proven MGControl card-loading sequence was not completed" >&2
   exit 91
 fi
 if ! grep -qE 'only_generation|--only_generation' "$SCRATCH/Gen_tf.log"; then
