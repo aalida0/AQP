@@ -1,0 +1,21 @@
+# Delta441 seed35 real-LHE-to-EVNT shower validation, no MadGraph execution.
+# Request an interactive worker via: condor_submit -interactive ...
+# Or submit the identical test in batch using: condor_submit ...
+universe = vanilla
+executable = /home/aalida/AQP/Wjets/WENU/run_delta441_fxfx_shower_seed35.sh
+arguments =
+initialdir = /home/aalida/AQP/Wjets/WENU
+getenv = True
+should_transfer_files = YES
+transfer_executable = True
+transfer_input_files = /home/aalida/AQP/Wjets/WENU/shower_jo/100004
+when_to_transfer_output = ON_EXIT
+transfer_output_files = ""
+request_cpus = 1
+request_memory = 4096MB
+request_disk = 6000MB
+output = /home/aalida/AQP/Wjets/WENU/packaging_logs/delta441_seed35_shower.$(Cluster).out
+error = /home/aalida/AQP/Wjets/WENU/packaging_logs/delta441_seed35_shower.$(Cluster).err
+log = /home/aalida/AQP/Wjets/WENU/packaging_logs/delta441_seed35_shower.$(Cluster).log
+notification = Never
+queue 1
