@@ -6,7 +6,7 @@ set -euo pipefail
 
 BASE=/data/aalida/AQP/Wjets/WENU
 PACK="$BASE/gridpacks/mc_13TeV.aMCPy8EG_Wenu_FxFx_2jets_HT2bias_delta441_backup.MG3511.GRID.tar.gz"
-OUT="$BASE/smoke_tests/delta441_backup/seed34_100events_generation_jo"
+OUT="$BASE/smoke_tests/delta441_backup/seed34_100events_generation_jo_clean_debug"
 CORES=1
 SCRATCH="$(printenv _CONDOR_SCRATCH_DIR || true)"
 if [[ -z "$SCRATCH" || ! -d "$SCRATCH" ]]; then
@@ -175,6 +175,28 @@ if ! make -C "$SCRATCH/madevent/SubProcesses" collect_events \
 fi
 test -x "$SCRATCH/madevent/SubProcesses/collect_events"
 echo "AQP_DELTA441_COLLECT_EVENTS_LINK_PASS"
+
+# Archived madevent/ may contain historical *_debug.log files from a
+# failed gridpack-building attempt. AthGeneration 23.6.63 treats any of
+# these root-level debug logs as fatal after successful LHE generation,
+# even when the new run was clean. Quarantine ONLY those pre-existing
+# logs from the extracted scratch copy, preserving originals on /data.
+STALE_DEBUG_OUT="$OUT/archived_gridpack_debug_logs"
+mkdir -p "$STALE_DEBUG_OUT"
+while IFS= read -r -d '' f; do
+  name="$(basename "$f")"
+  cp -p "$f" "$STALE_DEBUG_OUT/$name"
+  rm -- "$f"
+  echo "AQP_DELTA441_QUARANTINED_STALE_DEBUG=$name"
+done < <(find "$SCRATCH/madevent" -maxdepth 1 -type f \
+  -name '*_debug.log' -print0)
+# Guard against unchanged/unhandled root-level debug logs.
+if find "$SCRATCH/madevent" -maxdepth 1 -type f \
+  -name '*_debug.log' -print -quit | grep -q .; then
+  echo "ERROR: stale debug logs remain in extracted gridpack" >&2
+  exit 45
+fi
+echo "AQP_DELTA441_PREEXISTING_DEBUG_LOGS_CLEARED"
 
 # This is a TXT-only transform, not EVNT production.
 # Its DSID is inferred from the 100003 JobOptions directory.
