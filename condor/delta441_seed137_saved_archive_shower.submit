@@ -1,0 +1,19 @@
+# Standalone seed137 FxFx EVNT validation of the saved 1000-LHE archive.
+# Intentionally independent of the finished DAG / failed wrapper validation.
+universe = vanilla
+executable = /home/aalida/AQP/Wjets/WENU/run_delta441_seed137_saved_archive_shower.sh
+initialdir = /home/aalida/AQP/Wjets/WENU
+getenv = True
+should_transfer_files = YES
+transfer_executable = True
+transfer_input_files = /home/aalida/AQP/Wjets/WENU/parallel_shower_jo/100004
+when_to_transfer_output = ON_EXIT
+transfer_output_files = ""
+request_cpus = 1
+request_memory = 6000MB
+request_disk = 8000MB
+output = /home/aalida/AQP/Wjets/WENU/packaging_logs/delta441_saved_seed137_shower.$(Cluster).out
+error  = /home/aalida/AQP/Wjets/WENU/packaging_logs/delta441_saved_seed137_shower.$(Cluster).err
+log    = /home/aalida/AQP/Wjets/WENU/packaging_logs/delta441_saved_seed137_shower.$(Cluster).log
+notification = Never
+queue 1
