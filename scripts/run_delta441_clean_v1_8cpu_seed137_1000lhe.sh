@@ -267,7 +267,7 @@ fi
 tar -xOf "$ARCHIVE" "$member" > "$SCRATCH/validated_LHE.events"
 open_count="$(grep -c '<event' "$SCRATCH/validated_LHE.events" || true)"
 close_count="$(grep -c '</event>' "$SCRATCH/validated_LHE.events" || true)"
-echo "AQP_DELTA441_LHE_EVENTS_VALIDATED_OPEN=$open_count_CLOSE=$close_count"
+echo "AQP_DELTA441_LHE_EVENTS_VALIDATED_OPEN=${open_count}_CLOSE=${close_count}"
 if [[ "$open_count" != 1000 || "$close_count" != 1000 ]]; then
   echo "ERROR: expected 1000 complete LHE events" >&2; exit 98
 fi
