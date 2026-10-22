@@ -140,12 +140,15 @@ test -s "$SCRATCH/madevent/SubProcesses/randinit"
 echo "AQP_DELTA441_MADEVENT_EXTRACTED_AND_CHECKED"
 date -u
 
-# The archived process has a collector makefile linking '-lc++'.  On the
-# AthGeneration/23.6.63 GCC14 EL9 toolchain, GCC uses '-lstdc++'.
-# Patch the worker-local extracted copy ONLY. Preserve the original gridpack.
+# NLO SubProcesses/makefile includes ../Source/make_opts and appends
+# $(LDFLAGS) to the collect_events link command. The broken '-lc++'
+# is NOT a literal token in SubProcesses/makefile. Patch only the
+# worker's extracted Source/make_opts if it contains the problematic
+# token; use a command-line LDFLAGS override for an early link smoke.
 COLLECT_MAKE="$SCRATCH/madevent/SubProcesses/makefile"
-if [[ ! -f "$COLLECT_MAKE" ]]; then
-  echo "ERROR: missing collect_events makefile: $COLLECT_MAKE" >&2
+SOURCE_OPTS="$SCRATCH/madevent/Source/make_opts"
+if [[ ! -f "$COLLECT_MAKE" || ! -f "$SOURCE_OPTS" ]]; then
+  echo "ERROR: missing NLO collector makefile or included Source/make_opts" >&2
   exit 42
 fi
 LIBSTDCXX="$(gfortran -print-file-name=libstdc++.so)"
@@ -153,16 +156,18 @@ if [[ "$LIBSTDCXX" == "libstdc++.so" || ! -f "$LIBSTDCXX" ]]; then
   echo "ERROR: GCC toolchain cannot locate libstdc++.so" >&2
   exit 43
 fi
-if grep -Fq -- '-lc++' "$COLLECT_MAKE"; then
-  cp -p "$COLLECT_MAKE" "$COLLECT_MAKE.before_stdlib_linkfix"
-  sed -i 's/-lc++/-lstdc++/g' "$COLLECT_MAKE"
-  echo "AQP_DELTA441_SCRATCH_COLLECTOR_LINK_FIX_APPLIED"
+if grep -Fq -- '-lc++' "$SOURCE_OPTS"; then
+  cp -p "$SOURCE_OPTS" "$SOURCE_OPTS.before_stdlib_linkfix"
+  sed -i 's/-lc++/-lstdc++/g' "$SOURCE_OPTS"
+  echo "AQP_DELTA441_SCRATCH_SOURCE_OPTS_LINK_FIX_APPLIED"
 else
-  echo "AQP_DELTA441_SCRATCH_COLLECTOR_LINK_FIX_NOT_NEEDED"
+  echo "AQP_DELTA441_SCRATCH_SOURCE_OPTS_NO_LITERAL_LIBCPP"
 fi
-# Compile this small collector before launching MINT2, so any remaining
-# toolchain/linker incompatibility fails cheaply instead of after events.
+# This is a link-only preflight and does not run any MINT0/1/2 channel.
+# The command-line override takes priority over assignments in make_opts;
+# an early link error is much cheaper than failure after channel generation.
 if ! make -C "$SCRATCH/madevent/SubProcesses" collect_events \
+  LDFLAGS=-lstdc++ \
   > "$OUT/collect_events_link_preflight.log" 2>&1; then
   echo "ERROR: collect_events link preflight failed" >&2
   tail -n 60 "$OUT/collect_events_link_preflight.log" >&2
