@@ -73,7 +73,8 @@ def main():
     # generation, new_process() is correctly skipped; however, the
     # release's modify_run_card() has no None guard and fails attempting
     # my_MGC_instance.runCardDict.update(settings). Initialize the
-    # existing-gridpack-only object explicitly from 'madevent/' instead.
+    # existing-gridpack-only object from 'madevent/' without relying on
+    # the newer, release-incompatible pdf_setting constructor keyword.
     # Place this after MADGRAPH_PDFSETTING is defined and BEFORE the
     # first modify_run_card() call.
     if amended.count("\nmodify_run_card(") != 1:
@@ -84,12 +85,21 @@ def main():
         "# new_process() from this path: that would recreate integration.\n"
         "if is_gen_from_gridpack():\n"
         "    import MadGraphControl.MadGraphUtils as _aqp_mg_utils\n"
+        "    import MadGraphControl.MGC as _aqp_mgc_module\n"
         "    from MadGraphControl.MGC import MGControl as _AQP_MGControl\n"
+        "    import inspect as _aqp_inspect\n"
+        "    _aqp_ctor = _aqp_inspect.signature(_AQP_MGControl.__init__)\n"
+        "    print('AQP_DELTA441_MGCONTROL_CTOR_SIGNATURE=' + str(_aqp_ctor))\n"
+        "    # The 23.6.63 MGControl constructor has no pdf_setting keyword.\n"
+        "    # Preserve PDF configuration through the legacy module setting.\n"
+        "    _aqp_mgc_module.MADGRAPH_PDFSETTING = (\n"
+        "        _aqp_mg_utils.MADGRAPH_PDFSETTING\n"
+        "    )\n"
         "    if _aqp_mg_utils.my_MGC_instance is None:\n"
-        "        _aqp_mg_utils.my_MGC_instance = _AQP_MGControl(\n"
-        "            pdf_setting=_aqp_mg_utils.MADGRAPH_PDFSETTING\n"
-        "        )\n"
+        "        _aqp_mg_utils.my_MGC_instance = _AQP_MGControl()\n"
         "    _aqp_mgc = _aqp_mg_utils.my_MGC_instance\n"
+        "    if hasattr(_aqp_mgc, 'pdf_setting'):\n"
+        "        _aqp_mgc.pdf_setting = _aqp_mg_utils.MADGRAPH_PDFSETTING\n"
         "    if not getattr(_aqp_mgc, 'is_gen_from_gridpack', False):\n"
         "        raise RuntimeError('AQP_SMOKE_ABORT_MGCONTROL_NOT_GRIDPACK')\n"
         "    if _aqp_mgc.process_dir != str(MADGRAPH_GRIDPACK_LOCATION):\n"
