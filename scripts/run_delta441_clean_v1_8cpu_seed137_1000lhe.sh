@@ -256,8 +256,7 @@ echo "DELTA441_SMOKE_GRIDPACK_BRANCH_CONFIRMED"
 # A TXT archive is a tar.gz container of a complete LHE .events file.
 # Verify the resulting true LHE event count, not just the Gen_tf exit.
 ARCHIVE="$SCRATCH/delta441_clean_v1_seed137_1000lhe.TXT.tar.gz"
-member="$(tar -tzf "$ARCHIVE" | grep -m1 -E '\\.events
- || true)"
+member="$(tar -tzf "$ARCHIVE" | grep -m1 -F '.TXT.events' || true)"
 if [[ -z "$member" ]]; then
   echo "ERROR: archive contains no LHE event member" >&2; exit 97
 fi
