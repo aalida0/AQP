@@ -114,6 +114,29 @@ modify_config_card(
     },
 )
 
+# Verify the actual MadGraph config card before expensive event generation.
+# The last assignment wins in MG configurations, so parse all assignments.
+_config_file = os.path.join(process_dir, "Cards", "amcatnlo_configuration.txt")
+_config_values = {}
+with open(_config_file, encoding="utf-8") as _cfg:
+    for _line in _cfg:
+        _body = _line.split("#", 1)[0].strip()
+        if "=" not in _body:
+            continue
+        _key, _value = [x.strip() for x in _body.split("=", 1)]
+        if _key in ("run_mode", "nb_core"):
+            _config_values[_key] = _value
+try:
+    _mode = int(_config_values["run_mode"])
+    _cores = int(_config_values["nb_core"])
+except (KeyError, ValueError) as _err:
+    raise RuntimeError("AQP_DELTA441_ABORT_UNREADABLE_PARALLEL_CONFIG") from _err
+if (_mode, _cores) != (2, DELTA441_NB_CORES):
+    raise RuntimeError(
+        "AQP_DELTA441_ABORT_WRONG_PARALLEL_CONFIG: "
+        "run_mode=%s nb_core=%s" % (_mode, _cores)
+    )
+print("AQP_DELTA441_PARALLEL_CONFIG_VERIFIED_MODE=2_NB_CORE=%d" % _cores)
 print("AQP_DELTA441_PARALLEL_MODE=2_NB_CORE=%d" % DELTA441_NB_CORES)
 
 # In an already-extracted gridpack, the source files and integration grids
