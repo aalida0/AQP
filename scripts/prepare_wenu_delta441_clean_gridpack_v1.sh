@@ -106,13 +106,13 @@ cmp "$OUT/checkpoint_before.sha256" "$OUT/checkpoint_after.sha256"
 echo 'AQP_CLEAN_REPACK_START'
 date -u
 tar -I 'gzip -3' -cf "$LOCAL_PACK" madevent
-tar -tzf "$LOCAL_PACK" | grep -E '(^madevent/SubProcesses/job_status.pkl$|^madevent/Cards/run_card.dat$)' \
-  > "$OUT/repack_required_members.txt" || true
-grep -qx 'madevent/SubProcesses/job_status.pkl' "$OUT/repack_required_members.txt"
-grep -qx 'madevent/Cards/run_card.dat' "$OUT/repack_required_members.txt"
-tar -tzf "$LOCAL_PACK" | grep -q 'madevent/run_01_tag_1_debug.log' && {
-  echo 'ERROR: stale debug log survived packaging'; exit 16;
-} || true
+# Check the complete member listing in one pass (no incomplete gzip stream).
+tar -tzf "$LOCAL_PACK" > "$OUT/archive_member_manifest.txt"
+grep -qx 'madevent/SubProcesses/job_status.pkl' "$OUT/archive_member_manifest.txt"
+grep -qx 'madevent/Cards/run_card.dat' "$OUT/archive_member_manifest.txt"
+if grep -Eq '^madevent/[^/]*_debug[.]log$' "$OUT/archive_member_manifest.txt"; then
+  echo "ERROR: stale top-level debug logs survived packaging"; exit 16
+fi
 gzip -t "$LOCAL_PACK"
 cp "$LOCAL_PACK" "$TMP_DEST"
 mv "$TMP_DEST" "$DEST"
