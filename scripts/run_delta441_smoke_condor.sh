@@ -6,7 +6,7 @@ set -euo pipefail
 
 BASE=/data/aalida/AQP/Wjets/WENU
 PACK="$BASE/gridpacks/mc_13TeV.aMCPy8EG_Wenu_FxFx_2jets_HT2bias_delta441_backup.MG3511.GRID.tar.gz"
-OUT="$BASE/smoke_tests/delta441_backup/seed34_100events_retry3"
+OUT="$BASE/smoke_tests/delta441_backup/seed34_100events_retry4"
 CORES=4
 SCRATCH="$(printenv _CONDOR_SCRATCH_DIR || true)"
 if [[ -z "$SCRATCH" || ! -d "$SCRATCH" ]]; then
