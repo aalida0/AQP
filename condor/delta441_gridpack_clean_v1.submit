@@ -1,0 +1,17 @@
+# Create a clean Delta441 gridpack copy from immutable source, once.
+universe = vanilla
+executable = /home/aalida/AQP/Wjets/WENU/prepare_wenu_delta441_clean_gridpack_v1.sh
+initialdir = /home/aalida/AQP/Wjets/WENU
+getenv = True
+should_transfer_files = YES
+transfer_executable = True
+when_to_transfer_output = ON_EXIT
+transfer_output_files = ""
+request_cpus = 1
+request_memory = 8000MB
+request_disk = 60000MB
+output = /home/aalida/AQP/Wjets/WENU/packaging_logs/delta441_clean_v1.$(Cluster).out
+error  = /home/aalida/AQP/Wjets/WENU/packaging_logs/delta441_clean_v1.$(Cluster).err
+log    = /home/aalida/AQP/Wjets/WENU/packaging_logs/delta441_clean_v1.$(Cluster).log
+notification = Never
+queue 1
