@@ -43,7 +43,7 @@ copy_artifacts() {
     grep -E 'AQP_DELTA441|FOUND GRIDPACK|only_generation|Generating events|MINT|ERROR|FATAL|Traceback' \
       "$SCRATCH/Gen_tf.log" | tail -n 150 > "$OUT/diagnostic_tail.txt"
   fi
-  for f in runargs.generate.py jobReport.json log.generate; do
+  for f in runargs.generate.py jobReport.json log.generate prmon.summary.generate.json; do
     if [[ -f "$SCRATCH/$f" ]]; then cp -p "$SCRATCH/$f" "$OUT/"; fi
   done
   find "$SCRATCH" -maxdepth 1 -type f \
@@ -238,6 +238,10 @@ fi
 if grep -q 'Adding user hook JetMatchingMadgraph' "$SCRATCH/log.generate"; then
   echo "ERROR: FxFx hook was incorrectly attached to TXT dummy event" >&2
   exit 94
+fi
+if ! grep -q 'AQP_DELTA441_PARALLEL_CONFIG_VERIFIED_MODE=2_NB_CORE=8' "$SCRATCH/log.generate"; then
+  echo "ERROR: parallel config card was not verified" >&2
+  exit 100
 fi
 if ! grep -q 'AQP_DELTA441_PARALLEL_MODE=2_NB_CORE=8' "$SCRATCH/log.generate"; then
   echo "ERROR: parallel MadGraph JO marker missing" >&2
