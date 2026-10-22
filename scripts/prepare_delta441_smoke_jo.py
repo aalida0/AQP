@@ -68,61 +68,43 @@ def main():
     amended = amended.replace("if not is_gen_from_gridpack():",
                               fail_closed_guard + "if not is_gen_from_gridpack():", 1)
 
-    # In the AthGeneration/23.6.63 legacy MGControl API, new_process()
-    # normally initializes MadGraphUtils.my_MGC_instance. On gridpack
-    # generation, new_process() is correctly skipped; however, the
-    # release's modify_run_card() has no None guard and fails attempting
-    # my_MGC_instance.runCardDict.update(settings). Initialize the
-    # existing-gridpack-only object from 'madevent/' without relying on
-    # the newer, release-incompatible pdf_setting constructor keyword.
-    # Place this after MADGRAPH_PDFSETTING is defined and BEFORE the
-    # first modify_run_card() call.
+    # The earlier Z+jets event-generation JO provided this exact
+    # card-loading sequence for the 23.6.63 legacy gridpack branch.
+    # A zero-argument MGControl() alone is NOT enough, because its
+    # constructor returns early and its isNLO attribute remains unset.
+    # Never invoke new_process() here.
     if amended.count("\nmodify_run_card(") != 1:
         raise ValueError("Expected exactly one top-level modify_run_card call")
     mg_init = (
-        "\n# AQP smoke fix: legacy MadGraphControl needs an MGControl object\n"
-        "# when loading an already-extracted NLO gridpack. Never call\n"
-        "# new_process() from this path: that would recreate integration.\n"
-        "if is_gen_from_gridpack():\n"
-        "    import MadGraphControl.MadGraphUtils as _aqp_mg_utils\n"
-        "    import MadGraphControl.MGC as _aqp_mgc_module\n"
-        "    from MadGraphControl.MGC import MGControl as _AQP_MGControl\n"
-        "    import inspect as _aqp_inspect\n"
-        "    _aqp_ctor = _aqp_inspect.signature(_AQP_MGControl.__init__)\n"
-        "    print('AQP_DELTA441_MGCONTROL_CTOR_SIGNATURE=' + str(_aqp_ctor))\n"
-        "    # The 23.6.63 MGControl constructor has no pdf_setting keyword.\n"
-        "    # Preserve PDF configuration through the legacy module setting.\n"
-        "    _aqp_mgc_module.MADGRAPH_PDFSETTING = (\n"
-        "        _aqp_mg_utils.MADGRAPH_PDFSETTING\n"
-        "    )\n"
-        "    # Adapt only to the two known safe signatures: optional process\n"
-        "    # or required process, without passing unsupported PDF kwargs.\n"
-        "    _aqp_required = [\n"
-        "        p for name, p in _aqp_ctor.parameters.items()\n"
-        "        if name != 'self' and p.default is _aqp_inspect.Parameter.empty\n"
-        "        and p.kind in (_aqp_inspect.Parameter.POSITIONAL_ONLY,\n"
-        "                       _aqp_inspect.Parameter.POSITIONAL_OR_KEYWORD)\n"
-        "    ]\n"
-        "    if _aqp_mg_utils.my_MGC_instance is None:\n"
-        "        if not _aqp_required:\n"
-        "            _aqp_mg_utils.my_MGC_instance = _AQP_MGControl()\n"
-        "        elif len(_aqp_required) == 1 and _aqp_required[0].name == 'process':\n"
-        "            _aqp_mg_utils.my_MGC_instance = _AQP_MGControl(None)\n"
-        "        else:\n"
-        "            raise RuntimeError('AQP_SMOKE_ABORT_UNKNOWN_MGCONTROL_SIGNATURE')\n"
-        "    _aqp_mgc = _aqp_mg_utils.my_MGC_instance\n"
-        "    if hasattr(_aqp_mgc, 'pdf_setting'):\n"
-        "        _aqp_mgc.pdf_setting = _aqp_mg_utils.MADGRAPH_PDFSETTING\n"
-        "    if not getattr(_aqp_mgc, 'is_gen_from_gridpack', False):\n"
-        "        raise RuntimeError('AQP_SMOKE_ABORT_MGCONTROL_NOT_GRIDPACK')\n"
-        "    if _aqp_mgc.process_dir != str(MADGRAPH_GRIDPACK_LOCATION):\n"
-        "        raise RuntimeError('AQP_SMOKE_ABORT_WRONG_PROCESS_DIR')\n"
-        "    if not getattr(_aqp_mgc, 'isNLO', False):\n"
-        "        raise RuntimeError('AQP_SMOKE_ABORT_NOT_NLO')\n"
-        "    if not getattr(_aqp_mgc, 'runCardDict', None):\n"
-        "        raise RuntimeError('AQP_SMOKE_ABORT_MISSING_RUN_CARD')\n"
-        "    print('AQP_DELTA441_MGCONTROL_GRIDPACK_INIT_PASS')\n"
-        "\n"
+        "\\n# AQP smoke: use the verified Z+jets gridpack-consumption pattern\\n"
+        "# from the AthGeneration 23.6.63 ZEE event-generation workflow.\\n"
+        "# MGControl() on a gridpack returns early: load its card dictionaries\\n"
+        "# explicitly before calling MadGraphUtils.modify_run_card().\\n"
+        "if is_gen_from_gridpack():\\n"
+        "    import MadGraphControl.MadGraphUtils as _aqp_mg_utils\\n"
+        "    from MadGraphControl.MGC import MGControl as _AQP_MGControl\\n"
+        "    import os as _aqp_os\\n"
+        "    if _aqp_mg_utils.my_MGC_instance is None:\\n"
+        "        _aqp_mgc = _AQP_MGControl()\\n"
+        "        _aqp_mgc.get_config_cardloc()\\n"
+        "        _aqp_mgc.getConfigFromPath(_aqp_mgc.config_path)\\n"
+        "        _aqp_mgc.getRunCardDict()\\n"
+        "        _aqp_mg_utils.my_MGC_instance = _aqp_mgc\\n"
+        "    else:\\n"
+        "        _aqp_mgc = _aqp_mg_utils.my_MGC_instance\\n"
+        "    _aqp_dir = _aqp_os.path.realpath(str(MADGRAPH_GRIDPACK_LOCATION))\\n"
+        "    if _aqp_os.path.realpath(_aqp_mgc.process_dir) != _aqp_dir:\\n"
+        "        raise RuntimeError('AQP_SMOKE_ABORT_WRONG_PROCESS_DIR')\\n"
+        "    if not _aqp_os.path.isfile(_aqp_os.path.join(\\n"
+        "        _aqp_dir, 'SubProcesses', 'job_status.pkl')):\\n"
+        "        raise RuntimeError('AQP_SMOKE_ABORT_MISSING_CHECKPOINT')\\n"
+        "    if not _aqp_os.path.isfile(_aqp_os.path.join(\\n"
+        "        _aqp_dir, 'Cards', 'amcatnlo_configuration.txt')):\\n"
+        "        raise RuntimeError('AQP_SMOKE_ABORT_NOT_NLO_GRIDPACK')\\n"
+        "    if not getattr(_aqp_mgc, 'runCardDict', None):\\n"
+        "        raise RuntimeError('AQP_SMOKE_ABORT_MISSING_RUN_CARD')\\n"
+        "    print('AQP_DELTA441_MGCONTROL_GRIDPACK_INIT_PASS')\\n"
+        "\\n"
     )
     amended = amended.replace("\nmodify_run_card(", mg_init + "modify_run_card(", 1)
 
@@ -149,7 +131,7 @@ def main():
     print("Original (unchanged):", src)
     print("Full JO copy:", jo_out)
     print("Run-mode override: 2 (local multicore), cores:", a.cores)
-    print("MGControl initialization: existing-gridpack branch only, no new_process")
+    print("MGControl initialization: ZEE-proven get_config_cardloc/getConfigFromPath/getRunCardDict")
     print("Original JO size:", len(original), "patched JO size:", len(amended))
     print("No new-process generation or MadGraph executable was invoked.")
 
