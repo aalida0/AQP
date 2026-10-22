@@ -23,7 +23,7 @@ if [[ -e "$OUT" ]]; then
   echo "ERROR: refusing to overwrite existing results $OUT" >&2
   exit 2
 fi
-if [[ ! -f "$SCRATCH/100004/mc.aMCPy8EG_Wenu_FxFx_2jets_HT2bias_delta441_showeronly.py" ]]; then
+if [[ ! -f "$SCRATCH/100004/mc.aMCPy8EG_Wenu_FxFx_2jets_D441_shower.py" ]]; then
   echo "ERROR: 100004 JO directory not transferred to worker scratch" >&2
   exit 3
 fi
