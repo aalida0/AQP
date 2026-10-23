@@ -74,7 +74,7 @@ copy_artifacts() {
   echo "AQP_WENU_COMPARISON_RUN_EXIT_STATUS=$status"
   if [[ -f "$SCRATCH/Gen_tf.log" ]]; then
     cp -p "$SCRATCH/Gen_tf.log" "$OUT/Gen_tf.log"
-    grep -E 'AQP_DELTA441|FOUND GRIDPACK|only_generation|Generating events|MINT|ERROR|FATAL|Traceback' \
+    grep -E 'AQP_WENU|FOUND GRIDPACK|only_generation|Generating events|MINT|ERROR|FATAL|Traceback' \
       "$SCRATCH/Gen_tf.log" | tail -n 150 > "$OUT/diagnostic_tail.txt"
   fi
   for f in runargs.generate.py jobReport.json log.generate prmon.summary.generate.json; do
