@@ -75,6 +75,21 @@ copy_artifacts() {
 trap copy_artifacts EXIT
 
 cd "$SCRATCH"
+if [[ ! -s "$PACK.sha256" ]]; then
+  echo "ERROR: checksum sidecar missing for $PACK" >&2; exit 29;
+fi
+echo "Verifying immutable packaged archive SHA256 on compute worker..."
+read -r EXPECTED_SHA REST < "$PACK.sha256"
+case "$EXPECTED_SHA" in
+  ???????*) ;;
+  *) echo "ERROR: invalid SHA256 sidecar" >&2; exit 30;;
+esac
+ACTUAL_SHA="$(sha256sum "$PACK" | cut -d " " -f 1)"
+if [[ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]]; then
+  echo "ERROR: gridpack SHA256 mismatch" >&2; exit 31;
+fi
+echo "AQP_WENU_GRIDPACK_SHA256_VERIFIED"
+
 echo "Worker scratch: $PWD"
 echo "Archive: $PACK"
 echo "Results: $OUT"
