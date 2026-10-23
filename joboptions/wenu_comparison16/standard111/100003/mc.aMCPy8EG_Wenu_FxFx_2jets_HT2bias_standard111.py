@@ -60,7 +60,7 @@ def _bool(x):
     return x in ("true", ".true.", "t", "1")
 _want_fold = tuple(int(x) for x in FOLDING.split(","))
 try:
-    _actual_fold = tuple(int(x) for x in re.split(r"[,\\s]+", _original["folding"]) if x)
+    _actual_fold = tuple(int(x) for x in re.split(r"[,\s]+", _original["folding"]) if x)
 except (KeyError, ValueError):
     raise RuntimeError("AQP_WENU_ABORT_BAD_OR_MISSING_ARCHIVE_FOLDING")
 if _actual_fold != _want_fold or _bool(_original.get("mcatnlo_delta", "false")) != USE_DELTA:
