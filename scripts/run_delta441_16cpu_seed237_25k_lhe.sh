@@ -249,7 +249,7 @@ if ! grep -q 'AQP_DELTA441_PARALLEL_MODE=2_NB_CORE=16' "$SCRATCH/log.generate"; 
   exit 95
 fi
 if ! grep -q 'AQP_DELTA441_LHE_EVENTS_REQUESTED=25000' "$SCRATCH/log.generate"; then
-  echo "ERROR: 1000 LHE requested marker missing" >&2
+  echo "ERROR: 25000 LHE requested marker missing" >&2
   exit 96
 fi
 if [[ ! -s "$SCRATCH/delta441_clean_v1_seed237_25000lhe.TXT.tar.gz" ]]; then
@@ -257,7 +257,7 @@ if [[ ! -s "$SCRATCH/delta441_clean_v1_seed237_25000lhe.TXT.tar.gz" ]]; then
   exit 93
 fi
 
-echo "DELTA441_SMOKE_GRIDPACK_BRANCH_CONFIRMED"
+echo "AQP_DELTA441_PRODUCTION_GRIDPACK_BRANCH_CONFIRMED"
 # A TXT archive is a tar.gz container of a complete LHE .events file.
 # Verify the resulting true LHE event count, not just the Gen_tf exit.
 ARCHIVE="$SCRATCH/delta441_clean_v1_seed237_25000lhe.TXT.tar.gz"
