@@ -1,0 +1,26 @@
+# Wenu comparison Phase B: 25000 LHE -> 5000 FxFx EVNT per configuration.
+# Submit ONLY after Phase A succeeded for all three configurations.
+# No automatic retries of expensive MINT2.
+JOB STANDARD_LHE wenu_comparison_16core_lhe.submit
+VARS STANDARD_LHE CFG="standard111" SEED="411" NEVENTS="25000" TAG="pilot16_25k"
+JOB STANDARD_SHOWER wenu_comparison_16core_fxfx.submit
+VARS STANDARD_SHOWER CFG="standard111" SEED="411" NEVENTS="25000" TAG="pilot16_25k"
+PARENT STANDARD_LHE CHILD STANDARD_SHOWER
+RETRY STANDARD_LHE 0
+RETRY STANDARD_SHOWER 0
+
+JOB D111_LHE wenu_comparison_16core_lhe.submit
+VARS D111_LHE CFG="delta111" SEED="421" NEVENTS="25000" TAG="pilot16_25k"
+JOB D111_SHOWER wenu_comparison_16core_fxfx.submit
+VARS D111_SHOWER CFG="delta111" SEED="421" NEVENTS="25000" TAG="pilot16_25k"
+PARENT D111_LHE CHILD D111_SHOWER
+RETRY D111_LHE 0
+RETRY D111_SHOWER 0
+
+JOB D221_LHE wenu_comparison_16core_lhe.submit
+VARS D221_LHE CFG="delta221" SEED="422" NEVENTS="25000" TAG="pilot16_25k"
+JOB D221_SHOWER wenu_comparison_16core_fxfx.submit
+VARS D221_SHOWER CFG="delta221" SEED="422" NEVENTS="25000" TAG="pilot16_25k"
+PARENT D221_LHE CHILD D221_SHOWER
+RETRY D221_LHE 0
+RETRY D221_SHOWER 0
