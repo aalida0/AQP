@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -98,7 +99,7 @@ def cfg_audit(base, home, cfg):
             row["errors"].append("Expected FxFx ickkw=3")
         for k, desired in (("ebeam1", 6500), ("ebeam2", 6500)):
             try:
-                if abs(float(vals.get(k, "nan").replace("d", "e"))-desired) > 1e-4:
+                if not math.isfinite(float(vals.get(k, "nan").replace("d", "e"))) or abs(float(vals.get(k, "nan").replace("d", "e"))-desired) > 1e-4:
                     row["errors"].append(f"{k} is not {desired} GeV")
             except ValueError:
                 row["errors"].append(f"Bad {k}")
