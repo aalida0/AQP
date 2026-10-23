@@ -1,0 +1,19 @@
+# FxFx shower-only of completed Wenu multicore LHE output.
+universe = vanilla
+executable = /home/aalida/AQP/Wjets/WENU/run_wenu_comparison_16core_fxfx.sh
+arguments = $(CFG) $(SEED) $(NEVENTS) $(TAG)
+initialdir = /home/aalida/AQP/Wjets/WENU
+getenv = True
+should_transfer_files = YES
+transfer_executable = True
+transfer_input_files = /home/aalida/AQP/Wjets/WENU/wenu_compare16_shower_jo/$(CFG)/100004
+when_to_transfer_output = ON_EXIT
+transfer_output_files = ""
+request_cpus = 1
+request_memory = 8000MB
+request_disk = 20000MB
+output = /home/aalida/AQP/Wjets/WENU/packaging_logs/wenu_cmp_$(TAG)_$(CFG)_fxfx.$(Cluster).out
+error = /home/aalida/AQP/Wjets/WENU/packaging_logs/wenu_cmp_$(TAG)_$(CFG)_fxfx.$(Cluster).err
+log = /home/aalida/AQP/Wjets/WENU/packaging_logs/wenu_cmp_$(TAG)_$(CFG)_fxfx.$(Cluster).log
+notification = Never
+queue 1
