@@ -1,0 +1,18 @@
+# Shower the completed 25,000 LHE pilot to 5,000 EVNT events.
+universe = vanilla
+executable = /home/aalida/AQP/Wjets/WENU/run_delta441_16cpu_seed237_fxfx_5000evnt.sh
+initialdir = /home/aalida/AQP/Wjets/WENU
+getenv = True
+should_transfer_files = YES
+transfer_executable = True
+transfer_input_files = /home/aalida/AQP/Wjets/WENU/production16_shower_jo/100004
+when_to_transfer_output = ON_EXIT
+transfer_output_files = ""
+request_cpus = 1
+request_memory = 8000MB
+request_disk = 20000MB
+output = /home/aalida/AQP/Wjets/WENU/packaging_logs/d441_16c_seed237_shower.$(Cluster).out
+error = /home/aalida/AQP/Wjets/WENU/packaging_logs/d441_16c_seed237_shower.$(Cluster).err
+log = /home/aalida/AQP/Wjets/WENU/packaging_logs/d441_16c_seed237_shower.$(Cluster).log
+notification = Never
+queue 1
