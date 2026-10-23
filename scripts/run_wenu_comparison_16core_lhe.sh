@@ -19,6 +19,28 @@ BASE=/data/aalida/AQP/Wjets/WENU
 PACK="$BASE/gridpacks/mc_13TeV.aMCPy8EG_Wenu_FxFx_2jets_HT2bias_${CFG}.MG3511.GRID.tar.gz"
 OUT="$BASE/production_pilot/wenu_compare/${TAG}/${CFG}_seed${SEED}_lhe"
 CORES=16
+# Refuse a 25k benchmark unless this same configuration passed an
+# independent 1k-LHE/200-EVNT smoke. No new integrations ever.
+if [[ "$TAG" == pilot16_25k ]]; then
+  case "$CFG" in
+    standard111) SMOKE_SEED=311;;
+    delta111) SMOKE_SEED=321;;
+    delta221) SMOKE_SEED=322;;
+  esac
+  GATE="$BASE/production_pilot/wenu_compare/smoke16_1k"
+  SMOKE_LHE="$GATE/${CFG}_seed${SMOKE_SEED}_lhe"
+  SMOKE_FXFX="$GATE/${CFG}_seed${SMOKE_SEED}_fxfx"
+  if [[ "$(cat "$SMOKE_LHE/runner_exit_code" 2>/dev/null)" != 0 ||
+        "$(cat "$SMOKE_FXFX/runner_exit_code" 2>/dev/null)" != 0 ||
+        ! -s "$SMOKE_LHE/lhe_weight_audit.json" ]]; then
+    echo "ERROR: preceding ${CFG} 1k/200 smoke test did not pass" >&2
+    exit 7
+  fi
+  if ! grep -q '"status": "PASS"' "$SMOKE_LHE/lhe_weight_audit.json"; then
+    echo "ERROR: preceding smoke LHE audit did not pass" >&2; exit 8
+  fi
+  echo "AQP_WENU_PILOT_GATE_PASS_SMOKE_FOR=$CFG"
+fi
 SCRATCH="$(printenv _CONDOR_SCRATCH_DIR || true)"
 if [[ -z "$SCRATCH" || ! -d "$SCRATCH" ]]; then
   echo "ERROR: no worker-local Condor scratch detected" >&2
