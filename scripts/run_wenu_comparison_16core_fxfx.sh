@@ -77,7 +77,7 @@ grep -q '"status": "PASS"' "$LHE_DIR/lhe_weight_audit.json" || {
 grep -q "AQP_WENU_LHE_EVENTS_REQUESTED=$N_LHE" "$LHE_DIR/log.generate" || {
   echo "ERROR: generator request marker absent" >&2; exit 17;
 }
-grep -q 'AQP_DELTA441_PARALLEL_CONFIG_VERIFIED_MODE=2_NB_CORE=16' "$LHE_DIR/log.generate" || {
+grep -q 'AQP_WENU_PARALLEL_CONFIG_VERIFIED_MODE=2_NB_CORE=16' "$LHE_DIR/log.generate" || {
   echo "ERROR: multicore configuration marker absent" >&2; exit 18;
 }
 echo "AQP_WENU_SAVED_ARCHIVE_LHE_VALIDATED"
@@ -110,13 +110,13 @@ Gen_tf.py \
   --randomSeed="$SHOWER_SEED" \
   --jobConfig="$SCRATCH/100004" \
   --inputGeneratorFile=wenu_comparison.events \
-  --outputEVNTFile=$EVNT_NAME \
+  --outputEVNTFile="$EVNT_NAME" \
   --outputFileValidation=False \
   > Gen_tf_shower.log 2>&1
 rc=$?
 set -e
 if [[ "$rc" -ne 0 ]]; then tail -n 80 Gen_tf_shower.log >&2; exit "$rc"; fi
-[[ -s $EVNT_NAME ]] || {
+[[ -s "$EVNT_NAME" ]] || {
   echo "ERROR: no EVNT produced" >&2; exit 21;
 }
 grep -Fq "AQP_WENU_SHOWER_CONFIG=$CFG" log.generate || {
@@ -129,7 +129,7 @@ grep -q 'Adding user hook JetMatchingMadgraph' log.generate || {
   echo "ERROR: FxFx matching hook missing" >&2; exit 23;
 }
 if ! grep -Eq "Number of events processed:[[:space:]]*${MAX_EVNT}([[:space:]]|$)" log.generate; then
-  echo "ERROR: Athena did not report 5000 processed events" >&2
+  echo "ERROR: Athena did not report $MAX_EVNT processed events" >&2
   exit 24
 fi
 echo "AQP_WENU_16CORE_${CFG}_${MAX_EVNT}_FXFX_EVNT_PASS"
