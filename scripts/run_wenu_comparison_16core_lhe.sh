@@ -264,7 +264,7 @@ if ! grep -q 'AQP_WENU_PARALLEL_MODE=2_NB_CORE=16' "$SCRATCH/log.generate"; then
   echo "ERROR: parallel MadGraph JO marker missing" >&2
   exit 95
 fi
-if ! grep -q 'AQP_WENU_LHE_EVENTS_REQUESTED=${N_LHE}' "$SCRATCH/log.generate"; then
+if ! grep -q "AQP_WENU_LHE_EVENTS_REQUESTED=$N_LHE" "$SCRATCH/log.generate"; then
   echo "ERROR: $N_LHE LHE requested marker missing" >&2
   exit 96
 fi
