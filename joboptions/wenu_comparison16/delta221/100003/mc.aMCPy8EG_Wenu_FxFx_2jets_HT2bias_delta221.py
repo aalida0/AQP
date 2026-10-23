@@ -20,7 +20,7 @@ USE_DELTA = True
 FOLDING = "2, 2, 1"
 REQUIRED_ACCURACY = 1.0e-4
 LHE_OVERSAMPLING_FACTOR = 5
-DELTA441_NB_CORES = 16
+WENU_NB_CORES = 16
 
 # --------------------------------------------------------------------
 # EVGEN metadata
@@ -40,7 +40,7 @@ evgenConfig.nEventsPerJob = 5000
 if not is_gen_from_gridpack():
     raise RuntimeError(
         "AQP_WENU_ABORT_NO_EXISTING_GRIDPACK: "
-        "extract the Delta441 archive as ./madevent/ before running Gen_tf"
+        "extract the matching Wenu archive as ./madevent/ before running Gen_tf"
     )
 if abs(float(runArgs.ecmEnergy) - GRIDPACK_ECM_ENERGY) > 1.0e-6:
     raise RuntimeError("AQP_WENU_ABORT_WRONG_ECM: use --ecmEnergy=13000")
@@ -111,7 +111,7 @@ MadGraphControl.MadGraphUtils.my_MGC_instance = _mgc
 print("AQP_WENU_MGCONTROL_CARDS_LOADED")
 
 # --------------------------------------------------------------------
-# Run card: match the existing Delta441 FxFx integration settings
+# Run card: preserve the verified FxFx integration configuration
 # --------------------------------------------------------------------
 modify_run_card(
     process_dir=process_dir,
@@ -146,7 +146,7 @@ modify_config_card(
     process_dir=process_dir,
     settings={
         "run_mode": 2,
-        "nb_core": DELTA441_NB_CORES,
+        "nb_core": WENU_NB_CORES,
         "pythia8_path": pythia8_path,
     },
 )
@@ -168,13 +168,13 @@ try:
     _cores = int(_config_values["nb_core"])
 except (KeyError, ValueError) as _err:
     raise RuntimeError("AQP_WENU_ABORT_UNREADABLE_PARALLEL_CONFIG") from _err
-if (_mode, _cores) != (2, DELTA441_NB_CORES):
+if (_mode, _cores) != (2, WENU_NB_CORES):
     raise RuntimeError(
         "AQP_WENU_ABORT_WRONG_PARALLEL_CONFIG: "
         "run_mode=%s nb_core=%s" % (_mode, _cores)
     )
 print("AQP_WENU_PARALLEL_CONFIG_VERIFIED_MODE=2_NB_CORE=%d" % _cores)
-print("AQP_WENU_PARALLEL_MODE=2_NB_CORE=%d" % DELTA441_NB_CORES)
+print("AQP_WENU_PARALLEL_MODE=2_NB_CORE=%d" % WENU_NB_CORES)
 
 # In an already-extracted gridpack, the source files and integration grids
 # already exist. This is the known working event-generation pattern.
