@@ -1,0 +1,20 @@
+# Independent Wenu standard111/delta111/delta221 MadGraph local 16-CPU MINT2.
+# Vars injected by DAG: CFG SEED NEVENTS TAG.
+universe = vanilla
+executable = /home/aalida/AQP/Wjets/WENU/run_wenu_comparison_16core_lhe.sh
+arguments = $(CFG) $(SEED) $(NEVENTS) $(TAG)
+initialdir = /home/aalida/AQP/Wjets/WENU
+getenv = True
+should_transfer_files = YES
+transfer_executable = True
+transfer_input_files = /home/aalida/AQP/Wjets/WENU/wenu_compare16_jo/$(CFG)/100003,/home/aalida/AQP/Wjets/WENU/audit_wenu_delta441_lhe.py
+when_to_transfer_output = ON_EXIT
+transfer_output_files = ""
+request_cpus = 16
+request_memory = 32000MB
+request_disk = 90000MB
+output = /home/aalida/AQP/Wjets/WENU/packaging_logs/wenu_cmp_$(TAG)_$(CFG)_lhe.$(Cluster).out
+error = /home/aalida/AQP/Wjets/WENU/packaging_logs/wenu_cmp_$(TAG)_$(CFG)_lhe.$(Cluster).err
+log = /home/aalida/AQP/Wjets/WENU/packaging_logs/wenu_cmp_$(TAG)_$(CFG)_lhe.$(Cluster).log
+notification = Never
+queue 1
