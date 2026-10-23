@@ -1,0 +1,19 @@
+# Wenu Delta441 16-core MG MINT2 local multicore, 25,000 LHE records.
+# Cleaned gridpack must already exist on /data.
+universe = vanilla
+executable = /home/aalida/AQP/Wjets/WENU/run_delta441_16cpu_seed237_25k_lhe.sh
+initialdir = /home/aalida/AQP/Wjets/WENU
+getenv = True
+should_transfer_files = YES
+transfer_executable = True
+transfer_input_files = /home/aalida/AQP/Wjets/WENU/production16_jo/100003,/home/aalida/AQP/Wjets/WENU/audit_wenu_delta441_lhe.py
+when_to_transfer_output = ON_EXIT
+transfer_output_files = ""
+request_cpus = 16
+request_memory = 32000MB
+request_disk = 90000MB
+output = /home/aalida/AQP/Wjets/WENU/packaging_logs/d441_16c_25k.$(Cluster).out
+error = /home/aalida/AQP/Wjets/WENU/packaging_logs/d441_16c_25k.$(Cluster).err
+log = /home/aalida/AQP/Wjets/WENU/packaging_logs/d441_16c_25k.$(Cluster).log
+notification = Never
+queue 1
