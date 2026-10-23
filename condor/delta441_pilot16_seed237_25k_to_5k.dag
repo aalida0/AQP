@@ -1,0 +1,7 @@
+# Sequential production pilot: 16-core LHE generation, then FxFx EVNT.
+# No retries: never recompute expensive MINT2 because of a wrapper error.
+JOB LHE delta441_pilot16_seed237_25k_lhe.submit
+JOB SHOWER delta441_pilot16_seed237_5000evnt.submit
+PARENT LHE CHILD SHOWER
+RETRY LHE 0
+RETRY SHOWER 0
