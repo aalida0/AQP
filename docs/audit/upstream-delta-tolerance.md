@@ -8,7 +8,7 @@ Official repository: `mg5amcnlo/mg5amcnlo` (https://github.com/mg5amcnlo/mg5amcn
 
 The **exact same upstream** `Template/NLO/SubProcesses/montecarlocounter.f` blob (Git blob `31efda26a57b4a1868be6c17d43182296bf8b81f`) is present in versions v3.5.11, v3.6.7, v3.7.1, v3.8.0, **v3.8.1** (2026-10-09), and the `3.x` branch checked on 2026-10-30. Its original code aborts whenever `probne>1d0`, regardless of roundoff.
 
-User's patched `montecarlocounter_MINE.f` (SHA256 `fee80cac03c15fc5e7b85c791dbb4f7b284fb004faec47b2e3c6a33c9a861f0a`) was compared against the source fingerprint recorded for the installed ATLAS MG5 3.5.11 template, SHA256 `b1741019d4f756eff7461e9b827af22a65d1cf665e08069455f0cfa73d4aaccc`. **Undoing only the exact 4-line tolerance change (including new declaration) reproduces that upstream SHA256 byte-for-byte.** No unrelated source modifications.
+User's patched `montecarlocounter_MINE.f` (SHA256 `fee80cac03c15fc5e7b85c791dbb4f7b284fb004faec47b2e3c6a33c9a861f0a`) was compared against the source fingerprint recorded for the installed ATLAS MG5 3.5.11 template, SHA256 `b1741019d4f756eff7461e9b827af22a65d1cf665e08069455f0cfa73d4aaccc`. **Undoing only the localized tolerance edits (including the new declaration) reproduces that upstream SHA256 byte-for-byte.** No unrelated source modifications.
 
 ## Proposed minimal patch logic
 
