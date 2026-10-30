@@ -32,3 +32,20 @@ No scheduler query, production edit, Condor job or integration run is performed.
 **Stop doing historical Condor forensics unless the physics checks fail.** Keep the four source-pinned bundled patch candidates and their checks in the audit branch; they are not ready for unattended production until durable submission identity/reconciliation and a disposable live test are completed. Do not install a backup-derived Delta441 candidate into active Delta441.
 
 Primary AQP work to resume: quantify Wenu FxFx per config (weighted/unweighted negative-weight fraction, (D=(1-2f_\mathrm{weighted})^{-2}), matching efficiency, timing and integrated effective event cost), then Rivet differential cross-checks against references; maintain a separate audit for generator reliability. Preserve all gridpacks and frozen event samples.
+
+
+## Actual content comparison — user-run results, 2026-10-30
+
+The newly added offline tests passed (user reported `OK`). The active/backup content audit reported:
+
+- 300/300 GF directories on both sides, 300 common.
+- For `mint_grids`, **300/300 changed byte size** (and therefore byte content); not confined to the 15 backup bad-real channels.
+- Among **15 backup-bad-real GF channels** only: `grid.MC_integer` **11 same-size content changes / 4 byte-identical**; `res.dat` and `results.dat` **15/15 same-size content changes** each. The remaining 285 GF channels' non-grid artifacts were **not hashed** (the tool reports `SAME_SIZE_NOT_HASHED`, not `IDENTICAL`).
+- All four artifacts were previously found nonempty at all 300 GF for both active and backup.
+- Active `delta441` lacks `log_MINT1.txt` for all 300 channels; `0` bad-real markers there means **no relevant logs to inspect**, not proof of success.
+- Thus the active process differs systematically from backup. A different MINT stage, broad regeneration or a reconstructed snapshot are hypotheses; none established by sizes alone.
+
+**Decision:** Stop historical provenance investigation here, unless a downstream physics or structural check fails. Do **not** conclude active grids are corrupted, and do **not** reintegrate. Preserve the backup and active copies. Check a representative pair's `MAX/SUM/QSM/SPE` record structure if needed to distinguish stage-level format differences. Continue physics validation of **existing** Wenu gridpacks and successfully generated+showered pilot events (verify cross-section/weights and output integrity), then populate the folding-comparison report (weighted and unweighted NWF, dilution, FxFx efficiency, per-stage CPU and wall time). Separate a Condor non-physics reliability pilot from these physics deliverables.
+
+Previously prepared `delta441_backup` Condor patched candidate **must not** be installed in the active `delta441` process. The submission/status corrections remain offline validated but do not implement idempotent recovery.
+
