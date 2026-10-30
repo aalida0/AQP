@@ -42,13 +42,13 @@ class BundledPatchTests(unittest.TestCase):
             with self.subTest(configuration=cfg):
                 bundled = module.add_known_timing(CENTRAL_FIXTURE, cfg)
                 self.assertIn(
-                    "step = str(argument[3]) if len(argument) > 3 else 'unknown'\\n\\n"
+                    "step = str(argument[3]) if len(argument) > 3 else 'unknown'\n\n"
                     "                if step in ('0', '1'):",
                     bundled,
                 )
                 unexpected = bundled.replace(
-                    "step = str(argument[3]) if len(argument) > 3 else 'unknown'\\n\\n",
-                    "step = str(argument[3]) if len(argument) > 3 else 'unknown'\\n",
+                    "step = str(argument[3]) if len(argument) > 3 else 'unknown'\n\n",
+                    "step = str(argument[3]) if len(argument) > 3 else 'unknown'\n",
                     1,
                 )
                 with self.assertRaises(ValueError):
