@@ -49,6 +49,13 @@ def assignments(text, kind):
 def literal(node, bindings):
     if isinstance(node, ast.Name):
         return bindings.get(node.id)
+    if isinstance(node, ast.Dict):
+        # Resolve each entry independently; a dynamic path must not hide
+        # literal run_mode/nb_core in the same settings dictionary.
+        keys = [literal(k, bindings) for k in node.keys]
+        if any(k is None or not isinstance(k, (str, int, float, bool)) for k in keys):
+            return None
+        return {k: literal(v, bindings) for k, v in zip(keys, node.values)}
     try:
         return ast.literal_eval(node)
     except (ValueError, TypeError, SyntaxError, MemoryError, RecursionError):
@@ -202,6 +209,26 @@ def inspect(args):
         else:
             add(issues, "ERROR", "JO_MISSING", str(path))
         report["jo_config"] = jo_settings
+    if args.log:
+        log_results = []
+        for path in args.log:
+            path = path.expanduser()
+            if not path.is_file():
+                add(issues, "ERROR", "LOG_MISSING", str(path))
+                continue
+            # Large text logs are not needed in full for a quick preflight.
+            # Report truncation explicitly; follow up on the original file.
+            with path.open("rb") as fh:
+                size = path.stat().st_size
+                if size > 16 * 1024 * 1024:
+                    fh.seek(-16 * 1024 * 1024, 2)
+                    add(issues, "WARN", "LOG_TRUNCATED", str(path))
+                body = fh.read().decode("utf-8", errors="replace")
+            labels = classify_log(body)
+            log_results.append({"path": str(path), "size": size, "classifications": labels})
+            if labels:
+                add(issues, "WARN", "LOG_FAILURE_SIGNATURE", str(path) + ": " + ", ".join(labels))
+        report["logs"] = log_results
     if args.submit:
         path = args.submit.expanduser()
         if not path.is_file():
@@ -227,11 +254,12 @@ def main():
     ap.add_argument("--joboption", type=Path, help="JO to inspect statically (never executed)")
     ap.add_argument("--submit", type=Path, help="Outer HTCondor submit file, if applicable")
     ap.add_argument("--scan-gfs", action="store_true", help="Read MINT1 logs and check GF artifacts (optional)")
+    ap.add_argument("--log", type=Path, action="append", help="Read an explicit MG/Condor log; repeat as needed")
     ap.add_argument("--max-examples", type=int, default=4)
     ap.add_argument("--json", action="store_true", help="Print machine-readable JSON to stdout")
     args = ap.parse_args()
-    if not any((args.process, args.joboption, args.submit)):
-        ap.error("Specify --process and/or --joboption, optionally --submit")
+    if not any((args.process, args.joboption, args.submit, args.log)):
+        ap.error("Specify --process, --joboption and/or --log, optionally --submit")
     if args.scan_gfs and not args.process:
         ap.error("--scan-gfs requires --process")
     if args.max_examples < 0:
@@ -242,7 +270,7 @@ def main():
     else:
         print("MG INTERNAL CONDOR PREFLIGHT (READ ONLY)")
         print("Process:", report["process"])
-        for key in ("run_card", "mg_config", "jo_config", "request_cpus", "gf_scan"):
+        for key in ("run_card", "mg_config", "jo_config", "request_cpus", "gf_scan", "logs"):
             if key in report:
                 print(key + ":", json.dumps(report[key], sort_keys=True))
         for issue in report["issues"]:
