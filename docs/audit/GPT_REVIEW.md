@@ -1,5 +1,7 @@
 # Independent review — Wenu audit (2026-10-30)
 
+> **Priority update — 2026-10-30:** The user confirms that the HT-squared bias implementation is PMG-approved and the Sudakov near-unity tolerance patch has worked in previous runs. Do not allocate investigation effort to these unless fresh contradictory evidence appears. Defer FxFx mismatch correction. Immediate goal: **internal MadGraph HTCondor stability (submission/status polling, duplicate jobs, artifact collection/restart), source and configuration mismatches, and minimum viable JO/helper simplification.** See [internal-condor-preflight.md](internal-condor-preflight.md). The earlier items below remain a historical inventory, not the current work queue.
+
 Reviewed commit: `e09b0223dc72a8a74d8f19db5c5c2911e444c02b` on `audit/production-framework`.
 
 ## Verdict
