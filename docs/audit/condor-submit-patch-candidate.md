@@ -50,6 +50,47 @@ Expected behavior: status mock returns **FAIL_CLOSED** twice, with no output che
 
 The generated `$SAFE_DIR/cluster.py` is not installed, imported by production, or automatically deployed. The original `cluster.py` and all GF/grids/JobOptions remain unchanged.
 
+## Acceptance update (user-run UChicago tests, 2026-10-30)
+
+The user reports all **8/8** `test_aqp_prepare_condor_submit_patch.py` tests passed. Two source-pinned patching steps succeeded:
+
+- Status-only candidate SHA256 `bbddb6eedd5c68be6070d3cbc8d3efff20d49851f7eb328932e81d3a8cddb6f9`.
+- **Combined candidate SHA256 `2bef98ea8b4abb69460a1d669870a9c0f35b21576b8a8759b92f1d004b6f3524`.**
+
+Combined candidate tests: `control_one_job` and `control` returned FAIL_CLOSED (mock exit 42, no output checks). Both `submit` and `submit2` returned NORMAL_PASS, AMBIGUOUS_ACK_FAIL_CLOSED (one attempt, zero tracked), NONZERO_EXIT_FAIL_CLOSED (one attempt, zero tracked). **Only synthetic tests; no live scheduler or physics production.**
+
+## Required gate: verify actual MadGraph import path before deployment
+
+The generated process may execute a **bundled** copy `bin/internal/cluster.py`, not `madgraph/various/cluster.py` from the central ATLAS installation. See v3.5.11 `madgraph/interface/amcatnlo_run_interface.py`: it tries `import madgraph`, then selects either `internal.cluster` or `madgraph.various.cluster`. A patch that is only staged against the centrally installed source may be unused during an actual integration.
+
+Run manually in UChicago (read-only):
+
+```bash
+BASE="$HOME/AQP/Wjets/WENU"
+for cfg in standard111 delta111 delta221 delta441_backup; do
+  proc="$BASE/$cfg/PROCNLO_loop_sm-no_b_mass_0"
+  echo "=== $cfg ==="
+  for f in "$proc/bin/internal/cluster.py" "$proc/bin/internal/misc.py" \
+           "$proc/bin/aMCatNLO" "$proc/bin/internal/amcatnlo_run_interface.py"; do
+    if [[ -f "$f" ]]; then
+      ls -l "$f"
+      sha256sum "$f"
+    else
+      echo "MISSING: $f"
+    fi
+  done
+done
+```
+
+If the expected paths do not exist, locate local copies with a constrained search:
+
+```bash
+find "$HOME/AQP/Wjets/WENU/standard111/PROCNLO_loop_sm-no_b_mass_0" \
+  -type f \( -name cluster.py -o -name amcatnlo_run_interface.py \) -print
+```
+
+**Do not infer which copy actually loaded merely from its presence.** After locating candidates, inspect the launcher import statements and any environment setup that changes `PYTHONPATH`. A subsequent zero-physics sandbox import check can establish `cluster.__file__` without altering production. Never replace either original or bundled file before explicit review.
+
 ## Remaining acceptance gates before integration
 
 1. All unit tests and source-extracted mocks pass. Confirm the combined candidate SHA256 and review unified diff.
