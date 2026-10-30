@@ -1,5 +1,8 @@
 # Compose validated Condor fixes with original Wenu bundled backends
 
+**DELTA441 PATCH WARNING:** The bundled `cluster.py` candidate for `delta441_backup` is based on the backup, not the validated `delta441_cleaned_v1` gridpack. Do not install it into the cleaned process. See [wenu-delta441-validated-production.md](wenu-delta441-validated-production.md).
+
+
 **Status:** sandbox candidates only. No production patch, no live HTCondor integration, no changes to the four original processes.
 
 ## Verified import resolution
