@@ -37,6 +37,23 @@ class BundledPatchTests(unittest.TestCase):
                 self.assertEqual(bundled.count("def control(self"), 1)
                 compile(bundled, cfg + "/cluster.py", "exec")
 
+    def test_original_blank_line_after_step_assignment_is_preserved(self):
+        for cfg in module.BUNDLES:
+            with self.subTest(configuration=cfg):
+                bundled = module.add_known_timing(CENTRAL_FIXTURE, cfg)
+                self.assertIn(
+                    "step = str(argument[3]) if len(argument) > 3 else 'unknown'\\n\\n"
+                    "                if step in ('0', '1'):",
+                    bundled,
+                )
+                unexpected = bundled.replace(
+                    "step = str(argument[3]) if len(argument) > 3 else 'unknown'\\n\\n",
+                    "step = str(argument[3]) if len(argument) > 3 else 'unknown'\\n",
+                    1,
+                )
+                with self.assertRaises(ValueError):
+                    module.build(CENTRAL_FIXTURE, unexpected, cfg)
+
     def test_delta441_legacy_log_path_is_preserved_not_silently_changed(self):
         bundled = module.add_known_timing(CENTRAL_FIXTURE, "delta441_backup")
         self.assertIn("/WENU/delta441/aqp_condor_timing", bundled)
