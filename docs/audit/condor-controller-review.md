@@ -24,6 +24,23 @@ Source referenced: upstream MG5_aMC@NLO **v3.5.11**, `madgraph/various/cluster.p
 
 No backend patch should be proposed until installed-source differences and original controller logs are checked. **Do not blindly raise `cluster_nb_retry`: that can make duplicate-writer corruption worse.**
 
+## Newly identified upstream bug candidate: unchecked Popen return codes
+
+**Higher priority than the generic duplicate-submit hypothesis.** In upstream v3.5.11, `CondorCluster.control()` and `control_one_job()` read `status.stderr` and test `status.returncode`, but do not call `wait()`, `poll()` or `communicate()` first. `misc.Popen` is a direct `subprocess.Popen` wrapper. Python can retain `returncode=None` even after the child has exited if the caller only reads its pipes. A nonzero `condor_q` result can thus be treated as a warning and an empty stdout response as no active jobs.
+
+**Consequence to test, not yet observed:** a transient `SECMAN` failure might send *all* tracked jobs through missing-output/completion handling rather than a status-query error. This could magnify re-entry, stale-state and duplicate-writer failures.
+
+A unit test in `tests/test_aqp_condor_backend_audit.py` reproduces the subprocess returncode behavior without accessing Condor. The static audit script diagnoses the **actual ATLAS-installed** cluster module:
+
+```bash
+cd ~/AQP/aqp-production-audit
+python3 -m unittest discover -s tests -p 'test_aqp_condor_backend_audit.py' -v
+MG=/cvmfs/atlas.cern.ch/repo/sw/software/23.6/sw/lcg/releases/MCGenerators/madgraph5amc/3.5.11.atlas13-dbd05/x86_64-el9-gcc14-opt
+python3 scripts/aqp_condor_backend_audit.py --mg-root "$MG"
+```
+
+Do not modify CVMFS or source integration directories. Whether the actual ATLAS-patched build contains the same flaw must be established from the output.
+
 ## Manual, read-only evidence request (no Codex)
 
 On UChicago:
