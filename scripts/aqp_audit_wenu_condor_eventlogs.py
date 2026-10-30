@@ -14,7 +14,7 @@ from pathlib import Path
 import re
 
 CONFIGS = {"standard111": "standard111", "delta111": "delta111",
-           "delta221": "delta221", "delta441_backup": "delta441"}
+           "delta221": "delta221", "delta441": "delta441"}
 EVENT_RE = re.compile(r'^\s*(\d{3})\s+\((\d+)\.(\d+)\.(\d+)\)\s+')
 RETURN_RE = re.compile(r'Normal termination\s*\(return value\s+(-?\d+)\)', re.I)
 MINT_RE = re.compile(r'Fortran runtime error: Bad real number', re.I)
