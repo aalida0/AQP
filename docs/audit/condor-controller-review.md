@@ -59,6 +59,26 @@ find "$HOME/AQP/Wjets/WENU" -maxdepth 3 -type f \( -name '*debug.log' -o -name '
 
 These commands emit source identifiers, card settings and candidate log paths, not production data. If the ATLAS-patched code differs, resolve that difference *before* implementing changes.
 
+## Installed ATLAS confirmation and next mock
+
+User ran the static source audit on UChicago. Exact installed files:
+
+- `cluster.py` SHA256 `feb07ff8af81eb5524ee810d6f4976502457fdf45106a9e2702d1ea46b7ef7fe`
+- `misc.py` SHA256 `000fee5201091e7f74083f64f2f269f36adf89d8697e4d9c936cc42e5efa122e`
+
+Both `CondorCluster.control` (lines 1088–1091) and `control_one_job` (lines 1057–1060) read `status.returncode` without a preceding `wait/poll/communicate`. Both submission methods have generic retry decorators. **Source-level defect pattern confirmed in the installed version; historical causal link remains unproven.**
+
+Next, run the isolated *actual installed-method* mock. It replaces calls to the external `condor_q` command with a Python child that exits 42 and writes `SECMAN:2007`; it does not access the scheduler. Method decorators are stripped to prevent delays or retries. We expect the unpatched code to suppress the failure; this is a diagnostic, not a production fix.
+
+```bash
+cd ~/AQP/aqp-production-audit
+git pull --ff-only
+MG=/cvmfs/atlas.cern.ch/repo/sw/software/23.6/sw/lcg/releases/MCGenerators/madgraph5amc/3.5.11.atlas13-dbd05/x86_64-el9-gcc14-opt
+python3 scripts/aqp_condor_status_mock.py --mg-root "$MG"
+```
+
+Do not patch CVMFS or live integration process trees. Once mock evidence is obtained, prepare and test a **separate candidate copy** of the two methods with `communicate()`, nonzero status treated as failure, robust output parsing, and no new submission on ambiguous scheduler visibility. Test exit-0 queue-empty, exit-nonzero with stderr, malformed output, and partial listings. The candidate must remain isolated until explicitly approved for a new pilot.
+
 ## Direction
 
 Only after evidence collection: design an idempotent submit/status/output-commit controller; test transient scheduler errors, missing/incomplete result files, lost submit acknowledgments, and re-entry/duplicate writers with mocks. Keep this separate from FxFx mismatches and PMG-approved HT2 bias. Then reduce JO duplication by retaining explicit per-variant physics settings and a tiny validated shared compatibility layer.
