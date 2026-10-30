@@ -19,6 +19,24 @@ Timing directory checks:
 - `standard111`, `delta111`, `delta221`: writable.
 - `delta441_backup`: the hardcoded old path `WENU/delta441/aqp_condor_timing` is missing or unwritable. Treat as **operational blocker for any future live use**, not a reason to modify historical results.
 
+## 2026-10-30 formatting-only preflight failure and fix
+
+The first read-only dry run was correctly rejected, even though all six initial unit tests passed. The strict reconstruction omitted **one blank line** between the `step = str(argument[3])...` assignment and `if step in ('0', '1'):` inside each timing block. The actual `standard111` diff showed only those two added blank lines. With `--write`, no candidate files were generated, so the subsequent mocks could not find the expected paths; this was **not a scheduler or Condor failure**.
+
+The bundled timing reconstruction now preserves those blank lines and a regression fixture tests that their absence is rejected. **Re-run validation** before trying to generate candidates. Run unit tests and dry run first; use `&&` or `set -e` to avoid attempting mocks after failure.
+
+```bash
+cd ~/AQP/aqp-production-audit
+git pull --ff-only
+python3 -m unittest discover -s tests -p 'test_aqp_prepare_bundled_condor_patch.py' -v
+MG=/cvmfs/atlas.cern.ch/repo/sw/software/23.6/sw/lcg/releases/MCGenerators/madgraph5amc/3.5.11.atlas13-dbd05/x86_64-el9-gcc14-opt
+python3 scripts/aqp_prepare_bundled_condor_patch.py \
+  --base "$HOME/AQP/Wjets/WENU" \
+  --central "$MG/madgraph/various/cluster.py"
+```
+
+Do not proceed to the `--write` or mock steps unless all four configurations print `VERIFIED`.
+
 ## Candidate patch design
 
 `scripts/aqp_prepare_bundled_condor_patch.py` requires:
