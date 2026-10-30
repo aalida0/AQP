@@ -1,5 +1,8 @@
 # Wenu Delta441: active versus backup artifact audit (2026-10-30)
 
+**PRODUCTION-PROVENANCE CORRECTION (2026-10-30):** The word *active* below identifies one of two **historical source trees** in this comparison, **not** the validated Delta441 production candidate. That is the separate cleaned `delta441_cleaned_v1` gridpack (25,000 LHE / 5,000 FxFx EVNT pilot). See [wenu-delta441-validated-production.md](wenu-delta441-validated-production.md).
+
+
 **Read-only results provided by user** from `scripts/aqp_compare_delta441_active_backup.py`, followed by the updated active Delta441 event-log and timeline audits.
 
 | Finding | Active `WENU/delta441` | Historical `WENU/delta441_backup` |
