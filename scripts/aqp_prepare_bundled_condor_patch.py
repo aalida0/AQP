@@ -44,6 +44,7 @@ def timing_replacement(config):
         "        if log is None:\n"
         "            if os.path.basename(str(prog)) == 'ajob1' and argument:\n"
         "                step = str(argument[3]) if len(argument) > 3 else 'unknown'\n"
+        "\n"
         "                if step in ('0', '1'):\n"
         "                    log = os.path.join(\n"
         "                        '%s',\n" % target +
