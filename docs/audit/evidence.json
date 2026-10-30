@@ -1,0 +1,344 @@
+{
+  "audit_date": "2026-10-30",
+  "baseline_commit": "cb9dae8214c47c02bd0a10d1977e77d61e52957a",
+  "scope": "Read-only source inspection; no event generation, compilation, checkpoint unpickling or job submission. Metadata only; source and logs are not copied.",
+  "evidence": [
+    {
+      "id": "E01",
+      "path": "/home/aalida/AQP/Wjets/WENU/100003/mc.aMCPy8EG_Wenu_FxFx_2jets_HT2bias_delta441.py",
+      "sha256": "46fbc24258f80390c04913fcb4ea0f9d802a8a8266ed62fccf6d8bd989b3d02d",
+      "bytes": 3580,
+      "lines": 151
+    },
+    {
+      "id": "E02",
+      "path": "/home/aalida/AQP/Wjets/WENU/production16_jo/100003/mc.aMCPy8EG_Wenu_FxFx_2jets_HT2bias_delta441.py",
+      "sha256": "5ca0aafec5368b4da34af8587601507959a915ed31f6dc8d17e826bbbbd4c51d",
+      "bytes": 6867,
+      "lines": 178,
+      "repository_path": "joboptions/delta441_production16/100003/mc.aMCPy8EG_Wenu_FxFx_2jets_HT2bias_delta441.py",
+      "repository_identical": true,
+      "repository_url": "https://github.com/aalida0/AQP/blob/cb9dae8214c47c02bd0a10d1977e77d61e52957a/joboptions/delta441_production16/100003/mc.aMCPy8EG_Wenu_FxFx_2jets_HT2bias_delta441.py"
+    },
+    {
+      "id": "E03",
+      "path": "/home/aalida/AQP/Wjets/WENU/production16_shower_jo/100004/mc.aMCPy8EG_Wenu_FxFx_2jets_D441_shower.py",
+      "sha256": "b929630bb9283842d824212b8c4ddfcc312829123bc576e51c58d0794bfbee1d",
+      "bytes": 1883,
+      "lines": 42,
+      "repository_path": "joboptions/delta441_production16_shower/100004/mc.aMCPy8EG_Wenu_FxFx_2jets_D441_shower.py",
+      "repository_identical": true,
+      "repository_url": "https://github.com/aalida0/AQP/blob/cb9dae8214c47c02bd0a10d1977e77d61e52957a/joboptions/delta441_production16_shower/100004/mc.aMCPy8EG_Wenu_FxFx_2jets_D441_shower.py"
+    },
+    {
+      "id": "E04",
+      "path": "/home/aalida/AQP/Wjets/WENU/delta441_backup/PROCNLO_loop_sm-no_b_mass_0/Cards/run_card.dat",
+      "sha256": "ae9828fdb21631edc3a6f8cbda6e0fa1feb0406e1f03b2fc0b30d3171a2cdc68",
+      "bytes": 1526,
+      "lines": 68
+    },
+    {
+      "id": "E05",
+      "path": "/home/aalida/AQP/Wjets/WENU/delta441_backup/PROCNLO_loop_sm-no_b_mass_0/Cards/proc_card_mg5.dat",
+      "sha256": "35f2e506f032901d2cb9ef3592be6a337ad7f4f245e88d0cd9b010500aa47640",
+      "bytes": 2247,
+      "lines": 52
+    },
+    {
+      "id": "E06",
+      "path": "/home/aalida/AQP/Wjets/WENU/delta441_backup/PROCNLO_loop_sm-no_b_mass_0/Cards/param_card.dat",
+      "sha256": "b07c24750d298ac31319fe70f73b9f217b888aa19cbbfc754c97708524c55901",
+      "bytes": 2307,
+      "lines": 66
+    },
+    {
+      "id": "E07",
+      "path": "/home/aalida/AQP/Wjets/WENU/delta441_backup/PROCNLO_loop_sm-no_b_mass_0/Cards/FKS_params.dat",
+      "sha256": "bdba6ee10178dd0d34c1aebc37bd9d5b4fbb29627674b211e4a6618bf9b38cb3",
+      "bytes": 6675,
+      "lines": 184
+    },
+    {
+      "id": "E08",
+      "path": "/home/aalida/AQP/Wjets/WENU/100003/dummy_fct.f",
+      "sha256": "76f47c8fdfacd7d2136f13e5261765ab27aae21752448cae0cb4d05120e9fc08",
+      "bytes": 3559,
+      "lines": 94
+    },
+    {
+      "id": "E09",
+      "path": "/home/aalida/AQP/Wjets/WENU/100003/montecarlocounter_MINE.f",
+      "sha256": "fee80cac03c15fc5e7b85c791dbb4f7b284fb004faec47b2e3c6a33c9a861f0a",
+      "bytes": 194139,
+      "lines": 5487
+    },
+    {
+      "id": "E10",
+      "path": "/home/aalida/AQP/Wjets/WENU/delta441_backup/PROCNLO_loop_sm-no_b_mass_0/SubProcesses/fks_singular.f",
+      "sha256": "5d1f3ace847939771b9ea8bdbb6913e070bf30d2ce8a83b329e9b5b87ad01653",
+      "bytes": 300911,
+      "lines": 8218
+    },
+    {
+      "id": "E11",
+      "path": "/home/aalida/AQP/Wjets/WENU/rebuild_wjets_delta441_checkpoint.py",
+      "sha256": "84d0032405526c32c8c36437d876f54a88c4994ab8883089dc8a3bde8f268aa4",
+      "bytes": 13822,
+      "lines": 306,
+      "repository_path": "scripts/rebuild_wjets_delta441_checkpoint.py",
+      "repository_identical": false
+    },
+    {
+      "id": "E12",
+      "path": "/home/aalida/AQP/Wjets/WENU/repair_delta441_fold_string.py",
+      "sha256": "5b9944b6a37b5848874b9326e72c6c516151f7efd6ef211415d6fead8bd882b6",
+      "bytes": 6233,
+      "lines": 156,
+      "repository_path": "scripts/repair_delta441_fold_string.py",
+      "repository_identical": true,
+      "repository_url": "https://github.com/aalida0/AQP/blob/cb9dae8214c47c02bd0a10d1977e77d61e52957a/scripts/repair_delta441_fold_string.py"
+    },
+    {
+      "id": "E13",
+      "path": "/home/aalida/AQP/Wjets/WENU/validate_delta441_checkpoint.py",
+      "sha256": "91e12762a5616135256258da1d8d09a4dc0c9bf6ef45a1e71d04c8d851a1fbbe",
+      "bytes": 4404,
+      "lines": 98,
+      "repository_path": "scripts/validate_delta441_checkpoint.py",
+      "repository_identical": true,
+      "repository_url": "https://github.com/aalida0/AQP/blob/cb9dae8214c47c02bd0a10d1977e77d61e52957a/scripts/validate_delta441_checkpoint.py"
+    },
+    {
+      "id": "E14",
+      "path": "/home/aalida/AQP/Wjets/WENU/prepare_wenu_delta441_clean_gridpack_v1.sh",
+      "sha256": "d402d1ff635f14e07e734284c813f87f49f9a5d3e01ad4c5e2a92382a700e4b8",
+      "bytes": 5233,
+      "lines": 122,
+      "repository_path": "scripts/prepare_wenu_delta441_clean_gridpack_v1.sh",
+      "repository_identical": true,
+      "repository_url": "https://github.com/aalida0/AQP/blob/cb9dae8214c47c02bd0a10d1977e77d61e52957a/scripts/prepare_wenu_delta441_clean_gridpack_v1.sh"
+    },
+    {
+      "id": "E15",
+      "path": "/home/aalida/AQP/Wjets/WENU/run_delta441_16cpu_seed237_25k_lhe.sh",
+      "sha256": "98110c7ccbc98ae4281a0e828eef87f9eca3cd043833436b70d7b9f0de777508",
+      "bytes": 11142,
+      "lines": 280,
+      "repository_path": "scripts/run_delta441_16cpu_seed237_25k_lhe.sh",
+      "repository_identical": true,
+      "repository_url": "https://github.com/aalida0/AQP/blob/cb9dae8214c47c02bd0a10d1977e77d61e52957a/scripts/run_delta441_16cpu_seed237_25k_lhe.sh"
+    },
+    {
+      "id": "E16",
+      "path": "/home/aalida/AQP/Wjets/WENU/run_delta441_16cpu_seed237_fxfx_5000evnt.sh",
+      "sha256": "76caa601a66e6e0f7ad2dcab401f26d7f204555e63bc5aca2e192cb0dc254070",
+      "bytes": 4758,
+      "lines": 120,
+      "repository_path": "scripts/run_delta441_16cpu_seed237_fxfx_5000evnt.sh",
+      "repository_identical": true,
+      "repository_url": "https://github.com/aalida0/AQP/blob/cb9dae8214c47c02bd0a10d1977e77d61e52957a/scripts/run_delta441_16cpu_seed237_fxfx_5000evnt.sh"
+    },
+    {
+      "id": "E17",
+      "path": "/home/aalida/AQP/Wjets/WENU/stage_delta441_pilot16_seed237.sh",
+      "sha256": "593f2ed39354a9873c3a712680edf644c3345c57092cba619394c513f202063f",
+      "bytes": 2972,
+      "lines": 59,
+      "repository_path": "scripts/stage_delta441_pilot16_seed237.sh",
+      "repository_identical": true,
+      "repository_url": "https://github.com/aalida0/AQP/blob/cb9dae8214c47c02bd0a10d1977e77d61e52957a/scripts/stage_delta441_pilot16_seed237.sh"
+    },
+    {
+      "id": "E18",
+      "path": "/home/aalida/AQP/Wjets/WENU/delta441_pilot16_seed237_25k_lhe.submit",
+      "sha256": "2def497faaae05ad2480639ccadbf5c09ab93eec58a1bd4e9e304be7f1b6217f",
+      "bytes": 847,
+      "lines": 19,
+      "repository_path": "condor/delta441_pilot16_seed237_25k_lhe.submit",
+      "repository_identical": true,
+      "repository_url": "https://github.com/aalida0/AQP/blob/cb9dae8214c47c02bd0a10d1977e77d61e52957a/condor/delta441_pilot16_seed237_25k_lhe.submit"
+    },
+    {
+      "id": "E19",
+      "path": "/home/aalida/AQP/Wjets/WENU/delta441_pilot16_seed237_5000evnt.submit",
+      "sha256": "d5a14f6632eb2b03316f14eb8ec33beb58b2b203375d518a7d6af103e83ac7fd",
+      "bytes": 780,
+      "lines": 18,
+      "repository_path": "condor/delta441_pilot16_seed237_5000evnt.submit",
+      "repository_identical": true,
+      "repository_url": "https://github.com/aalida0/AQP/blob/cb9dae8214c47c02bd0a10d1977e77d61e52957a/condor/delta441_pilot16_seed237_5000evnt.submit"
+    },
+    {
+      "id": "E20",
+      "path": "/home/aalida/AQP/Wjets/WENU/delta441_pilot16_seed237_25k_to_5k.dag",
+      "sha256": "9e07e9bb0c173a70f054e3f849f1b1204014090c73e4c72ff9683e2e9e8a6643",
+      "bytes": 296,
+      "lines": 7,
+      "repository_path": "condor/delta441_pilot16_seed237_25k_to_5k.dag",
+      "repository_identical": true,
+      "repository_url": "https://github.com/aalida0/AQP/blob/cb9dae8214c47c02bd0a10d1977e77d61e52957a/condor/delta441_pilot16_seed237_25k_to_5k.dag"
+    },
+    {
+      "id": "E21",
+      "path": "/home/aalida/AQP/Wjets/WENU/audit_wenu_delta441_lhe.py",
+      "sha256": "3a4892989757d2510d82208142985c60189b8dc01f1f3809eeac8bdd56d272d5",
+      "bytes": 5186,
+      "lines": 121,
+      "repository_path": "scripts/audit_wenu_delta441_lhe.py",
+      "repository_identical": true,
+      "repository_url": "https://github.com/aalida0/AQP/blob/cb9dae8214c47c02bd0a10d1977e77d61e52957a/scripts/audit_wenu_delta441_lhe.py"
+    },
+    {
+      "id": "E22",
+      "path": "/home/aalida/AQP/Wjets/WENU/packaging_logs/delta441_8cpu_seed137.3967546.err",
+      "sha256": "27b21871e22eb5b4399c6fba48fa63ff9bc5bdb8845057bf079f789404dc79f0",
+      "bytes": 192,
+      "lines": 2
+    },
+    {
+      "id": "E23",
+      "path": "/home/aalida/AQP/Wjets/WENU/delta441_clean_8cpu_1000lhe.dag.nodes.log",
+      "sha256": "cdb882019a44e980ca3831aa7ee9f7c30d48f31e4fcf343553dcdc9d82368b4e",
+      "bytes": 3331,
+      "lines": 58
+    },
+    {
+      "id": "E24",
+      "path": "/home/aalida/AQP/Wjets/WENU/delta441_pilot16_seed237_25k_to_5k.dag.nodes.log",
+      "sha256": "8bc2dc1441710b28f61aedc8c4b7ac0f484a8f8096a0fef18880c3d342c07f75",
+      "bytes": 3326,
+      "lines": 58
+    },
+    {
+      "id": "E25",
+      "path": "/home/aalida/AQP/Wjets/WENU/delta441_pilot16_seed237_25k_to_5k.dag.metrics",
+      "sha256": "a8cc40efa58cd5387a640212cfe81a1f2c1adab28d94cc94b7553ed89f989990",
+      "bytes": 705,
+      "lines": 30
+    },
+    {
+      "id": "E26",
+      "path": "/home/aalida/AQP/Wjets/WENU/package_wjets_gridpacks.sh",
+      "sha256": "1ff461cecce909513f0eb4053d5ab74b60d9914720cc62d748e877907468da5a",
+      "bytes": 4056,
+      "lines": 117,
+      "repository_path": "scripts/package_wjets_gridpacks.sh",
+      "repository_identical": true,
+      "repository_url": "https://github.com/aalida0/AQP/blob/cb9dae8214c47c02bd0a10d1977e77d61e52957a/scripts/package_wjets_gridpacks.sh"
+    },
+    {
+      "id": "MG01",
+      "path": "/cvmfs/atlas.cern.ch/repo/sw/software/23.6/sw/lcg/releases/MCGenerators/madgraph5amc/3.5.11.atlas13-dbd05/x86_64-el9-gcc14-opt/madgraph/various/banner.py",
+      "sha256": "2c138141b78d38ee9aee74b5b2d42e4def8038f47f30f2d816e8c492101f589a",
+      "bytes": 278001,
+      "lines": 6043
+    },
+    {
+      "id": "MG02",
+      "path": "/cvmfs/atlas.cern.ch/repo/sw/software/23.6/sw/lcg/releases/MCGenerators/madgraph5amc/3.5.11.atlas13-dbd05/x86_64-el9-gcc14-opt/madgraph/interface/amcatnlo_run_interface.py",
+      "sha256": "fff31c41ef5d0bdcac7a02efd7d5f8f3d2d5f416ff6da6719a6315ca8efea871",
+      "bytes": 289987,
+      "lines": 5981
+    },
+    {
+      "id": "MG03",
+      "path": "/cvmfs/atlas.cern.ch/repo/sw/software/23.6/sw/lcg/releases/MCGenerators/madgraph5amc/3.5.11.atlas13-dbd05/x86_64-el9-gcc14-opt/Template/NLO/SubProcesses/dummy_fct.f",
+      "sha256": "c169dcddde490d10955f0b4d1ca7e7c8ef1f88ccd6052932908a47c285591364",
+      "bytes": 4831,
+      "lines": 119
+    },
+    {
+      "id": "MG04",
+      "path": "/cvmfs/atlas.cern.ch/repo/sw/software/23.6/sw/lcg/releases/MCGenerators/madgraph5amc/3.5.11.atlas13-dbd05/x86_64-el9-gcc14-opt/Template/NLO/SubProcesses/montecarlocounter.f",
+      "sha256": "b1741019d4f756eff7461e9b827af22a65d1cf665e08069455f0cfa73d4aaccc",
+      "bytes": 194057,
+      "lines": 5485
+    },
+    {
+      "id": "MG05",
+      "path": "/cvmfs/atlas.cern.ch/repo/sw/software/23.6/sw/lcg/releases/MCGenerators/madgraph5amc/3.5.11.atlas13-dbd05/x86_64-el9-gcc14-opt/Template/NLO/SubProcesses/fks_singular.f",
+      "sha256": "5d1f3ace847939771b9ea8bdbb6913e070bf30d2ce8a83b329e9b5b87ad01653",
+      "bytes": 300911,
+      "lines": 8218
+    },
+    {
+      "id": "MG06",
+      "path": "/cvmfs/atlas.cern.ch/repo/sw/software/23.6/sw/lcg/releases/MCGenerators/madgraph5amc/3.5.11.atlas13-dbd05/x86_64-el9-gcc14-opt/VERSION",
+      "sha256": "601496db17ea984552262866af68f64c8f317561b24682766201b9a94759a3c6",
+      "bytes": 35,
+      "lines": 2
+    },
+    {
+      "id": "PY01",
+      "path": "/cvmfs/atlas.cern.ch/repo/sw/software/23.6/AthGeneration/23.6.63/InstallArea/x86_64-el9-gcc14-opt/jobOptions/Pythia8_i/Pythia8_FxFx_A14mod.py",
+      "sha256": "64347d32c90c950fc737dae8e01c64c8bb99fbe133740a04320d4de8b50b25d2",
+      "bytes": 2167,
+      "lines": 46
+    },
+    {
+      "id": "PDF01",
+      "path": "/cvmfs/sft.cern.ch/lcg/external/lhapdfsets/current/NNPDF31_nnlo_as_0118_luxqed/NNPDF31_nnlo_as_0118_luxqed.info",
+      "sha256": "4670f61c0e5fc2dc92f4f3d87cc490d8c4a8fbfbf3f1415ef638f186fb4ceaf3",
+      "bytes": 2267,
+      "lines": 31
+    },
+    {
+      "id": "PDF02",
+      "path": "/cvmfs/sft.cern.ch/lcg/external/lhapdfsets/current/pdfsets.index",
+      "sha256": "fd3fceb7f17bfd9df9957609333a9f30f98f7c6d335b147ab3f2895f31c672a3",
+      "bytes": 47618,
+      "lines": 1598
+    },
+    {
+      "id": "standard111",
+      "path": "/home/aalida/AQP/Wjets/WENU/standard111/PROCNLO_loop_sm-no_b_mass_0/Cards/run_card.dat",
+      "sha256": "7ffc931569a24cc3e43f6f6daad182339938ff7314623716a1024213f1d508b7",
+      "bytes": 1527,
+      "lines": 68
+    },
+    {
+      "id": "delta111",
+      "path": "/home/aalida/AQP/Wjets/WENU/delta111/PROCNLO_loop_sm-no_b_mass_0/Cards/run_card.dat",
+      "sha256": "e5a7d891cb4f6a0cb28b57265708d6a04acfe10040e880a791239a0fd83135de",
+      "bytes": 1526,
+      "lines": 68
+    },
+    {
+      "id": "delta221",
+      "path": "/home/aalida/AQP/Wjets/WENU/delta221/PROCNLO_loop_sm-no_b_mass_0/Cards/run_card.dat",
+      "sha256": "2d77d3f465ec3eca69a3111fea2b3ca53f2d7bb7b67eff892647e53a81fbe2e5",
+      "bytes": 1526,
+      "lines": 68
+    }
+  ],
+  "source_identity_groups": [
+    {
+      "source": "dummy_fct.f",
+      "sha256": "76f47c8fdfacd7d2136f13e5261765ab27aae21752448cae0cb4d05120e9fc08",
+      "identical_paths": [
+        "/home/aalida/AQP/Wjets/WENU/100000/dummy_fct.f",
+        "/home/aalida/AQP/Wjets/WENU/100001/dummy_fct.f",
+        "/home/aalida/AQP/Wjets/WENU/100002/dummy_fct.f",
+        "/home/aalida/AQP/Wjets/WENU/100003/dummy_fct.f",
+        "/home/aalida/AQP/Wjets/WENU/standard111/PROCNLO_loop_sm-no_b_mass_0/SubProcesses/dummy_fct.f",
+        "/home/aalida/AQP/Wjets/WENU/delta111/PROCNLO_loop_sm-no_b_mass_0/SubProcesses/dummy_fct.f",
+        "/home/aalida/AQP/Wjets/WENU/delta221/PROCNLO_loop_sm-no_b_mass_0/SubProcesses/dummy_fct.f",
+        "/home/aalida/AQP/Wjets/WENU/delta441_backup/PROCNLO_loop_sm-no_b_mass_0/SubProcesses/dummy_fct.f"
+      ]
+    },
+    {
+      "source": "montecarlocounter.f",
+      "sha256": "fee80cac03c15fc5e7b85c791dbb4f7b284fb004faec47b2e3c6a33c9a861f0a",
+      "identical_paths": [
+        "/home/aalida/AQP/Wjets/WENU/100000/montecarlocounter_MINE.f",
+        "/home/aalida/AQP/Wjets/WENU/100001/montecarlocounter_MINE.f",
+        "/home/aalida/AQP/Wjets/WENU/100002/montecarlocounter_MINE.f",
+        "/home/aalida/AQP/Wjets/WENU/100003/montecarlocounter_MINE.f",
+        "/home/aalida/AQP/Wjets/WENU/standard111/PROCNLO_loop_sm-no_b_mass_0/SubProcesses/montecarlocounter.f",
+        "/home/aalida/AQP/Wjets/WENU/delta111/PROCNLO_loop_sm-no_b_mass_0/SubProcesses/montecarlocounter.f",
+        "/home/aalida/AQP/Wjets/WENU/delta221/PROCNLO_loop_sm-no_b_mass_0/SubProcesses/montecarlocounter.f",
+        "/home/aalida/AQP/Wjets/WENU/delta441_backup/PROCNLO_loop_sm-no_b_mass_0/SubProcesses/montecarlocounter.f"
+      ]
+    }
+  ]
+}
