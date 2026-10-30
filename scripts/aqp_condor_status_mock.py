@@ -96,9 +96,12 @@ def exercise(path, method_name):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mg-root", type=Path, required=True)
+    origin = parser.add_mutually_exclusive_group(required=True)
+    origin.add_argument("--mg-root", type=Path, help="Installed MG5 root")
+    origin.add_argument("--cluster-file", type=Path, help="Candidate cluster.py file")
     args = parser.parse_args()
-    source = args.mg_root / "madgraph/various/cluster.py"
+    source = (args.mg_root / "madgraph/various/cluster.py"
+              if args.mg_root else args.cluster_file)
     if not source.is_file():
         parser.error("Missing " + str(source))
     print("AQP CONDOR_Q STATUS MOCK (NO LIVE SCHEDULER REQUESTS)")
