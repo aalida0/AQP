@@ -1,5 +1,8 @@
 # Wenu 2026-10-30 internal HTCondor event-log evidence
 
+**PRODUCTION SELECTION CORRECTION:** Historical Delta441 raw and backup traces below are for forensic analysis only. For subsequent physics production use the separately validated `delta441_cleaned_v1` gridpack; see [wenu-delta441-validated-production.md](wenu-delta441-validated-production.md).
+
+
 ## New direct evidence
 
 The user executed the read-only event-log audit against the original Wenu processes:
