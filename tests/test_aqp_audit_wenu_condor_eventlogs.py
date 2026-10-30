@@ -62,7 +62,7 @@ class EventLogTests(unittest.TestCase):
     def test_missing_timing_log_is_unknown_not_zero_jobs(self):
         with tempfile.TemporaryDirectory() as d:
             base = Path(d)
-            gf = base / 'delta441_backup/PROCNLO_loop_sm-no_b_mass_0/SubProcesses/P1_foo/GF7.0'
+            gf = base / 'delta441/PROCNLO_loop_sm-no_b_mass_0/SubProcesses/P1_foo/GF7.0'
             gf.mkdir(parents=True)
             (gf / 'log_MINT1.txt').write_text(
                 'Fortran runtime error: Bad real number')
