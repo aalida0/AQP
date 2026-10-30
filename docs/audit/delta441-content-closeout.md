@@ -1,5 +1,8 @@
 # Wenu Delta441 closeout gate before returning to sample validation
 
+**PRODUCTION-PROVENANCE CORRECTION (2026-10-30):** This is a *historical raw-tree comparison*, not a validation of the production Delta441 gridpack. The selected artifact is the independently validated **`delta441_cleaned_v1` gridpack**, with a successful 25,000-LHE / 5,000-FxFx-EVNT pilot. See [wenu-delta441-validated-production.md](wenu-delta441-validated-production.md). Neither raw `delta441` nor `delta441_backup` should be substituted for that cleaned archive.
+
+
 **Scope:** active `WENU/delta441` compared with historical `WENU/delta441_backup`. Never treat backup as the active physics sample.
 
 ## Established facts
