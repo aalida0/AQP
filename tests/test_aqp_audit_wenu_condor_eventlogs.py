@@ -66,7 +66,7 @@ class EventLogTests(unittest.TestCase):
             gf.mkdir(parents=True)
             (gf / 'log_MINT1.txt').write_text(
                 'Fortran runtime error: Bad real number')
-            r = audit.assess(base)['delta441_backup']
+            r = audit.assess(base)['delta441']
             self.assertEqual(r['remaining_unmatched_bad_real_count'], 1)
             self.assertFalse(r['timing_dir_exists'])
 
