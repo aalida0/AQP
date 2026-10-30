@@ -91,6 +91,36 @@ find "$HOME/AQP/Wjets/WENU/standard111/PROCNLO_loop_sm-no_b_mass_0" \
 
 **Do not infer which copy actually loaded merely from its presence.** After locating candidates, inspect the launcher import statements and any environment setup that changes `PYTHONPATH`. A subsequent zero-physics sandbox import check can establish `cluster.__file__` without altering production. Never replace either original or bundled file before explicit review.
 
+## Local generated-process backend evidence (user check)
+
+All four Wenu process directories contain `bin/internal/cluster.py`, and **all four differ from the central pinned copy and from each other**:
+
+| Wenu config | Local cluster.py SHA256 |
+| --- | --- |
+| standard111 | `624717e154fd9bbf0cb7398f310a93c7d7f48c8d7c1a88bce46cc76844c9e5fc` |
+| delta111 | `10f51467078d72337a0293b09e62d07f68aa6231eae778ef3ec9326ad13d39c0` |
+| delta221 | `f2e95e0143ab6a770679aa7f530d54490fe3f42afaddc6480db761326e8ead16` |
+| delta441_backup | `6c6e193d217313d1b1d04cb28915bf05078109cc8f0da65d9c6f9f1a493adf8b` |
+
+Across all four, `bin/internal/misc.py` SHA256 equals the central `000fee...` and the generated launchers and NLO interfaces have identical hashes. **The four differing bundled cluster.py copies must be understood before deployment; no overwrite is allowed.**
+
+Source check: MG v3.5.11 `Template/NLO/bin/aMCatNLO` imports `internal.amcatnlo_run_interface`. In the interface, a conditional import of top-level `madgraph` chooses either `internal.cluster` or `madgraph.various.cluster`; a static file listing is **not** proof which is used in the user's actual Athena invocation.
+
+Manual read-only diff:
+
+```bash
+cd ~/AQP/aqp-production-audit
+git pull --ff-only
+MG=/cvmfs/atlas.cern.ch/repo/sw/software/23.6/sw/lcg/releases/MCGenerators/madgraph5amc/3.5.11.atlas13-dbd05/x86_64-el9-gcc14-opt
+python3 scripts/aqp_audit_bundled_condor.py \
+  --base "$HOME/AQP/Wjets/WENU" \
+  --atlas-cluster "$MG/madgraph/various/cluster.py"
+```
+
+Returns concise per-method change summaries plus the first 90 diff lines per configuration. **No code executed from the source files, no jobs submitted, no changes written.** Review output for unexpected private material before uploading to a public repository.
+
+Before deployment, inspect all local differences and establish which backend the actual MadGraph runner uses. Do not drop existing local customizations when applying the candidate.
+
 ## Remaining acceptance gates before integration
 
 1. All unit tests and source-extracted mocks pass. Confirm the combined candidate SHA256 and review unified diff.
