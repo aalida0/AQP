@@ -36,7 +36,7 @@ class FakeCompletedSubmission:
         return self.stdout_data, b""
 
 
-def get_method(source, method_name, env):
+def get_method(source, method_name, env, expect_retry=True):
     tree = ast.parse(source)
     classes = [c for c in tree.body if isinstance(c, ast.ClassDef)
                and c.name == "CondorCluster"]
@@ -47,9 +47,10 @@ def get_method(source, method_name, env):
     if len(candidates) != 1:
         raise ValueError("Cannot locate method " + method_name)
     method = copy.deepcopy(candidates[0])
-    if not any((isinstance(d, ast.Call) and isinstance(d.func, ast.Name)
-                and d.func.id == "multiple_try") for d in method.decorator_list):
-        raise ValueError(method_name + " is not wrapped by multiple_try")
+    has_retry = any((isinstance(d, ast.Call) and isinstance(d.func, ast.Name)
+                     and d.func.id == "multiple_try") for d in method.decorator_list)
+    if has_retry != expect_retry:
+        raise ValueError(method_name + ": unexpected automatic retry decoration")
     method.decorator_list = []
     module = ast.fix_missing_locations(ast.Module(body=[method], type_ignores=[]))
     exec(compile(module, "<pinned MG CondorCluster>", "exec"), env)
@@ -72,7 +73,7 @@ def get_retry_decorator(source):
     return env["multiple_try"]
 
 
-def attempt(method, cluster_source, misc_source, responses):
+def attempt(method, cluster_source, misc_source, responses, candidate=False):
     issued = []
 
     def popen(argv, *args, **kwargs):
@@ -88,18 +89,25 @@ def attempt(method, cluster_source, misc_source, responses):
     env = {"os": os, "re": re, "ClusterManagmentError": MockClusterError,
            "subprocess": SimpleNamespace(PIPE=subprocess.PIPE, Popen=popen),
            "misc": SimpleNamespace(Popen=popen)}
-    bare = get_method(cluster_source, method, env)
-    wrapped = get_retry_decorator(misc_source)()(bare)
+    bare = get_method(cluster_source, method, env, expect_retry=not candidate)
+    wrapped = bare if candidate else get_retry_decorator(misc_source)()(bare)
     stub = SimpleNamespace(cluster_queue=None, options={},
                            submitted=0, submitted_ids=[])
     kwargs = {"prog": "/bin/true", "cwd": "/tmp"}
     if method == "submit2":
         kwargs["input_files"] = ["fake_input.dat"]
-    result = wrapped(stub, **kwargs)
+    error = None
+    try:
+        result = wrapped(stub, **kwargs)
+    except MockClusterError as exc:
+        if not candidate:
+            raise
+        result = None
+        error = str(exc)
     return {"method": method, "attempts": len(issued),
             "simulated_accepted_ids": issued,
             "tracked_ids": list(stub.submitted_ids),
-            "return_value": result}
+            "return_value": result, "error": error}
 
 
 def sha256(path):
@@ -108,33 +116,58 @@ def sha256(path):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--mg-root", type=Path, required=True)
+    source = p.add_mutually_exclusive_group(required=True)
+    source.add_argument("--mg-root", type=Path, help="Original installed MG root")
+    source.add_argument("--cluster-file", type=Path, help="Isolated patched cluster.py")
     args = p.parse_args()
-    cluster = args.mg_root / "madgraph/various/cluster.py"
-    misc = args.mg_root / "madgraph/various/misc.py"
-    for path, expected in ((cluster, ATLAS_CLUSTER_HASH), (misc, ATLAS_MISC_HASH)):
-        if not path.is_file() or sha256(path) != expected:
-            p.error("Refusing to execute extracted method: source hash mismatch at " + str(path))
-    cluster_source, misc_source = cluster.read_text(), misc.read_text()
+    candidate = args.cluster_file is not None
+    if candidate:
+        cluster = args.cluster_file
+        misc_source = None
+        if not cluster.is_file() or cluster.name != "cluster.py":
+            p.error("Expected isolated cluster.py candidate")
+    else:
+        cluster = args.mg_root / "madgraph/various/cluster.py"
+        misc = args.mg_root / "madgraph/various/misc.py"
+        for path, expected in ((cluster, ATLAS_CLUSTER_HASH), (misc, ATLAS_MISC_HASH)):
+            if not path.is_file() or sha256(path) != expected:
+                p.error("Source hash mismatch at " + str(path))
+        misc_source = misc.read_text()
+    cluster_source = cluster.read_text()
     print("AQP INTERNAL CONDOR SUBMIT MOCK — NO LIVE SUBMISSIONS")
     for method in ("submit", "submit2"):
         normal = attempt(method, cluster_source, misc_source,
-                         [(b"1 job(s) submitted to cluster 910001.\n", 0)])
+                         [(b"1 job(s) submitted to cluster 910001.\n", 0)],
+                         candidate=candidate)
         if normal["attempts"] != 1 or normal["tracked_ids"] != ["910001"]:
             raise RuntimeError(method + ": normal submission fixture failed")
         print(method, "NORMAL_PASS", "attempts=1", "tracked=910001")
         ambiguous = attempt(method, cluster_source, misc_source,
                             [(b"Submitting job(s).\n", 0),
-                             (b"1 job(s) submitted to cluster 910002.\n", 0)])
-        if ambiguous["attempts"] != 2 or ambiguous["tracked_ids"] != ["910002"]:
-            raise RuntimeError(method + ": ambiguity fixture did not reproduce")
-        print(method, "DUPLICATE_RISK_REPRODUCED", "accepted=2", "tracked=1",
-              "orphaned_simulated_id=910001")
+                             (b"1 job(s) submitted to cluster 910002.\n", 0)],
+                            candidate=candidate)
+        if candidate:
+            if (ambiguous["attempts"] != 1 or ambiguous["tracked_ids"]
+                    or not ambiguous["error"]):
+                raise RuntimeError(method + ": ambiguous submission did not fail closed")
+            print(method, "AMBIGUOUS_ACK_FAIL_CLOSED", "attempts=1", "tracked=0")
+        else:
+            if ambiguous["attempts"] != 2 or ambiguous["tracked_ids"] != ["910002"]:
+                raise RuntimeError(method + ": ambiguity fixture did not reproduce")
+            print(method, "DUPLICATE_RISK_REPRODUCED", "accepted=2", "tracked=1",
+                  "orphaned_simulated_id=910001")
         bad_exit = attempt(method, cluster_source, misc_source,
-                           [(b"1 job(s) submitted to cluster 910001.\n", 42)])
-        if bad_exit["attempts"] != 1 or bad_exit["tracked_ids"] != ["910001"]:
-            raise RuntimeError(method + ": returncode fixture did not reproduce")
-        print(method, "NONZERO_EXIT_IGNORED", "mock_exit=42", "tracked=910001")
+                           [(b"1 job(s) submitted to cluster 910001.\n", 42)],
+                           candidate=candidate)
+        if candidate:
+            if (bad_exit["attempts"] != 1 or bad_exit["tracked_ids"]
+                    or not bad_exit["error"]):
+                raise RuntimeError(method + ": nonzero exit not rejected")
+            print(method, "NONZERO_EXIT_FAIL_CLOSED", "attempts=1", "tracked=0")
+        else:
+            if bad_exit["attempts"] != 1 or bad_exit["tracked_ids"] != ["910001"]:
+                raise RuntimeError(method + ": returncode fixture did not reproduce")
+            print(method, "NONZERO_EXIT_IGNORED", "mock_exit=42", "tracked=910001")
     print("Simulation only: no jobs submitted, no sleeps, no process files modified.")
 
 
