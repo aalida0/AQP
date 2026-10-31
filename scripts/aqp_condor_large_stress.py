@@ -32,6 +32,7 @@ from types import SimpleNamespace
 from aqp_prepare_bundled_condor_patch import BUNDLES, CENTRAL_SHA, build
 from aqp_condor_status_mock import isolated_method, ControlledClusterError
 from aqp_condor_submit_mock import get_method, MockClusterError
+from aqp_condor_intent_ledger import claim, read, reconcile, UnresolvedIntent
 
 EXPECTED_CANDIDATES = {
     "standard111": "682075381f79c6ad027244a4a2157f6c21b1202ea561fbc40a8fc0d0383a4a2e",
@@ -268,6 +269,93 @@ def submission_campaign(path, channels):
     }
 
 
+def ledger_campaign(temp_root, name, channels, rounds):
+    """Exercise the isolated persistent-intent model; NOT integrated with MG5."""
+    root = Path(temp_root) / (name + "_intents")
+    root.mkdir()
+    failures = []
+    records = []
+    duplicates_blocked = 0
+    scenarios = (
+        "complete", "history-error", "active", "duplicate-jobs",
+        "unknown", "wrong-request", "bad-output", "failed-exit",
+        "queue-error", "empty-queue-without-history",
+    )
+    for i in range(channels):
+        gf = "GF%d.0" % i
+        request_id = "%s_MINT1_GF%d_attempt1" % (name, i)
+        try:
+            claim(root, name, "MINT1", gf, request_id)
+            records.append(read(root, name, "MINT1", gf))
+            try:
+                claim(root, name, "MINT1", gf, request_id + "_retry")
+                failures.append("GF%d permitted second submission intent" % i)
+            except UnresolvedIntent:
+                duplicates_blocked += 1
+        except Exception as exc:
+            failures.append("GF%d unexpected ledger error: %s" % (i, exc))
+
+    decisions = 0
+    for tick in range(rounds):
+        scenario = scenarios[tick % len(scenarios)]
+        for record in records:
+            rid = record["request_id"]
+            item = {"request_id": rid, "job_id": "910001.0",
+                    "state": "TERMINATED", "exit_code": 0}
+            queue = {"reliable": True, "records": []}
+            history = {"reliable": True, "records": [item]}
+            artifact = {"verified": True, "matching_request_id": True,
+                        "complete_manifest": True}
+            expected = "TERMINAL_VERIFIED_NO_AUTOMATIC_RESUBMISSION"
+            if scenario == "history-error":
+                history["reliable"] = False
+                expected = "BLOCK_SCHEDULER_UNAVAILABLE"
+            elif scenario == "active":
+                queue["records"] = [{"request_id": rid, "job_id": "910001.0",
+                                     "state": "RUNNING"}]
+                history["records"] = []
+                expected = "BLOCK_JOB_ACTIVE"
+            elif scenario == "duplicate-jobs":
+                history["records"].append({"request_id": rid, "job_id": "910002.0",
+                                           "state": "TERMINATED", "exit_code": 2})
+                expected = "BLOCK_DUPLICATE_JOBS"
+            elif scenario in ("unknown", "empty-queue-without-history"):
+                history["records"] = []
+                expected = "BLOCK_UNKNOWN_JOB_STATE"
+            elif scenario == "wrong-request":
+                history["records"][0]["request_id"] = "some_other_request"
+                expected = "BLOCK_IDENTITY_MISMATCH"
+            elif scenario == "bad-output":
+                artifact["complete_manifest"] = False
+                expected = "BLOCK_UNVERIFIED_OUTPUT"
+            elif scenario == "failed-exit":
+                history["records"][0]["exit_code"] = 2
+                expected = "BLOCK_FAILED_JOB"
+            elif scenario == "queue-error":
+                queue["reliable"] = False
+                expected = "BLOCK_SCHEDULER_UNAVAILABLE"
+            observed = reconcile(record, queue=queue, history=history,
+                                 artifact=artifact)
+            decisions += 1
+            if observed != expected:
+                failures.append("%s GF=%s expected=%s observed=%s" %
+                                (scenario, record["gf"], expected, observed))
+                if len(failures) >= 20:
+                    break
+        if len(failures) >= 20:
+            break
+    return {
+        "created_intents": len(records),
+        "blocked_duplicate_intents": duplicates_blocked,
+        "reconciliation_decisions": decisions,
+        "total_guard_failures": len(failures),
+        "guard_failures": failures[:20],
+        "readiness_gaps": [
+            "DURABLE_INTENT_MODEL_NOT_INTEGRATED_WITH_MADGRAPH_OR_HTCONDOR"
+        ],
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base", type=Path,
@@ -299,13 +387,16 @@ def main():
                 path.write_text(candidate, encoding="utf-8")
                 status = status_campaign(path, args.channels, args.rounds)
                 submit = submission_campaign(path, args.channels)
+                ledger = ledger_campaign(temp, name, args.channels, args.rounds)
                 reports[name] = {
                     "candidate_sha256": fingerprint, "status": status,
-                    "submission": submit,
+                    "submission": submit, "ledger_model": ledger,
                     "guard_failures": (status["total_guard_failures"]
-                                       + submit["total_guard_failures"]),
+                                       + submit["total_guard_failures"]
+                                       + ledger["total_guard_failures"]),
                     "readiness_gaps": sorted(set(status["readiness_gaps"]
-                                                  + submit["readiness_gaps"])),
+                                                  + submit["readiness_gaps"]
+                                                  + ledger["readiness_gaps"])),
                 }
                 path.unlink()
                 print("STRESS_CONFIG_DONE", name,
@@ -330,6 +421,12 @@ def main():
             v["status"]["simulated_gf_status_opportunities"] for v in reports.values()),
         "simulated_submission_attempts": sum(
             v["submission"]["simulated_submission_attempts"] for v in reports.values()),
+        "ledger_model_intents": sum(
+            v["ledger_model"]["created_intents"] for v in reports.values()),
+        "ledger_model_duplicate_intents_blocked": sum(
+            v["ledger_model"]["blocked_duplicate_intents"] for v in reports.values()),
+        "ledger_model_reconciliation_decisions": sum(
+            v["ledger_model"]["reconciliation_decisions"] for v in reports.values()),
         "guards": "PASS" if all_failures == 0 else "FAIL",
         "production_readiness": "BLOCKED" if all_gaps or all_failures else "OFFLINE_ONLY",
         "unresolved_safety_gaps": all_gaps,
@@ -344,6 +441,9 @@ def main():
     print("CAMPAIGN_GUARDS", output["guards"])
     print("SIMULATED_GF_STATUS_OPPORTUNITIES", output["simulated_gf_status_opportunities"])
     print("SIMULATED_SUBMISSIONS", output["simulated_submission_attempts"])
+    print("LEDGER_MODEL_INTENTS", output["ledger_model_intents"])
+    print("LEDGER_DUPLICATE_INTENTS_BLOCKED", output["ledger_model_duplicate_intents_blocked"])
+    print("LEDGER_RECONCILIATION_DECISIONS", output["ledger_model_reconciliation_decisions"])
     print("PRODUCTION_READINESS", output["production_readiness"])
     for gap in all_gaps:
         print("BLOCKER", gap)
