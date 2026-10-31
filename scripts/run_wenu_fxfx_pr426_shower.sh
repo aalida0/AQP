@@ -29,12 +29,16 @@ if [[ "$EVENTS" == 18000 ]]; then
   mkdir -p "$(dirname "$OUT")"
   mkdir "$OUT"
 else
+  # Keep job configuration / lightweight logs in /home. Put the 50k
+  # decompressed input and EVNT in /data even for the 200-event smoke.
   WORK="/home/aalida/AQP/fxfx_pr426_standard111_shower/$CASE""_accepted$EVENTS""_seed13311"
-  OUT="$WORK"
-  [[ ! -e "$WORK" && ! -L "$WORK" ]] || {
-    echo "ERROR: workdir already exists: $WORK" >&2; exit 4;
+  OUT="/data/aalida/AQP/Wjets/WENU/fxfx_pr426_standard111_shower/$CASE""_accepted$EVENTS""_seed13311"
+  [[ ! -e "$WORK" && ! -L "$WORK" && ! -e "$OUT" && ! -L "$OUT" ]] || {
+    echo "ERROR: shower work/output exists; audit before any retry" >&2; exit 4;
   }
-  mkdir -p "$WORK"
+  mkdir -p "$(dirname "$WORK")" "$(dirname "$OUT")"
+  mkdir "$WORK"
+  mkdir "$OUT"
 fi
 # Stage log is created before any expensive file I/O or ATLAS setup.
 # If setup fails, record an exit code rather than leaving an ambiguous folder.
@@ -60,7 +64,17 @@ stage VERIFYING_LHE_GZIP
 sha256sum "$INPUT" > source_lhe.sha256
 gzip -t "$INPUT"
 stage DECOMPRESSING_50K_LHE
-gzip -cd "$INPUT" > input.events
+if [[ "$EVENTS" == 200 ]]; then
+  gzip -cd "$INPUT" > "$OUT/input.events"
+  ln -s "$OUT/input.events" "$WORK/input.events"
+  cp -p "$INPUT" "$OUT/source_50k_lhe.gz"
+  cmp -s "$INPUT" "$OUT/source_50k_lhe.gz" || {
+    echo "ERROR: compressed LHE copy to /data did not match source" >&2
+    exit 15
+  }
+else
+  gzip -cd "$INPUT" > input.events
+fi
 stage LHE_STAGED
 
 stage STARTING_ATLAS_SETUP
@@ -100,6 +114,14 @@ record_exit() {
     done
     if [[ -s "$WORK/$EVNT" ]]; then
       cp -p "$WORK/$EVNT" "$OUT/" || rc=81
+      if [[ "$rc" == 0 && "$EVENTS" == 200 ]]; then
+        if cmp -s "$WORK/$EVNT" "$OUT/$EVNT"; then
+          rm -- "$WORK/$EVNT"
+          ln -s "$OUT/$EVNT" "$WORK/$EVNT" || rc=83
+        else
+          rc=84
+        fi
+      fi
     elif [[ "$rc" == 0 ]]; then
       rc=82
     fi
