@@ -44,8 +44,10 @@ gzip -t "$INPUT"
 gzip -cd "$INPUT" > input.events
 
 export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase
+set +u
 source "$ATLAS_LOCAL_ROOT_BASE/user/atlasLocalSetup.sh"
 asetup AthGeneration,23.6.63
+set -u
 export AQP_FXFX_PR426_CASE="$CASE"
 export OMP_NUM_THREADS=1
 unset ATHENA_CORE_NUMBER
