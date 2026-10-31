@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build isolated, NON-DEPLOYED MG5 Condor submit-fence candidates.
+"""Build isolated, NON-DEPLOYED MG5 Condor submission + history candidates.
 
 Accept only exact source-pinned Wenu process-local combined candidates.
 Does not patch status/history reconciliation, approve physics production,
@@ -12,6 +12,7 @@ from pathlib import Path
 import shutil
 
 from aqp_prepare_bundled_condor_patch import BUNDLES, CENTRAL_SHA, build
+from aqp_prepare_condor_status_gate import patch_text as add_history_gate
 
 KNOWN = {
     'standard111': '682075381f79c6ad027244a4a2157f6c21b1202ea561fbc40a8fc0d0383a4a2e',
@@ -110,9 +111,10 @@ def main():
         prior = build(raw.decode(), source.decode(), name)
         if digest(prior) != KNOWN[name]:
             parser.error(name + ': combined candidate SHA mismatch')
-        candidates[name] = patch_text(prior)
+        candidates[name] = add_history_gate(patch_text(prior))
     srcdir = Path(__file__).resolve().parent
-    companions = ('aqp_condor_submission_guard.py', 'aqp_condor_intent_ledger.py')
+    companions = ('aqp_condor_submission_guard.py', 'aqp_condor_intent_ledger.py',
+                  'aqp_condor_completion_guard.py')
     for companion in companions:
         if not (srcdir / companion).is_file():
             parser.error('Missing companion ' + companion)
