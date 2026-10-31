@@ -19,7 +19,9 @@ from aqp_prepare_condor_submission_fence import patch_text
 
 SOURCE = '''import sys
 class CondorCluster:
-    def submit(self, prog, argument=[], cwd=None):
+    def submit(self, prog, argument=[], cwd=None, required_output=None):
+        if required_output is None:
+            required_output = ['res_1.dat']
         text = """Executable = %(prog)s
                   %(requirement)s
                   queue 1
@@ -43,9 +45,11 @@ class CondorCluster:
         self.submitted_ids.append(id)
         return id
 
-    def submit2(self, prog, argument=[], cwd=None, input_files=[]):
+    def submit2(self, prog, argument=[], cwd=None, input_files=[], required_output=None):
+        if required_output is None:
+            required_output = ['res_1.dat']
         if not input_files:
-            return self.submit(prog, argument, cwd)
+            return self.submit(prog, argument, cwd, required_output=required_output)
         text = """Executable = %(prog)s
                   %(requirement)s
                   queue 1
@@ -137,7 +141,7 @@ class SubmissionFenceTests(unittest.TestCase):
     def test_nested_import_sys_does_not_shadow_module_anchor(self):
         # Official MG5 3.5.11 has a second, nested import sys elsewhere.
         source = SOURCE.replace(
-            "    def submit(self, prog, argument=[], cwd=None):",
+            "    def submit(self, prog, argument=[], cwd=None, required_output=None):",
             "    def submit(self, prog, argument=[], cwd=None):\n        import sys", 1)
         candidate = patch_text(source)
         self.assertEqual(candidate.count(
@@ -148,7 +152,7 @@ class SubmissionFenceTests(unittest.TestCase):
         source = SOURCE.replace("import sys\nclass CondorCluster:",
                                 "class CondorCluster:")
         source = source.replace(
-            "    def submit(self, prog, argument=[], cwd=None):",
+            "    def submit(self, prog, argument=[], cwd=None, required_output=None):",
             "    def submit(self, prog, argument=[], cwd=None):\n        import sys", 1)
         with self.assertRaisesRegex(ValueError, "module-level import sys"):
             patch_text(source)
@@ -219,6 +223,30 @@ class SubmissionFenceTests(unittest.TestCase):
         self.assertEqual(len(self.submissions), 1)
         self.assertEqual(self.count_intents(), 1)
         self.assertIn("+AQPRequestId =", self.submissions[0])
+
+    def test_conflicting_output_contract_rejected_after_first_attempt(self):
+        self.controller.submit(str(self.prog), self.args(), str(self.cwd),
+                               required_output=['G0/results.dat'])
+        with self.assertRaisesRegex(Exception, "Existing GF submission intent"):
+            self.controller.submit(str(self.prog), self.args(), str(self.cwd),
+                                   required_output=['G0/other.dat'])
+        self.assertEqual(len(self.submissions), 1)
+
+    def test_empty_output_contract_rejected_before_submission(self):
+        with self.assertRaisesRegex(Exception, "Missing required_output"):
+            self.controller.submit(str(self.prog), self.args(), str(self.cwd),
+                                   required_output=[])
+        self.assertFalse(self.submissions)
+
+    def test_durable_ack_contains_original_output_contract(self):
+        self.controller.submit(str(self.prog), self.args(), str(self.cwd),
+                               required_output=['G0/results.dat', 'G0/log_MINT1.txt'])
+        import json
+        ack = next(self.root.glob('ack_*.json'))
+        data = json.loads(ack.read_text())
+        self.assertEqual(data['required_output'],
+                         ['G0/results.dat', 'G0/log_MINT1.txt'])
+        self.assertEqual(data['version'], 2)
 
     def test_two_stages_get_distinct_intents(self):
         self.controller.submit(str(self.prog), self.args(stage="0"), str(self.cwd))
