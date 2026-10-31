@@ -66,7 +66,7 @@ class PR426Shower(unittest.TestCase):
         s=SUBMIT.read_text()
         self.assertIn("request_cpus = 1",s)
         self.assertIn("before 18000",s)
-        self.assertIn("should_transfer_files = NO",s)
+        self.assertIn("should_transfer_files = YES",s)
 
 if __name__=="__main__":
     unittest.main()
