@@ -61,9 +61,13 @@ def inspect(case,work):
     gf=list((process/"SubProcesses").glob("P*/GF*/mint_grids"))
     if not gf:
         raise ValueError("no GF mint_grids found; cannot certify reusable grids")
-    raw=process/"Events/run_01/events.lhe.gz"
+    # arrange_output() calls gunzip -f before validating systematic names;
+    # when it fails, the physical original LHE is typically events.lhe.
+    plain=process/"Events/run_01/events.lhe"
+    zipped=process/"Events/run_01/events.lhe.gz"
+    raw=plain if plain.is_file() else zipped
     if not raw.is_file() or raw.stat().st_size==0:
-        raise ValueError("missing original 200-event LHE: "+str(raw))
+        raise ValueError("missing original 200-event LHE (plain or gzip)")
     print("AQP_FXFX_PR426_SAVED_GRIDS_PREFLIGHT_PASS")
     print("CASE",case)
     print("PROCESS",process)
