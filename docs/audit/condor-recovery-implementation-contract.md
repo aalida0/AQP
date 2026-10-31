@@ -189,3 +189,29 @@ echo "Exit code: $?"
 ```
 
 A successful offline run is still exit code 2 and `PRODUCTION_READINESS BLOCKED`. The next engineering step is a worker-side provenance/manifest publisher on a disposable non-physics process, followed by real schedd query/history semantics and crash-recovery validation. Do not patch existing processes or JOs.
+
+## 2026-11-01: v4 passed; inspect generated `ajob1` worker before adding publication
+
+The user ran **v4** of `scripts/aqp_condor_full_recovery_campaign.py` on the AF. Results: 13/13 submission-fence, 13/13 completion-guard, 15/15 manifest, and 12/12 output-gate regressions passed (**53/53**); four source-pinned candidates and four combined-controller status runs passed. The independent older stress logged 252,000 synthetic status opportunities, 2,400 simulated submissions, 1,200 permanently blocked duplicate claims, zero guard failures. The campaign intentionally returned code **2 / PRODUCTION_READINESS BLOCKED**. No live worker was run.
+
+Source review of MG5_aMC 3.5.11 upstream `Template/NLO/SubProcesses/ajob_template` shows that generated `ajob1` receives four positional arguments, with the fourth the integration step. It runs `madevent_mintMC` or `madevent_mintFO`, captures executable return status, copies `log.txt` to `log_MINT$integration_step.txt` and `res.dat` to `res_$integration_step.dat`, then `exit $status`. The result-copy exit is **not** separately enforced by that template. A successful job exit therefore does not independently guarantee the stage-copy artifact is complete, and any manifest publisher must inspect actual outputs rather than trust job exit alone.
+
+New read-only audit `scripts/aqp_audit_generated_ajob1_worker.py`, with tests `tests/test_aqp_audit_generated_ajob1_worker.py`, inspects the existing Wenu `P*/ajob1` scripts and stage-specific output files. It is included in the one-command comprehensive offline runner. Its output is observational and **not** a physics-validity or production-approval certificate. The script does not run MadGraph or Condor or modify production.
+
+**Before any worker-side patch:** review the AF audit's worker pattern counts and observed stage output examples; establish the actual `required_output` relative paths that `Cluster.check_termination` receives, and the worker's environment / Condor ID / request ID transfer. The worker must publish the manifest *only after* an independently verified result copy and validated exit. The controller must bind the worker-published result to the durable intent and frozen physics-input fingerprint. Then prove crash/restart handling, live schedd ClassAd/history semantics, and a disposable non-physics job chain. No current JO should install the candidate.
+
+One combined **v5** command (new report path; v4 preserved):
+
+```bash
+cd ~/AQP/aqp-production-audit
+git pull --ff-only origin audit/production-framework
+MG=/cvmfs/atlas.cern.ch/repo/sw/software/23.6/sw/lcg/releases/MCGenerators/madgraph5amc/3.5.11.atlas13-dbd05/x86_64-el9-gcc14-opt
+python3 scripts/aqp_condor_full_recovery_campaign.py \
+  --base "$HOME/AQP/Wjets/WENU" \
+  --central "$MG/madgraph/various/cluster.py" \
+  --channels 300 --rounds 210 \
+  --report .aqp_staged/condor_recovery_full_20261101_v5.json
+echo "Exit code: $?"
+```
+
+**Expected passing outcome remains exit 2 / BLOCKED.** The novel useful output is the `WORKER_AUDIT` lines and the embedded `generated_worker_contract_audit` JSON section. Do not replay expensive physics or replace process-local backends for this audit.
