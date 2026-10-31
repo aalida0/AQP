@@ -144,9 +144,14 @@ modify_run_card(
 # In MG5_aMC 3.5.11, nb_core also controls local parallel
 # compilation of P* directories, independently of run_mode=1.
 # The caller must reserve/own the matching CPUs on a compute node.
-compile_cores = int(os.environ.get("AQP_FXFX_AB_COMPILE_CORES", "16"))
-if compile_cores not in (16, 32):
-    raise RuntimeError("AQP_FXFX_AB_COMPILE_CORES_MUST_BE_16_OR_32")
+compile_cores = int(os.environ.get("AQP_FXFX_AB_COMPILE_CORES", "4"))
+if compile_cores not in (4, 16, 24, 32):
+    raise RuntimeError("AQP_FXFX_AB_COMPILE_CORES_MUST_BE_4_16_24_OR_32")
+# Compile workers run locally even with run_mode=1. Respect the
+# Analysis Facility login limit of four cores; a 24-core value is only
+# permitted from an appropriately allocated, scheduler-capable host.
+if os.uname().nodename.split(".")[0].startswith(("login", "head")) and compile_cores > 4:
+    raise RuntimeError("AQP_FXFX_AB_LOGIN_COMPILE_CORES_EXCEED_4")
 print("AQP_FXFX_AB_COMPILE_CORES=%d" % compile_cores)
 
 pythia8_path = os.environ.get("PY8PATH")
