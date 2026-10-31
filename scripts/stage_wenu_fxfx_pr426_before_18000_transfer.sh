@@ -6,6 +6,8 @@ set -Eeuo pipefail
 REPO=/home/aalida/AQP/aqp-production-audit
 SRC=/data/aalida/AQP/Wjets/WENU/fxfx_pr426_standard111_shower/before_accepted200_seed13311
 OUT=/data/aalida/AQP/Wjets/WENU/fxfx_pr426_standard111_shower/before_accepted18000_seed13311
+IWD="$REPO/.aqp_staged/fxfx_pr426_shower/returned/before_accepted18000_seed13311"
+ROOTFILE="$OUT/wenu_pr426_before_accepted18000.EVNT.pool.root"
 LHE="$SRC/source_50k_lhe.gz"
 SHA="$SRC/source_50k_lhe.sha256"
 JO="$REPO/joboptions/wenu_fxfx_pr426_shower/100007/mc.aMCPy8EG_Wenu_FxFx_2jets_PR426_shower.py"
@@ -34,20 +36,46 @@ gzip -t "$LHE"
 bash -n "$RUNNER"
 python3 -m py_compile "$JO"
 
-# Fail closed: do not overwrite an existing output or pending transfer.
-[[ ! -e "$OUT" && ! -L "$OUT" ]] || {
-  echo "ERROR: target already exists: $OUT" >&2
-  echo "Inspect it before any resubmission." >&2
+# The earlier rejected job submission already created the /data folder
+# containing only stage_manifest.txt. Reuse that safe preflight directory.
+# Never reuse a destination with ROOT data or transfer artifacts.
+[[ ! -e "$ROOTFILE" && ! -e "$IWD/shower_artifacts" ]] || {
+  echo "ERROR: EVNT or returned diagnostics already exist; audit before retry" >&2
   exit 6
 }
+if [[ -d "$OUT" ]]; then
+  if find "$OUT" -mindepth 1 -maxdepth 1 ! -name stage_manifest.txt | grep -q .; then
+    echo "ERROR: /data destination contains unexpected files: $OUT" >&2
+    exit 6
+  fi
+  echo "AQP_FXFX_PR426_REUSING_REJECTED_SUBMISSION_STAGE=$OUT"
+elif [[ ! -e "$OUT" && ! -L "$OUT" ]]; then
+  mkdir -p "$(dirname "$OUT")"
+  mkdir "$OUT"
+else
+  echo "ERROR: non-directory or symlink destination: $OUT" >&2
+  exit 6
+fi
+if [[ -d "$IWD" ]]; then
+  if find "$IWD" -mindepth 1 -maxdepth 1 | grep -q .; then
+    echo "ERROR: /home transfer IWD not empty: $IWD" >&2
+    exit 6
+  fi
+elif [[ ! -e "$IWD" && ! -L "$IWD" ]]; then
+  mkdir -p "$IWD"
+else
+  echo "ERROR: cannot create /home IWD: $IWD" >&2
+  exit 6
+fi
 mkdir -p "$REPO/.aqp_staged/fxfx_pr426_shower/logs"
-mkdir "$OUT"
 {
   echo "AQP_FXFX_PR426_BEFORE_18000_TRANSFER_STAGE_PASS"
   echo "SOURCE=$LHE"
   echo "LHE_SHA256=$EXPECTED"
   echo "TRANSFER=HTCondor YES"
-  echo "OUTPUT=$OUT/shower_artifacts/"
+  echo "EVNT_OUTPUT=$ROOTFILE"
+  echo "DIAGNOSTIC_OUTPUT=$IWD/shower_artifacts/"
+  echo "SUBMIT_INITIALDIR=$IWD"
   echo "SCRIPT=$RUNNER"
   git -C "$REPO" rev-parse HEAD | sed 's/^/GIT_COMMIT=/'
 } | tee "$OUT/stage_manifest.txt"
