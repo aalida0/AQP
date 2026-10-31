@@ -1,7 +1,7 @@
 """AQP Wenu Standard111 direct-LHE FxFx PR426 A/B technical regression.
 
 Fresh MG5_aMC process and integration for BOTH A and B.
-Uses original HT2 dummy_fct.f and montecarlocounter_MINE.f unchanged.
+Uses original Wenu custom dummy_fct.f and montecarlocounter_MINE.f unchanged.
 This JO does NOT create or reuse a gridpack and does NOT test the Condor
 backend patch. Execute only on an allocated multicore worker.
 """
@@ -25,7 +25,7 @@ WENU_NB_CORES = 16
 LHE_OVERSAMPLING_FACTOR = 5
 
 evgenConfig.description = (
-    "Wenu+0,1,2 jets NLO FxFx Standard111 HT2 bias; "
+    "Wenu+0,1,2 jets NLO FxFx Standard111, legacy bias settings; "
     "AQP PR426 " + FXFX_CASE + " technical test"
 )
 evgenConfig.contact = ["amine.alida@cern.ch"]
@@ -113,7 +113,7 @@ print("AQP_FXFX_AB_BASELINE_CUTS_SHA256=%s" %
 print("AQP_FXFX_AB_ACTIVE_CUTS_SHA256=%s" %
       hashlib.sha256(actual.encode()).hexdigest())
 print("AQP_FXFX_AB_PR426_ENABLED=%s" % FXFX_APPLY_PR426)
-print("AQP_FXFX_AB_HT2_SOURCES_IDENTICAL_TO_LEGACY")
+print("AQP_FXFX_AB_CUSTOM_SOURCES_IDENTICAL_TO_LEGACY")
 
 MadGraphControl.MadGraphUtils.MADGRAPH_PDFSETTING = {
     "central_pdf": 325100,
