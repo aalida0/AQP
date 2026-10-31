@@ -2,9 +2,10 @@
 # One outer HTCondor job, NO nested Condor or MadGraph generation.
 #
 # 2026-10-31: FileSystemDomain mismatch diagnosed on 4059847.0.
-# Transfer inputs to execute-node scratch and results BACK to /data
-# through the HTCondor file-transfer mechanism. The execute machine
-# does not need shared /home or /data access.
+# Transfer inputs from temporary /home staging to execute-node scratch,
+# then return results to temporary /home. A separate validated finalize step
+# archives the large ROOT output to /data and removes the /home copy.
+# This avoids AF restrictions on transfer_input_files sourced from Ceph.
 #
 # Before submitting:
 #   condor_rm 4059847.0                         # after verifying still idle
@@ -23,17 +24,19 @@ initialdir = /home/aalida/AQP/aqp-production-audit/.aqp_staged/fxfx_pr426_shower
 should_transfer_files = YES
 transfer_executable = True
 when_to_transfer_output = ON_EXIT
-transfer_input_files = /data/aalida/AQP/Wjets/WENU/fxfx_pr426_standard111_shower/before_accepted200_seed13311/source_50k_lhe.gz,/data/aalida/AQP/Wjets/WENU/fxfx_pr426_standard111_shower/before_accepted200_seed13311/source_50k_lhe.sha256,/home/aalida/AQP/aqp-production-audit/joboptions/wenu_fxfx_pr426_shower/100007
-# Directories cannot reliably be used with transfer_output_remaps.
-# Return only small diagnostic folder to /home, and remap standalone
-# large EVNT ROOT file to the already-prepared /data output directory.
+# The LHE and checksum are short-lived verified copies staged in /home
+# by scripts/stage_wenu_fxfx_pr426_before_18000_transfer.sh.
+# DO NOT list a /data (Ceph) path here: the AF rejects such submissions.
+transfer_input_files = source_50k_lhe.gz,source_50k_lhe.sha256,/home/aalida/AQP/aqp-production-audit/joboptions/wenu_fxfx_pr426_shower/100007
 transfer_output_files = shower_artifacts,wenu_pr426_before_accepted18000.EVNT.pool.root
-transfer_output_remaps = "wenu_pr426_before_accepted18000.EVNT.pool.root = /data/aalida/AQP/Wjets/WENU/fxfx_pr426_standard111_shower/before_accepted18000_seed13311/wenu_pr426_before_accepted18000.EVNT.pool.root"
+
+# All returned files land in /home initialdir. After successful completion
+# run scripts/finalize_wenu_fxfx_pr426_before_18000_transfer.sh to checksum,
+# copy the large EVNT to /data, and remove temporary /home large files.
 
 # The job only needs Pythia8; does not submit any other jobs.
 # Transported EVNT must be nonempty and verified before physics use.
-# If the worker fails, a zero-byte placeholder may be transferred; check
-# shower_artifacts/runner_exit_code and EVNT size (see runbook).
+# On failure a zero-byte placeholder may be returned; never finalize it.
 request_cpus = 1
 request_memory = 8000MB
 request_disk = 8000MB
