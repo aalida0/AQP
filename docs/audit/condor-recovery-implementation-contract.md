@@ -159,3 +159,33 @@ The previous candidate could count a **queue-visible `JobStatus=4`** as a comple
 This increment is committed but has **not yet been run on the AF**. The campaign MUST remain `PRODUCTION_READINESS BLOCKED`, even if all method-level stress checks pass. There is still no real-process import, scheduler history/ACK reconciliation against an actual schedd, validated GF output manifest, safe release of a durable intent after a legitimate failure, or controller crash/restart acceptance.
 
 Use a fresh output filename such as `.aqp_staged/condor_recovery_full_20261031_v3.json`. Never overwrite the previous v2 report. Do not copy candidates into the historical process trees.
+
+## 2026-10-31: v3 offline result and fail-closed GF output gate
+
+**User-run v3 acceptance:** 13/13 submission-fence, 13/13 history-guard tests, all four pinned candidate constructions, and all four combined-candidate status method tests PASS. The independent legacy stress recorded 252,000 simulated status opportunities, 2,400 synthetic submissions, 1,200 blocked duplicate intents, and 252,000 ledger model decisions with no guard failures. **This is offline evidence, not live Condor or GF output evidence.**
+
+New candidate-only, non-production safeguards:
+
+- `scripts/aqp_condor_output_manifest.py`: an isolated write-once publication and independent verification contract. It records the request ID, cluster ID, process/stage/GF identity, a caller-supplied source/cards fingerprint, required relative output names, sizes and SHA256 digests. Publishing links a fully synced staging file to a unique final name; verification independently rereads and rehashes every required file.
+- `scripts/aqp_condor_output_guard.py`: refuses completion unless the existing scheduler history gate returns TERMINATED, a unique acknowledged job is linked to an intent, a trusted `AQP_CONDOR_INPUT_SHA256` is present, and the exact required GF outputs verify against the manifest.
+- `scripts/aqp_prepare_condor_output_gate.py`: inserts a fail-closed `CondorCluster.check_termination()` override into the source-pinned, isolated backend; the original base handler is called **only after** manifest verification.
+- `tests/test_aqp_condor_output_manifest.py` and `tests/test_aqp_condor_output_guard.py`: positive/negative tests for corrupted/empty/missing results, wrong job/input/stage, duplicate publication, traversal, symlinks and the completion-method override.
+- The single `scripts/aqp_condor_full_recovery_campaign.py` now includes both suites, requires the manifest/guard companions in each generated isolated candidate, and confirms the override insertion.
+
+**Do not deploy**: these checks are deliberately *nonfunctional for real production* until a real, verified GF worker publishes the manifest, a trusted source/cards hash is bound to each submission intent, and the actual MG `required_output` path contract is audited. The `AQP_CONDOR_INPUT_SHA256` environment variable is currently only a simulated trusted input, **not** independently authenticated or tied to a source/card snapshot. A user-editable JSON manifest cannot alone attest to physics validity. No safe release/retry policy is implemented. Moreover, the old five blockers printed by the independent legacy stress still describe its older model; they should not be misread as direct measured failures of the new candidate.
+
+### Next one-command AF offline campaign
+
+```bash
+cd ~/AQP/aqp-production-audit
+git pull --ff-only origin audit/production-framework
+MG=/cvmfs/atlas.cern.ch/repo/sw/software/23.6/sw/lcg/releases/MCGenerators/madgraph5amc/3.5.11.atlas13-dbd05/x86_64-el9-gcc14-opt
+python3 scripts/aqp_condor_full_recovery_campaign.py \
+  --base "$HOME/AQP/Wjets/WENU" \
+  --central "$MG/madgraph/various/cluster.py" \
+  --channels 300 --rounds 210 \
+  --report .aqp_staged/condor_recovery_full_20261031_v4.json
+echo "Exit code: $?"
+```
+
+A successful offline run is still exit code 2 and `PRODUCTION_READINESS BLOCKED`. The next engineering step is a worker-side provenance/manifest publisher on a disposable non-physics process, followed by real schedd query/history semantics and crash-recovery validation. Do not patch existing processes or JOs.
