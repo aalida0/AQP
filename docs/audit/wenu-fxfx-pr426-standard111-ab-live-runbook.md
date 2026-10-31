@@ -6,7 +6,7 @@ CERN PMG work item #252 (user screenshot): FxFx generator uses *inclusive* $k_T$
 
 Upstream PR: https://github.com/mg5amcnlo/mg5amcnlo/pull/426 . Source patch utility: `scripts/aqp_prepare_fxfx_exclusive_kt_patch.py`. The old code and corrected code are both checked against the *generated* process's `SubProcesses/cuts.f`.
 
-The pasted Wenu Standard111 legacy JO copies `dummy_fct.f` and `montecarlocounter_MINE.f`, **not** `cuts.f`; therefore it is the new-style **cuts.f handling** category in the PMG issue. These custom HT2 files **must remain unchanged**.
+The pasted Wenu Standard111 legacy JO copies `dummy_fct.f` and `montecarlocounter_MINE.f`, **not** `cuts.f`; therefore it is the new-style **cuts.f handling** category in the PMG issue. These two legacy custom files **must remain unchanged** between A/B runs. **Caution:** an earlier user-uploaded `dummy_fct.f` has active `bias_wgt=1d0` and its `H_T**2` example commented out. Therefore the original JO's "HT2 bias" label is NOT proof that the actual source uses HT2 bias. The staging script now reports whether the live original dummy file has active HT2 bias; no inference from `event_norm=bias` alone.
 
 ## Scope and implementation
 
