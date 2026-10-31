@@ -2,9 +2,9 @@
 """Build isolated, NON-DEPLOYED MG5 Condor submission + history candidates.
 
 Accept only exact source-pinned Wenu process-local combined candidates.
-Adds a limited queue/history identity gate; it does NOT implement complete
-recovery, certify GF output integrity, approve physics production, modify
-existing Wenu processes, or submit any Condor jobs.
+Adds a limited queue/history gate and a fail-closed output manifest gate.
+No real worker publishes manifests yet: not usable for production, and does
+not approve physics production, modify Wenu processes or submit any jobs.
 """
 import argparse
 import ast
@@ -14,6 +14,7 @@ import shutil
 
 from aqp_prepare_bundled_condor_patch import BUNDLES, CENTRAL_SHA, build
 from aqp_prepare_condor_status_gate import patch_text as add_history_gate
+from aqp_prepare_condor_output_gate import patch_text as add_output_gate
 
 KNOWN = {
     'standard111': '682075381f79c6ad027244a4a2157f6c21b1202ea561fbc40a8fc0d0383a4a2e',
@@ -118,10 +119,11 @@ def main():
         prior = build(raw.decode(), source.decode(), name)
         if digest(prior) != KNOWN[name]:
             parser.error(name + ': combined candidate SHA mismatch')
-        candidates[name] = add_history_gate(patch_text(prior))
+        candidates[name] = add_output_gate(add_history_gate(patch_text(prior)))
     srcdir = Path(__file__).resolve().parent
     companions = ('aqp_condor_submission_guard.py', 'aqp_condor_intent_ledger.py',
-                  'aqp_condor_completion_guard.py')
+                  'aqp_condor_completion_guard.py', 'aqp_condor_output_guard.py',
+                  'aqp_condor_output_manifest.py')
     for companion in companions:
         if not (srcdir / companion).is_file():
             parser.error('Missing companion ' + companion)
