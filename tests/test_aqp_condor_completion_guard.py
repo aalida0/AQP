@@ -137,6 +137,44 @@ class CompletionGuardTests(unittest.TestCase):
         self.assertIn("return 'C'", source)
         self.assertIn("    continue", source)
 
+    def test_queue_visible_completed_job_is_not_counted_finished(self):
+        # A source-compatible controller fragment: prior candidate returned
+        # (idle=0, running=0, finished=1, failed=0) for queue-visible C.
+        # The corrected candidate must keep it running until independently
+        # verified terminal history and output checks can occur.
+        source = """import sys
+class CondorCluster:
+    def control_one_job(self, id):
+        output = ''
+        return output
+
+    def control(self, me_dir):
+        idle, run, fail = 0, 0, 0
+        ongoing = []
+        for id in self.submitted_ids:
+            status = 'C'
+            ongoing.append(id)
+            if status in ['I', 'U']:
+                idle += 1
+            elif status == 'R':
+                run += 1
+            elif status != 'C':
+                fail += 1
+        for id in list(self.submitted_ids):
+            if id not in ongoing:
+                status = self.check_termination(id)
+        return idle, run, self.submitted - (idle + run + fail), fail
+"""
+        env = {"ClusterManagmentError": RuntimeError}
+        exec(patch_text(source), env)
+        controller = env["CondorCluster"]()
+        controller.submitted_ids = ["910001"]
+        controller.submitted = 1
+        controller.check_termination = lambda _id: self.fail(
+            "Early check_termination on queue-visible C")
+        with patch.object(self.guard, "check", return_value="ACTIVE"):
+            self.assertEqual(controller.control("."), (0, 1, 0, 0))
+
     def test_ambiguous_history_never_invokes_output_check(self):
         env = {"ClusterManagmentError": RuntimeError}
         exec(patch_text(SOURCE), env)
