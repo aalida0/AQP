@@ -72,7 +72,10 @@ def reserve(prog, argument, cwd, required_output):
         raise SubmissionSafetyError('GF channel working directory does not exist')
     request_id = 'AQP' + secrets.token_hex(20)
     try:
-        ledger.claim(_root(), channel, 'MINT' + step, worker_group, request_id)
+        ledger.claim(
+            _root(), channel, 'MINT' + step, worker_group, request_id,
+            context={'cwd': channel, 'argument': [str(x) for x in argument],
+                     'required_output': _outputs(required_output)})
     except ledger.UnresolvedIntent as exc:
         raise SubmissionSafetyError('Existing GF submission intent; manual reconciliation required') from exc
     return request_id
