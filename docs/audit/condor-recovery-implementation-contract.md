@@ -251,3 +251,37 @@ echo "Exit code: $?"
 ```
 
 The campaign remains **BLOCKED by design**. New useful output: `AJOB_SOURCE_FLAG` lines, installed ATLAS source SHA256s and exact required-output/retry snippets in the JSON.
+
+## 2026-11-01 v6 PASS: retry-independent submitted-job provenance
+
+**User-run v6:** all **71/71** offline regression tests PASS, six installed-source flags YES, four exact source-pinned candidates PASS, four combined candidate control-method tests PASS, legacy stress 252,000 synthetic status opportunities and 2,400 synthetic submissions with zero old-guard failures, **exit 2 / BLOCKED**. Installed ATLAS hashes:
+- `madgraph/interface/amcatnlo_run_interface.py`: `fff31c41ef5d0bdcac7a02efd7d5f8f3d2d5f416ff6da6719a6315ca8efea871`
+- `madgraph/various/cluster.py`: `feb07ff8af81eb5524ee810d6f4976502457fdf45106a9e2702d1ea46b7ef7fe`.
+
+The `store_input()` decorator in the installed version records `self.retry_args` only when `self.nb_retry > 0`. Therefore using `retry_args` as the **only** durable output provenance would break completion with `cluster_nb_retry=0`.
+
+New, **non-deployed** changes on the audit branch:
+
+1. `aqp_condor_submission_guard.reserve(..., required_output)` verifies nonempty, unique, safe relative output paths *before* creating an intent or submitting a job; the actual list is supplied from MadGraph's `submit`/`submit2` arguments.
+2. `aqp_condor_submission_guard.acknowledge(request_id, cluster_id, cwd, required_output)` stores an immutable version-2 ACK containing the exact normalized working directory and `getIO_ajob`-derived `required_output`. The patcher writes this ACK **before** incrementing `self.submitted` or appending `self.submitted_ids`; a failed acknowledgment leaves the submission intent unresolved without claiming the job is tracked.
+3. `aqp_condor_output_guard.require_verified(job_id, retry=None)` recovers the required output list from the durable ACK even when `retry_args` is absent. When `retry_args` exists, its cwd/output list must match the ACK exactly; discrepancies fail closed. Scheduler-ID, frozen-input and worker-manifest verification remain mandatory.
+4. `aqp_prepare_condor_output_gate.py` no longer raises immediately when no `retry_args` record exists. It passes the optional record to the output verifier before delegating to MadGraph's original `Cluster.check_termination`.
+5. Added regressions for **`cluster_nb_retry=0` with valid/missing output manifest**, wrong/missing output requirements, and disk failure between `condor_submit` and the ACK, plus assertions that the ACK precedes in-memory tracking.
+
+**Current limitation:** The ACK is created only after a successful scheduler reply. A lost acknowledgment or controller crash before the ACK remains UNRESOLVED and requires request-ID lookup across scheduler queue/history, which is not implemented in this candidate. The input-card SHA remains an external environment value, not yet frozen in the intent. A real `ajob1` worker does not publish the required authenticated manifest. This increment resolves an important *source-level dependency*, not the whole recovery/retry problem.
+
+### Next offline validation (v7; new report path)
+
+```bash
+cd ~/AQP/aqp-production-audit
+git pull --ff-only origin audit/production-framework
+MG=/cvmfs/atlas.cern.ch/repo/sw/software/23.6/sw/lcg/releases/MCGenerators/madgraph5amc/3.5.11.atlas13-dbd05/x86_64-el9-gcc14-opt
+python3 scripts/aqp_condor_full_recovery_campaign.py \
+  --base "$HOME/AQP/Wjets/WENU" \
+  --central "$MG/madgraph/various/cluster.py" \
+  --channels 300 --rounds 210 \
+  --report .aqp_staged/condor_recovery_full_20261101_v7.json
+echo "Exit code: $?"
+```
+
+The updated six synthetic suites currently contain **80** `test_*` functions, not yet executed on AF. If all pass, the campaign should still exit 2 and print `PRODUCTION_READINESS BLOCKED`. Preserve all previous v1-v6 reports and all historical process trees. The next *meaningful* development milestone is a disposable worker-side manifest protocol plus cross-restart request-ID reconciliation, **not** enabling the candidate in a JO.
