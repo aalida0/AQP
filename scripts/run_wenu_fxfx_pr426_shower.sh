@@ -11,11 +11,31 @@ case "$INPUT" in
   *) echo "ERROR: not an expected saved PR426 50k LHE" >&2; exit 2;;
 esac
 ROOT=/home/aalida/AQP/aqp-production-audit
-BASE=/home/aalida/AQP/fxfx_pr426_standard111_shower
-WORK="$BASE/$CASE""_accepted$EVENTS""_seed13311"
 JO="$ROOT/joboptions/wenu_fxfx_pr426_shower/100007/mc.aMCPy8EG_Wenu_FxFx_2jets_PR426_shower.py"
 [[ -s "$JO" ]] || { echo "ERROR: shower JO missing" >&2; exit 3; }
-[[ ! -e "$WORK" && ! -L "$WORK" ]] || { echo "ERROR: output workdir already exists: $WORK" >&2; exit 4; }
+if [[ "$EVENTS" == 18000 ]]; then
+  # Pythia is serial, and unlike MadGraph integration needs no inner Condor.
+  # Run the long shower on one external Condor worker and stage output to /data.
+  SCRATCH="$(printenv _CONDOR_SCRATCH_DIR || true)"
+  [[ -n "$SCRATCH" && -d "$SCRATCH" ]] || {
+    echo "ERROR: 18000-event shower requires an outer Condor worker" >&2; exit 3;
+  }
+  WORK="$(realpath "$SCRATCH")"
+  case "$WORK/" in /home/*|/data/*) echo "ERROR: scratch is shared" >&2; exit 3;; esac
+  OUT="/data/aalida/AQP/Wjets/WENU/fxfx_pr426_standard111_shower/$CASE""_accepted$EVENTS""_seed13311"
+  [[ ! -e "$OUT" && ! -L "$OUT" ]] || {
+    echo "ERROR: persistent output exists: $OUT" >&2; exit 4;
+  }
+  mkdir -p "$(dirname "$OUT")"
+  mkdir "$OUT"
+else
+  WORK="/home/aalida/AQP/fxfx_pr426_standard111_shower/$CASE""_accepted$EVENTS""_seed13311"
+  OUT="$WORK"
+  [[ ! -e "$WORK" && ! -L "$WORK" ]] || {
+    echo "ERROR: workdir already exists: $WORK" >&2; exit 4;
+  }
+  mkdir -p "$WORK"
+fi
 mkdir -p "$WORK/100007"
 cp -p "$JO" "$WORK/100007/"
 cd "$WORK"
@@ -33,8 +53,20 @@ EVNT="wenu_pr426_$CASE""_accepted$EVENTS.EVNT.pool.root"
 record_exit() {
   rc=$?
   trap - EXIT
-  echo "$rc" > runner_exit_code
-  echo "AQP_FXFX_PR426_SHOWER_EXIT=$rc WORK=$WORK"
+  set +e
+  if [[ "$OUT" != "$WORK" ]]; then
+    for name in Gen_tf_shower.log log.generate jobReport.json runargs.generate.py \
+                prmon.summary.generate.json source_lhe.sha256; do
+      [[ -f "$WORK/$name" ]] && cp -p "$WORK/$name" "$OUT/" || true
+    done
+    if [[ -s "$WORK/$EVNT" ]]; then
+      cp -p "$WORK/$EVNT" "$OUT/" || rc=81
+    elif [[ "$rc" == 0 ]]; then
+      rc=82
+    fi
+  fi
+  echo "$rc" > "$OUT/runner_exit_code"
+  echo "AQP_FXFX_PR426_SHOWER_EXIT=$rc OUT=$OUT"
   exit "$rc"
 }
 trap record_exit EXIT
