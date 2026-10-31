@@ -1,14 +1,36 @@
-# One-core Pythia8 shower job: 50k Standard111 before-PR426 LHE -> 18k EVNT.
-# Runs on a Condor worker; NO nested Condor or MadGraph integration.
+# AQP Wenu Standard111 50k LHE (before PR426) -> 18k accepted EVNT
+# One outer HTCondor job, NO nested Condor or MadGraph generation.
+#
+# 2026-10-31: FileSystemDomain mismatch diagnosed on 4059847.0.
+# Transfer inputs to execute-node scratch and results BACK to /data
+# through the HTCondor file-transfer mechanism. The execute machine
+# does not need shared /home or /data access.
+#
+# Before submitting:
+#   condor_rm 4059847.0                         # after verifying still idle
+#   mkdir -p .aqp_staged/fxfx_pr426_shower/logs
+#   bash scripts/stage_wenu_fxfx_pr426_before_18000_transfer.sh
+#   condor_submit condor/wenu_fxfx_pr426_before_18000_shower.submit
+
 universe = vanilla
-executable = /bin/bash
-arguments = /home/aalida/AQP/aqp-production-audit/scripts/run_wenu_fxfx_pr426_shower.sh before 18000 /data/aalida/AQP/Wjets/WENU/fxfx_pr426_standard111_shower/before_accepted200_seed13311/source_50k_lhe.gz
-initialdir = /home/aalida/AQP/aqp-production-audit
-getenv = True
-should_transfer_files = NO
+executable = /home/aalida/AQP/aqp-production-audit/scripts/run_wenu_fxfx_pr426_condor_transfer.sh
+arguments = before 18000 13311
+
+# HTCondor returns shower_artifacts into THIS submit-side /data directory.
+# It must already exist before condor_submit (created by the staging script).
+initialdir = /data/aalida/AQP/Wjets/WENU/fxfx_pr426_standard111_shower/before_accepted18000_seed13311
+
+should_transfer_files = YES
+transfer_executable = True
+when_to_transfer_output = ON_EXIT
+transfer_input_files = /data/aalida/AQP/Wjets/WENU/fxfx_pr426_standard111_shower/before_accepted200_seed13311/source_50k_lhe.gz,/data/aalida/AQP/Wjets/WENU/fxfx_pr426_standard111_shower/before_accepted200_seed13311/source_50k_lhe.sha256,/home/aalida/AQP/aqp-production-audit/joboptions/wenu_fxfx_pr426_shower/100007
+transfer_output_files = shower_artifacts
+
+# The job only needs Pythia8; does not submit any other jobs.
 request_cpus = 1
 request_memory = 8000MB
-request_disk = 30000MB
+request_disk = 8000MB
+
 output = /home/aalida/AQP/aqp-production-audit/.aqp_staged/fxfx_pr426_shower/logs/before_18000.$(Cluster).$(Process).out
 error = /home/aalida/AQP/aqp-production-audit/.aqp_staged/fxfx_pr426_shower/logs/before_18000.$(Cluster).$(Process).err
 log = /home/aalida/AQP/aqp-production-audit/.aqp_staged/fxfx_pr426_shower/logs/before_18000.$(Cluster).$(Process).log
