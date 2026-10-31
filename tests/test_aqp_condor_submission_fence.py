@@ -231,6 +231,22 @@ class SubmissionFenceTests(unittest.TestCase):
                            if 'self.submitted += 1' in line)
             self.assertLess(ack, counter)
 
+    def test_intent_persists_worker_contract_before_scheduler_ack(self):
+        import json
+        self.has_ack = False
+        with self.assertRaisesRegex(RuntimeError, "ambiguous submit acknowledgment"):
+            self.controller.submit(
+                str(self.prog), self.args(), str(self.cwd),
+                required_output=['G0/results.dat', 'G0/log_MINT1.txt'])
+        record = json.loads(next(x for x in self.root.glob('*.json')
+                                 if len(x.stem) == 64).read_text())
+        context = record['pre_submit_context']
+        self.assertEqual(context['cwd'], str(self.cwd))
+        self.assertEqual(context['argument'], self.args())
+        self.assertEqual(context['required_output'],
+                         ['G0/results.dat', 'G0/log_MINT1.txt'])
+        self.assertFalse(list(self.root.glob('ack_*.json')))
+
     def test_lost_ack_leaves_unresolved_intent(self):
         self.has_ack = False
         with self.assertRaisesRegex(RuntimeError, "ambiguous submit acknowledgment"):
