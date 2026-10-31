@@ -98,8 +98,9 @@ if [[ -f "$IWD/source_50k_lhe.gz" && ! -L "$IWD/source_50k_lhe.gz" ]]; then
   [[ -s "$SRC" ]] || {
     echo "ERROR: archived source disappeared; temporary source retained" >&2; exit 7
   }
-  [[ "$(sha256sum "$IWD/source_50k_lhe.gz" | awk '{print $1}')" ==
-     "$(sha256sum "$SRC" | awk '{print $1}')" ]] || {
+  STAGED_SHA="$(sha256sum "$IWD/source_50k_lhe.gz" | awk '{print $1}')"
+  ORIGINAL_SHA="$(sha256sum "$SRC" | awk '{print $1}')"
+  [[ "$STAGED_SHA" == "$ORIGINAL_SHA" ]] || {
     echo "ERROR: original compressed source differs; temporary copy retained" >&2
     exit 7
   }
