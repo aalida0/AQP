@@ -94,3 +94,30 @@ Expect `Compiling on 16 cores`; integration afterward remains `run_mode=1` with 
 If the interactive worker cannot run `condor_q`/`condor_submit`, do **not** run 16 cores on the login node. Use an AF-approved multicore interactive host with scheduler access or an outer Condor batch workflow. A 16-core interactive allocation stays reserved even while waiting for independently scheduled child jobs, so performance/resource cost is not guaranteed to improve.
 
 The 50k smoke gate checks that both `*_200_seed311_compile16/runner_exit_code` files are 0; only then launch 50k with the same compile-core count.
+
+
+## 2026-10-31 correction: run directly from terminal; no nested Condor interactive
+
+Nested scheduler submission from a Condor interactive job was not working for this user. Consequently, run the **MadGraph controller directly from a terminal on a host with Condor submit access**, with `run_mode=1`. The prior `condor_submit -interactive` recommendation is superseded.
+
+The specific AF facility presentation (2025) states that shared login nodes permit **at most 4 CPU cores / 16 GB memory per user**. The 24-core setting is technically supported in the JO, but may **only** be used from a separate dedicated/authorized host with at least 24 usable CPUs and access to the Condor scheduler. Running a 24-core local compilation on login03 is outside the stated AF limits. Source: https://indico.cern.ch/event/1496325/contributions/6303179/attachments/3108793/5511601/Analysis%20Facility%20at%20UChicago.pdf
+
+```bash
+# Shared AF login03 / head04: at most four local compiling workers;
+# internal Condor integration remains parallel on batch nodes.
+export AQP_FXFX_AB_COMPILE_CORES=4
+bash scripts/run_wenu_fxfx_pr426_internal_condor.sh before 200 311
+bash scripts/run_wenu_fxfx_pr426_internal_condor.sh after 200 311
+```
+
+```bash
+# ONLY on an approved 24-core host that permits MG internal HTCondor
+# submissions directly from the controller terminal:
+export AQP_FXFX_AB_COMPILE_CORES=24
+bash scripts/run_wenu_fxfx_pr426_internal_condor.sh before 200 311
+bash scripts/run_wenu_fxfx_pr426_internal_condor.sh after 200 311
+```
+
+The work directories carry `_compile4` or `_compile24`; both compare identical FxFx settings except PR426, and the original 1-core attempt remains untouched. `nb_core` affects local compilation; `run_mode=1` continues to schedule integration channels on HTCondor.
+
+**If the old single-core run is still active:** check its `Gen_tf.log` and child Condor jobs before stopping. Do not resubmit the same run with the original scheduler backend without reconciling unknown/duplicate jobs. Once one A/B compilation test is stopped cleanly before internal Condor submissions, its results are not reusable as a passing 200-LHE smoke.
