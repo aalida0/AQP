@@ -14,20 +14,22 @@
 #   condor_submit condor/wenu_fxfx_pr426_before_18000_shower.submit
 
 universe = vanilla
-executable = /home/aalida/AQP/aqp-production-audit/scripts/run_wenu_fxfx_pr426_condor_transfer.sh
-arguments = before 18000 13311
+# Run transferred script with /bin/bash so its GitHub file mode does not
+# have to be executable on the submit host.
+executable = /bin/bash
+arguments = run_wenu_fxfx_pr426_condor_transfer.sh before 18000 13311
 
 # AF policy forbids submitting jobs with initialdir on /data.
 # Keep the job IWD and lightweight diagnostics on /home.
 initialdir = /home/aalida/AQP/aqp-production-audit/.aqp_staged/fxfx_pr426_shower/returned/before_accepted18000_seed13311
 
 should_transfer_files = YES
-transfer_executable = True
+transfer_executable = False
 when_to_transfer_output = ON_EXIT
 # The LHE and checksum are short-lived verified copies staged in /home
 # by scripts/stage_wenu_fxfx_pr426_before_18000_transfer.sh.
 # DO NOT list a /data (Ceph) path here: the AF rejects such submissions.
-transfer_input_files = source_50k_lhe.gz,source_50k_lhe.sha256,/home/aalida/AQP/aqp-production-audit/joboptions/wenu_fxfx_pr426_shower/100007
+transfer_input_files = source_50k_lhe.gz,source_50k_lhe.sha256,/home/aalida/AQP/aqp-production-audit/joboptions/wenu_fxfx_pr426_shower/100007,/home/aalida/AQP/aqp-production-audit/scripts/run_wenu_fxfx_pr426_condor_transfer.sh
 transfer_output_files = shower_artifacts,wenu_pr426_before_accepted18000.EVNT.pool.root
 
 # All returned files land in /home initialdir. After successful completion
