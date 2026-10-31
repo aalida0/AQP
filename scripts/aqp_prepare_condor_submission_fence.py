@@ -117,12 +117,15 @@ def main():
         if not (srcdir / companion).is_file():
             parser.error('Missing companion ' + companion)
     for name, candidate in candidates.items():
-        destination = outdir / name
-        destination.mkdir()
+        # Match the actual generated-process import name: internal.cluster.
+        # These copies are isolated, NOT imported by production MadGraph.
+        destination = outdir / name / 'internal'
+        destination.mkdir(parents=True)
+        (destination / '__init__.py').write_text('', encoding='utf-8')
         (destination / 'cluster.py').write_text(candidate, encoding='utf-8')
         for companion in companions:
             shutil.copyfile(srcdir / companion, destination / companion)
-        print('ISOLATED_CANDIDATE_CREATED', name, digest(candidate))
+        print('ISOLATED_CANDIDATE_CREATED', name, digest(candidate), destination)
     print('NOT_INSTALLED_AND_NOT_PRODUCTION_READY')
 
 
