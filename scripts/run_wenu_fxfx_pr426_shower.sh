@@ -36,13 +36,34 @@ else
   }
   mkdir -p "$WORK"
 fi
+# Stage log is created before any expensive file I/O or ATLAS setup.
+# If setup fails, record an exit code rather than leaving an ambiguous folder.
+stage() {
+  local state="$1"
+  printf 'AQP_PR426_SHOWER_STAGE=%s WORK=%s\n' "$state" "$WORK" | tee -a "$OUT/stages.log"
+}
+early_exit() {
+  local rc=$?
+  trap - EXIT
+  if [[ ! -f "$OUT/runner_exit_code" ]]; then
+    printf '%s\n' "$rc" > "$OUT/runner_exit_code"
+  fi
+  printf 'AQP_PR426_SHOWER_EARLY_EXIT=%s\n' "$rc" | tee -a "$OUT/stages.log"
+  exit "$rc"
+}
+trap early_exit EXIT
+stage WORKDIR_CREATED
 mkdir -p "$WORK/100007"
 cp -p "$JO" "$WORK/100007/"
 cd "$WORK"
+stage VERIFYING_LHE_GZIP
 sha256sum "$INPUT" > source_lhe.sha256
 gzip -t "$INPUT"
+stage DECOMPRESSING_50K_LHE
 gzip -cd "$INPUT" > input.events
+stage LHE_STAGED
 
+stage STARTING_ATLAS_SETUP
 export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase
 # atlasLocalSetup/asetup warn and may misbehave if bash errexit (-e) is active.
 # Disable -e/-u ONLY while sourcing, check return codes, then restore both.
@@ -63,6 +84,7 @@ if (( atlas_setup_rc != 0 || athgen_setup_rc != 0 )); then
   exit 12
 fi
 command -v Gen_tf.py >/dev/null || { echo "ERROR: Gen_tf.py missing after setup" >&2; exit 12; }
+stage ATLAS_SETUP_SUCCEEDED
 export AQP_FXFX_PR426_CASE="$CASE"
 export OMP_NUM_THREADS=1
 unset ATHENA_CORE_NUMBER
@@ -87,6 +109,7 @@ record_exit() {
   exit "$rc"
 }
 trap record_exit EXIT
+stage LAUNCHING_GEN_TF
 set +e
 Gen_tf.py --ecmEnergy=13000 --maxEvents="$EVENTS" --firstEvent=1 \
   --randomSeed=13311 --jobConfig="$WORK/100007" \
