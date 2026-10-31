@@ -34,7 +34,33 @@ def identity(process, stage, gf):
     return hashlib.sha256(blob).hexdigest(), values
 
 
-def claim(root, process, stage, gf, request_id):
+def _worker_context(context, process, stage, gf):
+    """Validate the exact worker contract persisted before condor_submit.
+
+    An absent context remains supported ONLY for historical synthetic tests;
+    such an intent is not recoverable after a missing acknowledgment.
+    """
+    if not isinstance(context, dict) or set(context) != {
+            "cwd", "argument", "required_output"}:
+        raise ValueError("Malformed pre-submit worker context")
+    cwd, args, outputs = context["cwd"], context["argument"], context["required_output"]
+    if (not isinstance(cwd, str) or not os.path.isabs(cwd)
+            or os.path.realpath(cwd) != process
+            or not isinstance(args, (list, tuple)) or len(args) != 4
+            or not all(_valid(x) for x in args)):
+        raise ValueError("Invalid worker arguments or working directory")
+    if stage != "MINT" + args[3] or gf != "ajob1:" + ":".join(args[:3]):
+        raise ValueError("Submission identity differs from worker arguments")
+    if not isinstance(outputs, (list, tuple)) or not outputs or len(outputs) != len(set(outputs)):
+        raise ValueError("Invalid required output list")
+    for value in outputs:
+        if (not isinstance(value, str) or not value or value.startswith("/")
+                or any(part in ("", ".", "..") for part in value.split("/"))):
+            raise ValueError("Unsafe required output in pre-submit context")
+    return {"cwd": cwd, "argument": list(args), "required_output": list(outputs)}
+
+
+def claim(root, process, stage, gf, request_id, *, context=None):
     """Durably reserve one (process,stage,GF) once; never overwrite/retry.
 
     The caller must invoke claim BEFORE condor_submit and put request_id in
@@ -50,6 +76,8 @@ def claim(root, process, stage, gf, request_id):
         raise ValueError("Ledger root must be an existing real directory")
     path = directory / (key + ".json")
     record = dict(values, request_id=request_id, state="INTENT_UNRESOLVED", version=1)
+    if context is not None:
+        record["pre_submit_context"] = _worker_context(context, process, stage, gf)
     payload = (json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n").encode()
     try:
         fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
