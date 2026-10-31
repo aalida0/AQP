@@ -120,7 +120,7 @@ else
     grep -Fq 'AQP_FXFX_AB_PR426_ENABLED=False' log.generate || exit 8
 fi
 python3 - "$OUTPUT" "$LHE_COUNT" <<'PY'
-import sys,tarfile
+import sys,tarfile,re
 from pathlib import Path
 file=Path(sys.argv[1]); expected=int(sys.argv[2])
 with tarfile.open(file,"r:gz") as archive:
@@ -130,7 +130,7 @@ with tarfile.open(file,"r:gz") as archive:
     f=archive.extractfile(members[0])
     if f is None: raise SystemExit("CANNOT_READ_TXT_MEMBER")
     data=f.read()
-count=data.count(b"<event>"); ends=data.count(b"</event>")
+count=len(re.findall(rb"<event(?:\s[^>]*)?>", data)); ends=len(re.findall(rb"</event\s*>", data))
 if count!=expected or ends!=expected or b"</LesHouchesEvents>" not in data:
     raise SystemExit(f"BAD_LHE_COUNT start={count} end={ends}, expected={expected}")
 print(f"AQP_FXFX_AB_LHE_VALIDATED {count}")
