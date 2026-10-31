@@ -172,7 +172,7 @@ head -n 7 "$MADPATH/VERSION" || true
 # ATLAS MadGraphControl detects a prepared gridpack by finding the
 # relative directory "madevent" under the generation working directory.
 # Extract the archived NLO process to worker scratch, never to /data.
-echo "Extracting Δ441 NLO gridpack into worker scratch..."
+echo "Extracting $CFG NLO gridpack into worker scratch..."
 date -u
 tar -xzf "$PACK" -C "$SCRATCH" > "$OUT/gridpack_extract_stdout.log" \
   2> "$OUT/gridpack_extract_stderr.log"
