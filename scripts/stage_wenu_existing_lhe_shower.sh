@@ -10,6 +10,8 @@ OUT=/data/aalida/AQP/Wjets/WENU/production_pilot/wenu_recovered_lhe_shower_v1
 [[ ! -e "$STAGE" ]] || { echo "ERROR: preflight already staged: $STAGE" >&2; exit 3; }
 command -v condor_submit >/dev/null || { echo "ERROR: condor_submit unavailable" >&2; exit 4; }
 bash -n "$ROOT/scripts/run_wenu_existing_lhe_shower.sh"
+# GitHub contents API creates the runner without the executable bit.
+chmod u+x "$ROOT/scripts/run_wenu_existing_lhe_shower.sh"
 python3 -B - "$ROOT/joboptions/wenu_existing_lhe_shower" <<'PY'
 import pathlib, sys
 base = pathlib.Path(sys.argv[1])
