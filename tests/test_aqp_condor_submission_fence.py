@@ -166,6 +166,31 @@ class SubmissionFenceTests(unittest.TestCase):
         self.assertEqual(self.count_intents(), 1)
         self.assertEqual(len(list(self.root.glob("ack_*.json"))), 1)
 
+    def test_distinct_run_modes_get_distinct_worker_intents(self):
+        first = self.args()
+        self.controller.submit(str(self.prog), first, str(self.cwd))
+        other = list(first)
+        other[1] = "another_mode"
+        self.controller.submit(str(self.prog), other, str(self.cwd))
+        self.assertEqual(len(self.submissions), 2)
+        self.assertEqual(self.count_intents(), 2)
+
+    def test_distinct_run_numbers_get_distinct_worker_intents(self):
+        first = self.args()
+        self.controller.submit(str(self.prog), first, str(self.cwd))
+        other = list(first)
+        other[2] = "another_run"
+        self.controller.submit(str(self.prog), other, str(self.cwd))
+        self.assertEqual(len(self.submissions), 2)
+        self.assertEqual(self.count_intents(), 2)
+
+    def test_same_full_worker_arguments_block_duplicate(self):
+        first = self.args()
+        self.controller.submit(str(self.prog), first, str(self.cwd))
+        with self.assertRaisesRegex(Exception, "Existing GF submission intent"):
+            self.controller.submit(str(self.prog), first, str(self.cwd))
+        self.assertEqual(len(self.submissions), 1)
+
     def test_duplicate_attempt_rejected_before_submission(self):
         self.controller.submit(str(self.prog), self.args(), str(self.cwd))
         with self.assertRaisesRegex(Exception, "Existing GF submission intent"):
