@@ -111,7 +111,7 @@ def main():
                             all(name in module_files for name in required)
                             and source.count('_aqp_submission_guard.reserve(') == 2
                             and source.count('_aqp_submission_guard.acknowledge(') == 2
-                            and source.count('_aqp_completion_guard.check(') == 2
+                            and source.count('_aqp_completion_guard.check(') == 3
                             and source.count('+AQPRequestId =') == 2
                         )
                     except (OSError, SyntaxError) as exc:
