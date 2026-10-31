@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+"""Static regression tests for Wenu PR426 before/after Pythia FxFx shower."""
+from pathlib import Path
+import subprocess
+import unittest
+
+ROOT=Path(__file__).resolve().parents[1]
+JO=ROOT/"joboptions/wenu_fxfx_pr426_shower/100007/mc.aMCPy8EG_Wenu_FxFx_2jets_PR426_shower.py"
+RUNNER=ROOT/"scripts/run_wenu_fxfx_pr426_shower.sh"
+SUBMIT=ROOT/"condor/wenu_fxfx_pr426_before_18000_shower.submit"
+
+class PR426Shower(unittest.TestCase):
+    def test_jo_is_shower_only_with_standard_fxfx(self):
+        s=JO.read_text()
+        compile(s,str(JO),"exec")
+        for expected in ("Pythia8_A14_NNPDF23LO_EvtGen_Common",
+                         "Pythia8_aMcAtNlo", "Pythia8_FxFx_A14mod",
+                         "PYTHIA8_nJetMax = 2", "PYTHIA8_qCut = 20.0",
+                         "SoftQCD:inelastic = off",
+                         "AQP_FXFX_PR426_SHOWER_MADGRAPH_NOT_INVOKED"):
+            self.assertIn(expected,s)
+        for forbidden in ("new_process(", "generate(", "arrange_output(", "MADGRAPH_PDFSETTING"):
+            self.assertNotIn(forbidden,s)
+
+    def test_runner_isolation(self):
+        r=subprocess.run(["bash","-n",str(RUNNER)],
+                         capture_output=True,text=True,timeout=5)
+        self.assertEqual(r.returncode,0,r.stderr)
+        s=RUNNER.read_text()
+        for expected in ("gzip -cd", "input.events",
+                         "--inputGeneratorFile=input.events",
+                         "AQP_FXFX_PR426_CASE",
+                         "JetMatchingMadgraph", "request"):
+            if expected!="request":
+                self.assertIn(expected,s)
+        self.assertNotIn("condor_submit",s)
+        self.assertNotIn("run_mode=1",s)
+        self.assertIn("_CONDOR_SCRATCH_DIR",s)
+        self.assertIn("request",SUBMIT.read_text())
+
+    def test_batch_is_one_core_not_nested(self):
+        s=SUBMIT.read_text()
+        self.assertIn("request_cpus = 1",s)
+        self.assertIn("before 18000",s)
+        self.assertIn("should_transfer_files = NO",s)
+
+if __name__=="__main__":
+    unittest.main()
