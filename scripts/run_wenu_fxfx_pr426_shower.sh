@@ -8,6 +8,7 @@ case "$EVENTS" in 200|18000) ;; *) echo "ERROR: choose 200 or 18000 accepted EVN
 [[ "$INPUT" == /* && -s "$INPUT" ]] || { echo "ERROR: absolute existing input required" >&2; exit 2; }
 case "$INPUT" in
   /home/aalida/AQP/fxfx_pr426_standard111_internal/*/PROCNLO_loop_sm-no_b_mass_0/Events/run_pr426_50k_seed411/events.lhe.gz) ;;
+  /data/aalida/AQP/Wjets/WENU/fxfx_pr426_standard111_shower/"$CASE"_accepted200_seed13311/source_50k_lhe.gz) ;;
   *) echo "ERROR: not an expected saved PR426 50k LHE" >&2; exit 2;;
 esac
 ROOT=/home/aalida/AQP/aqp-production-audit
