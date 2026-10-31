@@ -29,8 +29,10 @@ class WenuComparison16V2Tests(unittest.TestCase):
         self.assertIn('AQP_WENU_COMPARISON16_V2_STAGING_PASS', t)
         self.assertIn('STAGED_ONLY', t)
         self.assertNotIn('https://raw.githubusercontent.com/', t)
-        self.assertNotIn('condor_submit_dag ', t.split('echo "STAGED_ONLY')[0])
-        self.assertNotIn('condor_submit ', t.split('echo "STAGED_ONLY')[0])
+        # Presence of the executable name in preflight's command -v check is OK.
+        # Only a direct shell invocation would submit jobs.
+        self.assertNotRegex(t, r"(?m)^\s*condor_submit_dag\s+")
+        self.assertNotRegex(t, r"(?m)^\s*condor_submit\s+")
 
     def test_all_joboptions_parse_and_use_expected_settings(self):
         for cfg in CONFIGS:
