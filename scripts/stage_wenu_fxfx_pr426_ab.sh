@@ -20,6 +20,28 @@ for file in dummy_fct.f montecarlocounter_MINE.f; do
   [[ -s "$ORIG/$file" ]] || { echo "ERROR: missing HT2 input: $ORIG/$file" >&2; exit 5; }
 done
 
+# Audit the EFFECTIVE bias; event_norm=bias does not imply H_T^2 bias is active.
+python3 - "$ORIG/dummy_fct.f" <<'PYBIAS'
+from pathlib import Path
+import re
+import sys
+source = Path(sys.argv[1]).read_text(errors="replace").splitlines()
+active = [
+    line.strip().lower().replace(" ", "")
+    for line in source
+    if line.strip() and line.strip()[0].lower() not in ("c", "!", "*")
+]
+bias = [line for line in active if re.match(r"^bias_wgt=", line)]
+if "bias_wgt=h_t**2" in bias:
+    print("AQP_FXFX_AB_HT2_BIAS_ACTIVE")
+elif bias == ["bias_wgt=1d0"]:
+    print("AQP_FXFX_AB_WARNING_HT2_BIAS_INACTIVE: bias_wgt=1d0; "
+          "H_T^2 may be commented out. Keep both variants identical, "
+          "but do NOT label the actual sample HT2-biased.")
+else:
+    print("AQP_FXFX_AB_WARNING_BIAS_NEEDS_MANUAL_AUDIT", bias)
+PYBIAS
+
 for variant in before after; do
   jo="joboptions/wenu_fxfx_pr426_ab/$variant/100005/mc.aMCPy8EG_Wenu_FxFx_2jets_HT2bias_$variant.py"
   [[ -s "$jo" ]] || { echo "ERROR: missing $jo" >&2; exit 6; }
