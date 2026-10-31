@@ -61,8 +61,11 @@ class CompletionGuardTests(unittest.TestCase):
         self.environment.start()
         self.addCleanup(self.environment.stop)
         self.token = self.submission.reserve(
-            str(self.prog), ["GF7.0", "second", "third", "1"], str(self.cwd))
-        self.submission.acknowledge(self.token, "910001")
+            str(self.prog), ["GF7.0", "second", "third", "1"], str(self.cwd),
+            ["G0/log_MINT1.txt", "G0/results.dat"])
+        self.submission.acknowledge(
+            self.token, "910001", str(self.cwd),
+            ["G0/log_MINT1.txt", "G0/results.dat"])
         self.queries = []
 
     @staticmethod
