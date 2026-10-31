@@ -28,6 +28,8 @@ class CondorCluster:
         for id in self.submitted_ids:
             if id not in []:
                 status = self.check_termination(id)
+            elif status != 'C':
+                run += 1
         return run
 '''
 
@@ -83,6 +85,12 @@ class CompletionGuardTests(unittest.TestCase):
             "910001", self.fake_runner(active=line)), "ACTIVE")
         self.assertEqual(len(self.queries), 1)
 
+
+    def test_visible_completed_job_remains_outstanding(self):
+        line = f"910001 0 4 {self.token}\\n"
+        self.assertEqual(self.guard.check(
+            "910001", self.fake_runner(active=line)), "ACTIVE")
+
     def test_history_success_requires_matching_token_and_exit_zero(self):
         line = f"910001 0 4 0 {self.token}\n"
         self.assertEqual(self.guard.check(
@@ -107,7 +115,7 @@ class CompletionGuardTests(unittest.TestCase):
 
     def test_source_gate_injects_into_both_status_methods(self):
         source = patch_text(SOURCE)
-        self.assertEqual(source.count("_aqp_completion_guard.check("), 2)
+        self.assertEqual(source.count("_aqp_completion_guard.check("), 3)
         self.assertIn("return 'C'", source)
         self.assertIn("    continue", source)
 
