@@ -65,3 +65,24 @@ A standalone prototype, `scripts/aqp_condor_intent_ledger.py`, now implements wr
 The existing single large stress runner `scripts/aqp_condor_large_stress.py` now includes this independent ledger model for all four historical configurations, alongside the original extracted-method checks. It must continue to report **PRODUCTION_READINESS BLOCKED**, including `DURABLE_INTENT_MODEL_NOT_INTEGRATED_WITH_MADGRAPH_OR_HTCONDOR`. Use a new JSON report path for each attempt: the runner refuses overwrite.
 
 **Remaining work:** source-pinned integration into `CondorCluster.submit`/`submit2` and `control`/`control_one_job`, real scheduler reconciliation, artifact provenance, full controller crash testing, and a disposable live canary. The prototype is **not** a safe production drop-in; no existing Wenu generated process has been modified.
+
+## 2026-10-31: isolated, source-pinned submit-fence candidate
+
+New **NON-DEPLOYED** components on `audit/production-framework`:
+
+- `scripts/aqp_condor_submission_guard.py`: requires `AQP_CONDOR_INTENT_ROOT`, reserves each recognized `ajob1` (channel, stage 0/1, GF) in the write-once ledger immediately before the `condor_submit` subprocess, and records a write-once acknowledgment on success. Unknown job types, stages, working directories and missing ledger roots fail closed. The ledger has no automatic unlocking/reset mechanism.
+- `scripts/aqp_prepare_condor_submission_fence.py`: reconstructs the exact source-pinned combined candidate for four historical Wenu configurations; inserts a `+AQPRequestId` ClassAd attribute into **both** `submit` and `submit2`; bundles helper modules into isolated output directories. Does not install a patch into the generated processes, CVMFS, or any JO.
+- `tests/test_aqp_condor_submission_fence.py`: synthetic backend-method regression suite covering both submission paths, normal acknowledgments, lost ACK, duplicate refusal, unrecognized stage, and failure to configure the ledger.
+
+The first local synthetic fixture tests passed (11/11) using an AST-patched representative class, fake `condor_submit`, and real filesystem writes. This is **not** a test on the exact installed ATLAS source, nor a test that the pilot scheduler preserves `AQPRequestId`.
+
+The candidate is intentionally restrictive and presently **not safe for a real run**:
+1. It refuses any non-`ajob1` submission; other MG subprocess types and actual `ajob1` argument layouts must be audited.
+2. Once a GF/stage has an intent, it cannot be resubmitted. This prevents accidental duplicate execution but also blocks genuine recovery and repeated integrations unless a reviewed, durable reconciliation process is added.
+3. Acknowledged jobs have no lifecycle state reconciliation, verified output manifest or audited controller-restart path yet.
+4. The normal `CondorCluster.control`, `control_one_job` and `check_termination` methods are **not** made recovery-safe by this submission fence. The four prior large-stress blockers remain.
+5. The ledger's storage atomicity and filesystem semantics must be tested on the actual AF shared filesystem before trusting them for production.
+6. Historical `delta441_backup` is not the validated *active* Delta441 process.
+
+The appropriate next validation is to run `python3 -m unittest discover -s tests -p 'test_aqp_condor_submission_fence.py' -v` on the AF and create **isolated** candidates (not installed), then inspect the exact source diff and import environment. Even if these pass, do **not** run physics or enable this patch in a JO. The next engineering requirement is request-ID-based queue/history reconciliation and a genuine output-integrity contract.
+
