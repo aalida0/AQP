@@ -45,6 +45,23 @@ class PR426Shower(unittest.TestCase):
         self.assertIn("set +e\nset +u\nsource", s)
         self.assertIn("request",SUBMIT.read_text())
 
+    def test_rescue_and_staging_syntax(self):
+        resume=ROOT/"scripts/resume_wenu_fxfx_pr426_shower200.sh"
+        for script in (RUNNER,resume):
+            with self.subTest(script=script):
+                p=subprocess.run(["bash","-n",str(script)],
+                                 capture_output=True,text=True,timeout=5)
+                self.assertEqual(p.returncode,0,p.stderr)
+        original=RUNNER.read_text()
+        rescue=resume.read_text()
+        self.assertIn('gzip -cd "$INPUT" > "$OUT/input.events"',original)
+        self.assertIn('ln -s "$OUT/input.events" "$WORK/input.events"',original)
+        self.assertIn('cmp -s "$WORK/input.events" "$DATA_DIR/input.events"',rescue)
+        self.assertIn('source_50k_lhe.gz',rescue)
+        self.assertIn('source "$ATLAS_LOCAL_ROOT_BASE/user/atlasLocalSetup.sh"',rescue)
+        self.assertIn('Gen_tf.py --ecmEnergy=13000 --maxEvents=200',rescue)
+        self.assertIn('AQP_PR426_SHOWER200_PASS',rescue)
+
     def test_batch_is_one_core_not_nested(self):
         s=SUBMIT.read_text()
         self.assertIn("request_cpus = 1",s)
