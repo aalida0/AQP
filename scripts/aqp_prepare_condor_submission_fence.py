@@ -2,8 +2,9 @@
 """Build isolated, NON-DEPLOYED MG5 Condor submission + history candidates.
 
 Accept only exact source-pinned Wenu process-local combined candidates.
-Does not patch status/history reconciliation, approve physics production,
-modify existing Wenu processes, or submit any Condor jobs.
+Adds a limited queue/history identity gate; it does NOT implement complete
+recovery, certify GF output integrity, approve physics production, modify
+existing Wenu processes, or submit any Condor jobs.
 """
 import argparse
 import ast
