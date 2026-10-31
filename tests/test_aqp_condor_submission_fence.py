@@ -201,6 +201,36 @@ class SubmissionFenceTests(unittest.TestCase):
             self.controller.submit(str(self.prog), self.args(), str(self.cwd))
         self.assertEqual(len(self.submissions), 1)
 
+    def test_ack_write_failure_never_mutates_in_memory_tracking(self):
+        helper = self.controller.submit.__globals__['_aqp_submission_guard']
+        with patch.object(helper, 'acknowledge', side_effect=OSError('disk full')):
+            with self.assertRaisesRegex(OSError, "disk full"):
+                self.controller.submit(str(self.prog), self.args(), str(self.cwd))
+        # Condor may have accepted the job, but the controller must not
+        # report a successfully tracked submission without a durable ACK.
+        self.assertEqual(len(self.submissions), 1)
+        self.assertEqual(self.controller.submitted, 0)
+        self.assertEqual(self.controller.submitted_ids, [])
+        self.assertEqual(self.count_intents(), 1)
+
+    def test_ack_persisted_before_in_memory_state_update(self):
+        candidate = patch_text(SOURCE)
+        self.assertEqual(candidate.count('_aqp_submission_guard.acknowledge('), 2)
+        for method in ('submit', 'submit2'):
+            import ast
+            tree = ast.parse(candidate)
+            cls = next(n for n in tree.body
+                       if isinstance(n, ast.ClassDef) and n.name == 'CondorCluster')
+            fn = next(n for n in cls.body
+                      if isinstance(n, ast.FunctionDef) and n.name == method)
+            lines = candidate.splitlines()
+            body = lines[fn.lineno - 1:fn.end_lineno]
+            ack = next(i for i, line in enumerate(body)
+                       if '_aqp_submission_guard.acknowledge(' in line)
+            counter = next(i for i, line in enumerate(body)
+                           if 'self.submitted += 1' in line)
+            self.assertLess(ack, counter)
+
     def test_lost_ack_leaves_unresolved_intent(self):
         self.has_ack = False
         with self.assertRaisesRegex(RuntimeError, "ambiguous submit acknowledgment"):
