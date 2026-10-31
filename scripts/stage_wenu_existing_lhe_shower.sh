@@ -47,7 +47,7 @@ mkdir "$STAGE"
 for CFG in standard111 delta111 delta221; do
   SRC="$WENU/$CFG/PROCNLO_loop_sm-no_b_mass_0/Events/run_01/events.lhe.gz"
   SHA="$(sha256sum "$SRC" | awk '{print $1}')"
-  echo "$CFG $SHA" >> "$STAGE/source_sha.txt"
+  printf "%s, %s\n" "$CFG" "$SHA" >> "$STAGE/source_sha.txt"
 done
 echo "AQP_WENU_3_SOURCE_HASHES_PINNED"
 echo "AQP_WENU_STAGE=$STAGE"
