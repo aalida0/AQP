@@ -4,9 +4,9 @@
 # By default does preflight only; --execute launches generation.
 set -Eeuo pipefail
 
-CASE="\${1:-}"
-WORK="\${2:-}"
-MODE="\${3:---check}"
+CASE="${1:-}"
+WORK="${2:-}"
+MODE="${3:---check}"
 case "$CASE" in before|after) ;; *) echo "Usage: $0 before|after ABSOLUTE_WORKDIR [--execute]" >&2; exit 2 ;; esac
 case "$MODE" in --check|--execute) ;; *) echo "ERROR: expected --check or --execute" >&2; exit 2 ;; esac
 [[ "$WORK" == /* && -d "$WORK" ]] || { echo "ERROR: absolute existing workdir required" >&2; exit 2; }
