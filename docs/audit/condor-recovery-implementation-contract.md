@@ -86,3 +86,42 @@ The candidate is intentionally restrictive and presently **not safe for a real r
 
 The appropriate next validation is to run `python3 -m unittest discover -s tests -p 'test_aqp_condor_submission_fence.py' -v` on the AF and create **isolated** candidates (not installed), then inspect the exact source diff and import environment. Even if these pass, do **not** run physics or enable this patch in a JO. The next engineering requirement is request-ID-based queue/history reconciliation and a genuine output-integrity contract.
 
+
+## 2026-10-31 second implementation increment: isolated history-gated candidate
+
+This branch now also includes:
+
+- `scripts/aqp_condor_completion_guard.py`: verifies a queue/history record against a previously persisted `AQPRequestId` and the durable acknowledged cluster ID. Missing, malformed, mismatched, held, nonzero-exit or unavailable scheduler evidence fails closed. A job that is still queue-visible with `JobStatus=4` is treated as **outstanding** until terminal history is available.
+- `scripts/aqp_prepare_condor_status_gate.py`: inserts the history gate before `CondorCluster.control` calls `check_termination` for a missing job; additionally handles queue-visible `C` status so it cannot count as finished prematurely, and guards missing/`C` `control_one_job` responses.
+- `scripts/aqp_prepare_condor_submission_fence.py` now composes source-pinned combined status/submit fixes with the durable submission fence **and** history gate, outputting importable, isolated `internal/` packages with all three companions.
+- `tests/test_aqp_condor_completion_guard.py` covers fake queue/history responses (no real scheduler).
+- `scripts/aqp_condor_full_recovery_campaign.py` orchestrates the two new regression suites, verifies the four source-pinned isolated candidates, and runs the existing large `300 × 210 × 4` offline stress in **one invocation**. Its full-scale stress section continues to exercise extracted old-patch methods and an independent ledger model. It does **not** constitute 252,000 invocations of the newly integrated history-gated candidate.
+
+Local synthetic tests were executed against representative patched method fixtures (submission guard 11/11 and history gate 7/7, separately); these results **do not** establish compatibility with the exact ATLAS 3.5.11 bundled source, actual Condor ClassAd/history behavior, or true GF output validity.
+
+### One AF offline command (DO NOT install candidate or run physics)
+
+```bash
+cd ~/AQP/aqp-production-audit
+git status --short
+git pull --ff-only origin audit/production-framework
+
+MG=/cvmfs/atlas.cern.ch/repo/sw/software/23.6/sw/lcg/releases/MCGenerators/madgraph5amc/3.5.11.atlas13-dbd05/x86_64-el9-gcc14-opt
+python3 scripts/aqp_condor_full_recovery_campaign.py \
+  --base "$HOME/AQP/Wjets/WENU" \
+  --central "$MG/madgraph/various/cluster.py" \
+  --channels 300 --rounds 210 \
+  --report .aqp_staged/condor_recovery_full_20261031.json
+echo "Exit status: $?"
+```
+
+Exit code 2 means the *offline* checks completed but **PRODUCTION_READINESS BLOCKED** is retained. Exit 1 means test/candidate generation failed. The four historical Wenu process trees, CVMFS and JOs are untouched.
+
+### Remaining non-negotiable release blockers
+
+- The actual process imports and HTCondor ClassAd/history query syntax need validation on a disposable AF test process. A source-pinned AST candidate is not itself evidence that the loaded code has been executed.
+- Required GF output integrity remains the old `check_termination` file-presence behavior. A durable manifest with matching job provenance and content checks is still missing. Consequently, scheduler success does **not** mean grid integrity.
+- The ledger is intentionally write-once with no safe retry release policy. Legitimate resubmission after a controller restart or a failed job would remain blocked. A reviewed, crash-safe reconciliation/terminal lifecycle is not yet implemented.
+- The history guard queries the exact acknowledged cluster ID; it does not yet search all jobs by request token to prove no *other* scheduler ID was accepted during an ambiguous ACK. The live canary must test that.
+- Full normal and faulted controller lifecycle (output publication, mixed stage transitions, exceptions and retries) has **not** been tested end-to-end against a real scheduler. The large synthetic runner cannot replace this.
+- **No production deployment and no JO patch installation are authorized by these offline results.**
