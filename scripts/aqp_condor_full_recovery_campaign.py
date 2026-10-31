@@ -19,7 +19,8 @@ CONFIGS = ('standard111', 'delta111', 'delta221', 'delta441_backup')
 TESTS = ('test_aqp_condor_submission_fence.py',
          'test_aqp_condor_completion_guard.py',
          'test_aqp_condor_output_manifest.py',
-         'test_aqp_condor_output_guard.py')
+         'test_aqp_condor_output_guard.py',
+         'test_aqp_audit_generated_ajob1_worker.py')
 
 
 def execute(argv, cwd):
@@ -50,6 +51,7 @@ def main():
         'production_files_modified': False,
         'candidate_installed': False,
         'production_readiness': 'BLOCKED',
+        'generated_worker_contract_audit': None,
         'tests': {},
         'candidate_imports': {},
         'combined_candidate_control_stress': {},
@@ -80,6 +82,37 @@ def main():
             if not passed:
                 failed = True
                 print(result.stderr[-4000:], file=sys.stderr)
+
+        if not failed:
+            # Read-only observation of actual generated ajob1 scripts/output
+            # layout. This cannot approve any output manifest or worker hook.
+            worker_path = scratch / 'generated_worker_audit.json'
+            command = [
+                sys.executable,
+                str(repo / 'scripts/aqp_audit_generated_ajob1_worker.py'),
+                '--base', str(args.base),
+                '--report', str(worker_path),
+            ]
+            worker = execute(command, repo)
+            if worker.returncode not in (0, 2) or not worker_path.is_file():
+                failed = True
+                print('WORKER_SOURCE_AUDIT_FAILED', worker.stderr[-3000:],
+                      file=sys.stderr)
+            else:
+                worker_result = json.loads(worker_path.read_text(encoding='utf-8'))
+                summary['generated_worker_contract_audit'] = {
+                    'worker_contract_approved': False,
+                    'configurations': {
+                        name: {
+                            'channels': item.get('channel_dirs', 0),
+                            'ajob1_workers': item.get('channels_with_ajob1', 0),
+                            'stage_result_totals': item.get('stage_result_totals', {}),
+                            'worker_pattern_counts': item.get('worker_pattern_counts', {}),
+                            'unchecked_result_copy_count': item.get('unchecked_result_copy_count', 0),
+                        } for name, item in worker_result['configurations'].items()
+                    },
+                }
+                print(worker.stdout[-3000:])
 
         if not failed:
             staged = scratch / 'isolated'
