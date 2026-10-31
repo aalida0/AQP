@@ -20,7 +20,8 @@ TESTS = ('test_aqp_condor_submission_fence.py',
          'test_aqp_condor_completion_guard.py',
          'test_aqp_condor_output_manifest.py',
          'test_aqp_condor_output_guard.py',
-         'test_aqp_audit_generated_ajob1_worker.py')
+         'test_aqp_audit_generated_ajob1_worker.py',
+         'test_aqp_audit_ajob_controller_contract.py')
 
 
 def execute(argv, cwd):
@@ -52,6 +53,7 @@ def main():
         'candidate_installed': False,
         'production_readiness': 'BLOCKED',
         'generated_worker_contract_audit': None,
+        'controller_source_contract_audit': None,
         'tests': {},
         'candidate_imports': {},
         'combined_candidate_control_stress': {},
@@ -82,6 +84,36 @@ def main():
             if not passed:
                 failed = True
                 print(result.stderr[-4000:], file=sys.stderr)
+
+        if not failed:
+            # Require a source-level audit of the ACTUAL installed ATLAS
+            # controller/cluster code before inferring worker output paths.
+            # This does not import MadGraph or mutate any process tree.
+            interface = args.central.resolve(strict=True).parent.parent / (
+                'interface/amcatnlo_run_interface.py')
+            contract_path = scratch / 'installed_controller_contract.json'
+            command = [
+                sys.executable,
+                str(repo / 'scripts/aqp_audit_ajob_controller_contract.py'),
+                '--interface', str(interface),
+                '--cluster', str(args.central),
+                '--report', str(contract_path),
+            ]
+            contract = execute(command, repo)
+            if contract.returncode != 0 or not contract_path.is_file():
+                failed = True
+                print('CONTROLLER_SOURCE_CONTRACT_AUDIT_FAILED',
+                      contract.stderr[-3500:] or contract.stdout[-3500:],
+                      file=sys.stderr)
+            else:
+                result = json.loads(contract_path.read_text(encoding='utf-8'))
+                summary['controller_source_contract_audit'] = {
+                    'approved_for_worker_patch': False,
+                    'source_flags': result['observed_flags'],
+                    'controller': result['controller'],
+                    'cluster_backend': result['cluster_backend'],
+                }
+                print(contract.stdout[-3000:])
 
         if not failed:
             # Read-only observation of actual generated ajob1 scripts/output
