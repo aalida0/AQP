@@ -16,30 +16,7 @@ command -v Gen_tf.py >/dev/null || { echo "ERROR: Gen_tf.py unavailable" >&2; ex
 command -v condor_submit >/dev/null || { echo "ERROR: Condor CLI unavailable" >&2; exit 3; }
 command -v condor_q >/dev/null || { echo "ERROR: Condor query unavailable" >&2; exit 3; }
 
-REPO=/home/aalida/AQP/aqp-production-audit
-SOURCE=/home/aalida/AQP/Wjets/WENU/standard111/100000
-BASE=/home/aalida/AQP/fxfx_pr426_standard111_internal
-WORK="$BASE/$CASE""_$LHE_COUNT""_seed$SEED"
-JO="mc.aMCPy8EG_Wenu_FxFx_2jets_HT2bias_$CASE.py"
-for input in "$REPO/joboptions/wenu_fxfx_pr426_internal_condor/$CASE/100006/$JO" \
-    "$REPO/scripts/aqp_prepare_fxfx_exclusive_kt_patch.py" \
-    "$SOURCE/dummy_fct.f" "$SOURCE/montecarlocounter_MINE.f"; do
-    [[ -s "$input" ]] || { echo "ERROR: missing $input" >&2; exit 4; }
-done
-if [[ -e "$WORK" || -L "$WORK" ]]; then
-    echo "ERROR: work directory already exists: $WORK" >&2; exit 5;
-fi
-if [[ "$LHE_COUNT" == 50000 ]]; then
-    for version in before after; do
-        smoke="$BASE/$version""_200_seed311/runner_exit_code"
-        [[ -f "$smoke" && "$(cat "$smoke")" == 0 ]] || {
-            echo "ERROR: missing passing 200-LHE smoke for $version: $smoke" >&2
-            exit 5
-        }
-    done
-fi
-# Parallel P* compilation uses nb_core processes on this host.
-# Never launch those processes on a shared login node.
+# Use a new workspace for multicore runs; never reuse the one-core attempt.
 COMPILE_CORES="$(printenv AQP_FXFX_AB_COMPILE_CORES || true)"
 COMPILE_CORES="${COMPILE_CORES:-16}"
 case "$COMPILE_CORES" in 16|32) ;; *)
@@ -53,6 +30,29 @@ case "$(hostname -s)" in
 esac
 export AQP_FXFX_AB_COMPILE_CORES="$COMPILE_CORES"
 echo "AQP_FXFX_AB_COMPILE_CORES=$COMPILE_CORES"
+
+REPO=/home/aalida/AQP/aqp-production-audit
+SOURCE=/home/aalida/AQP/Wjets/WENU/standard111/100000
+BASE=/home/aalida/AQP/fxfx_pr426_standard111_internal
+WORK="$BASE/$CASE""_$LHE_COUNT""_seed$SEED""_compile$COMPILE_CORES"
+JO="mc.aMCPy8EG_Wenu_FxFx_2jets_HT2bias_$CASE.py"
+for input in "$REPO/joboptions/wenu_fxfx_pr426_internal_condor/$CASE/100006/$JO" \
+    "$REPO/scripts/aqp_prepare_fxfx_exclusive_kt_patch.py" \
+    "$SOURCE/dummy_fct.f" "$SOURCE/montecarlocounter_MINE.f"; do
+    [[ -s "$input" ]] || { echo "ERROR: missing $input" >&2; exit 4; }
+done
+if [[ -e "$WORK" || -L "$WORK" ]]; then
+    echo "ERROR: work directory already exists: $WORK" >&2; exit 5;
+fi
+if [[ "$LHE_COUNT" == 50000 ]]; then
+    for version in before after; do
+        smoke="$BASE/$version""_200_seed311""_compile$COMPILE_CORES/runner_exit_code"
+        [[ -f "$smoke" && "$(cat "$smoke")" == 0 ]] || {
+            echo "ERROR: missing passing 200-LHE smoke for $version: $smoke" >&2
+            exit 5
+        }
+    done
+fi
 mkdir -p "$WORK/100006"
 cp -p "$REPO/joboptions/wenu_fxfx_pr426_internal_condor/$CASE/100006/$JO" "$WORK/100006/"
 cp -p "$REPO/scripts/aqp_prepare_fxfx_exclusive_kt_patch.py" "$WORK/"
