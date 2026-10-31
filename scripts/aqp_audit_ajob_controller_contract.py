@@ -42,8 +42,8 @@ def _source(path, method, parent=None):
 
 
 def audit(interface, cluster):
-    getio = _source(interface, "getIO_ajob")
-    runall = _source(interface, "run_all_jobs")
+    getio = _source(interface, "getIO_ajob", parent="aMCatNLOCmd")
+    runall = _source(interface, "run_all_jobs", parent="aMCatNLOCmd")
     store = _source(cluster, "store_input")
     termination = _source(cluster, "check_termination", parent="Cluster")
     source = "\n".join(getio["method_lines"])
