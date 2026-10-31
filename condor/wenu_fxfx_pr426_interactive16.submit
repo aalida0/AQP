@@ -1,0 +1,14 @@
+# Interactive 16-CPU shell for Standard111 FxFx PR426 compilation.
+# Run: condor_submit -interactive condor/wenu_fxfx_pr426_interactive16.submit
+# MadGraph then submits its own integration tasks via the Condor CLI.
+# This nested scheduler workflow must be verified at the AF before use.
+universe = vanilla
+executable = /bin/bash
+initialdir = /home/aalida/AQP/aqp-production-audit
+getenv = True
+should_transfer_files = NO
+request_cpus = 16
+request_memory = 32000MB
+request_disk = 20000MB
+notification = Never
+queue 1
