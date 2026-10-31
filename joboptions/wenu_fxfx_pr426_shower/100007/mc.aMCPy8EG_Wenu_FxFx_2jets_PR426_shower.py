@@ -28,7 +28,19 @@ evgenConfig.description = (
 evgenConfig.contact = ["amine.alida@cern.ch"]
 evgenConfig.keywords += ["W", "jets"]
 evgenConfig.generators += ["aMcAtNlo", "Pythia8"]
-evgenConfig.nEventsPerJob = int(runArgs.maxEvents)
+# ATLAS EvgenJobTransforms requires nEventsPerJob > 10000 to be a
+# multiple of 10000. It is metadata, not the events actually requested:
+# Gen_tf.py --maxEvents controls the latter. For the 18k-event FxFx
+# shower request, advertise 20k while keeping --maxEvents=18000.
+_requested_evnt = int(runArgs.maxEvents)
+evgenConfig.nEventsPerJob = (
+    ((_requested_evnt + 9999) // 10000) * 10000
+    if _requested_evnt > 10000 else _requested_evnt
+)
+print(
+    "AQP_FXFX_PR426_SHOWER_REQUESTED_EVNT=%d_NEV_PER_JOB=%d"
+    % (_requested_evnt, evgenConfig.nEventsPerJob)
+)
 
 print("AQP_FXFX_PR426_SHOWER_CASE=" + case)
 print("AQP_FXFX_PR426_SHOWER_INPUT=" + str(runArgs.inputGeneratorFile))
