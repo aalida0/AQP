@@ -19,7 +19,10 @@ class TransferTest(unittest.TestCase):
         text = SUBMIT.read_text()
         for expected in (
             "should_transfer_files = YES",
-            "transfer_executable = True",
+            "transfer_executable = False",
+            "executable = /bin/bash",
+            "arguments = run_wenu_fxfx_pr426_condor_transfer.sh before 18000 13311",
+            "/home/aalida/AQP/aqp-production-audit/scripts/run_wenu_fxfx_pr426_condor_transfer.sh",
             "when_to_transfer_output = ON_EXIT",
             "transfer_input_files = ",
             "transfer_output_files = shower_artifacts,wenu_pr426_before_accepted18000.EVNT.pool.root",
