@@ -129,7 +129,8 @@ def main():
     srcdir = Path(__file__).resolve().parent
     companions = ('aqp_condor_submission_guard.py', 'aqp_condor_intent_ledger.py',
                   'aqp_condor_completion_guard.py', 'aqp_condor_output_guard.py',
-                  'aqp_condor_output_manifest.py')
+                  'aqp_condor_output_manifest.py',
+                  'aqp_condor_missing_ack_recovery.py')
     for companion in companions:
         if not (srcdir / companion).is_file():
             parser.error('Missing companion ' + companion)
