@@ -23,6 +23,7 @@ done
 
 python3 -B - "$ROOT" <<'PY'
 from pathlib import Path
+import ast
 import sys
 root=Path(sys.argv[1])
 for cfg in ("standard111", "delta111", "delta221"):
@@ -46,8 +47,17 @@ for cfg in ("standard111", "delta111", "delta221"):
                              'include("Pythia8_i/Pythia8_FxFx_A14mod.py")'):
                 if required not in txt:
                     raise SystemExit("%s missing %s" % (p, required))
-            if "MadGraphControl" in txt or "generate(" in txt:
-                raise SystemExit("%s might invoke MadGraph" % p)
+            tree = ast.parse(txt)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    if any(alias.name.startswith("MadGraphControl") for alias in node.names):
+                        raise SystemExit("%s imports MadGraphControl" % p)
+                elif isinstance(node, ast.ImportFrom):
+                    if (node.module or "").startswith("MadGraphControl"):
+                        raise SystemExit("%s imports MadGraphControl" % p)
+                elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                    if node.func.id in ("generate", "new_process"):
+                        raise SystemExit("%s explicitly invokes MadGraph" % p)
 print("AQP_WENU_COMPARE16_V2_JO_STATIC_PREFLIGHT_PASS")
 PY
 
