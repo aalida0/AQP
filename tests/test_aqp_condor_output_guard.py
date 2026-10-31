@@ -172,9 +172,49 @@ class OutputGateTests(unittest.TestCase):
         exec(source, env)
         controller = env["CondorCluster"]()
         controller.retry_args = {}
+        controller.submitted_ids = ["910001"]
+        controller.id_to_packet = {}
         with patch.object(self.guard, "require_verified", return_value=True) as checked:
             self.assertEqual(controller.check_termination("910001"), "done")
             checked.assert_called_once_with("910001", None)
+        self.assertEqual(controller.submitted_ids, [])
+
+    def test_missing_retry_context_does_not_retire_job_on_missing_manifest(self):
+        source = patch_text(FIXTURE)
+        env = {"ClusterManagmentError": RuntimeError}
+        exec(source, env)
+        controller = env["CondorCluster"]()
+        controller.retry_args = {}
+        controller.submitted_ids = ["910001"]
+        with patch.object(self.guard, "require_verified",
+                          side_effect=self.guard.CondorOutputError("manifest missing")):
+            with self.assertRaises(self.guard.CondorOutputError):
+                controller.check_termination("910001")
+        self.assertEqual(controller.submitted_ids, ["910001"])
+
+    def test_packet_without_retry_provenance_fails_closed(self):
+        source = patch_text(FIXTURE)
+        env = {"ClusterManagmentError": RuntimeError}
+        exec(source, env)
+        controller = env["CondorCluster"]()
+        controller.retry_args = {}
+        controller.submitted_ids = ["910001"]
+        controller.id_to_packet = {"910001": object()}
+        with patch.object(self.guard, "require_verified", return_value=True):
+            with self.assertRaisesRegex(RuntimeError, "Unsupported packet"):
+                controller.check_termination("910001")
+        self.assertEqual(controller.submitted_ids, ["910001"])
+
+    def test_untracked_no_retry_job_is_not_silently_retired(self):
+        source = patch_text(FIXTURE)
+        env = {"ClusterManagmentError": RuntimeError}
+        exec(source, env)
+        controller = env["CondorCluster"]()
+        controller.retry_args = {}
+        controller.submitted_ids = []
+        with patch.object(self.guard, "require_verified", return_value=True):
+            with self.assertRaisesRegex(RuntimeError, "not tracked"):
+                controller.check_termination("910001")
 
     def test_no_retry_dict_still_blocks_unverified_output(self):
         source = patch_text(FIXTURE)
