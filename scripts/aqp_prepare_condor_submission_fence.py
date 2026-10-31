@@ -53,8 +53,10 @@ def patch_text(src):
                         'condor_submit subprocess')
         ack_i = locate(lambda x: x == 'self.submitted_ids.append(id)',
                        'in-memory cluster ID record')
+        submitted_i = locate(lambda x: x == 'self.submitted += 1',
+                             'submitted counter update')
         dico_i = locate(lambda x: x.startswith('dico = {'), 'submit dictionary')
-        if not (text_i < dico_i < call_i < ack_i):
+        if not (text_i < dico_i < call_i < submitted_i < ack_i):
             raise ValueError(name + ': unexpected submit source layout')
         indent = lines[text_i][:len(lines[text_i]) - len(lines[text_i].lstrip())]
         # The original list is saved before MG converts it into a submit string.
@@ -64,7 +66,10 @@ def patch_text(src):
             indent + '    prog, _aqp_original_args, cwd, required_output)\n',
             indent + "dico['requirement'] += '\\n+AQPRequestId = \"%s\"' % _aqp_request_id\n",
         ]))
-        edits.append((ack_i + 1, [
+        # An ACK must be durably persisted BEFORE touching MG's in-memory
+        # submitted list. On disk errors the accepted scheduler job remains
+        # an unresolved intent, but the controller cannot claim it tracked.
+        edits.append((submitted_i, [
             indent + '_aqp_submission_guard.acknowledge(\n',
             indent + '    _aqp_request_id, id, cwd, required_output)\n',
         ]))
