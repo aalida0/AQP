@@ -114,12 +114,16 @@ print("AQP_FXFX_AB_ACTIVE_CUTS_SHA256=%s" %
 print("AQP_FXFX_AB_PR426_ENABLED=%s" % FXFX_APPLY_PR426)
 print("AQP_FXFX_AB_CUSTOM_SOURCES_IDENTICAL_TO_LEGACY")
 
-MadGraphControl.MadGraphUtils.MADGRAPH_PDFSETTING = {
-    "central_pdf": 325100,
-    "pdf_variations": [],
-    "alternative_pdfs": [],
-    "scale_variations": [],
-}
+# Disable the ATLAS automatic PDF/scale variation machinery.
+# With a non-None dictionary, arrange_output() demands the nominal
+# systematic weight MUR1.0_MUF1.0_PDF325100 even when no variation lists
+# are requested. The 200-event baseline completed MG generation but failed
+# at precisely this post-generation check. Keep the central PDF via lhaid
+# below; retain only the native nominal LHE event weight.
+MadGraphControl.MadGraphUtils.MADGRAPH_PDFSETTING = None
+if MadGraphControl.MadGraphUtils.my_MGC_instance is not None:
+    MadGraphControl.MadGraphUtils.my_MGC_instance.pdf_setting = None
+print("AQP_FXFX_AB_SYSTEMATICS_DISABLED_PDF325100_NOMINAL_ONLY")
 
 modify_run_card(
     process_dir=process_dir,
@@ -128,6 +132,8 @@ modify_run_card(
         "ebeam1": 6500.0,
         "ebeam2": 6500.0,
         "event_norm": "bias",
+        "lhaid": 325100,
+        "systematics_program": "none",
         "maxjetflavor": 5,
         "parton_shower": "PYTHIA8",
         "nevents": nevents,
