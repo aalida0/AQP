@@ -113,6 +113,24 @@ class CompletionGuardTests(unittest.TestCase):
                                     "Scheduler query failed"):
             self.guard.check("910001", self.fake_runner(rc=42))
 
+    def test_nested_import_sys_does_not_shadow_module_anchor(self):
+        source = SOURCE.replace(
+            "    def control(self, me_dir):",
+            "    def control(self, me_dir):\n        import sys", 1)
+        candidate = patch_text(source)
+        self.assertEqual(candidate.count(
+            "from internal import aqp_condor_completion_guard as"), 1)
+        compile(candidate, "status_with_nested_sys.py", "exec")
+
+    def test_nested_import_sys_without_module_import_fails_closed(self):
+        source = SOURCE.replace("import sys\nclass CondorCluster:",
+                                "class CondorCluster:")
+        source = source.replace(
+            "    def control(self, me_dir):",
+            "    def control(self, me_dir):\n        import sys", 1)
+        with self.assertRaisesRegex(ValueError, "module-level import sys"):
+            patch_text(source)
+
     def test_source_gate_injects_into_both_status_methods(self):
         source = patch_text(SOURCE)
         self.assertEqual(source.count("_aqp_completion_guard.check("), 3)
