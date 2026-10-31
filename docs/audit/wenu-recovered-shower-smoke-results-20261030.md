@@ -86,3 +86,19 @@ These are only **metadata-derived post-shower ratios**. Their physical interpret
 **Important statistical limit:** the sign-only proxy `D=1/(1-2f)^2` is not a complete effective-statistical-cost measure for unequal-magnitude HT2-biased weights; compute `N_eff=(sum_i w_i)^2 / sum_i w_i^2` (and appropriate post-FxFx weights) on a properly normalized comparable sample.
 
 Next: inspect the full per-job Pythia8 final statistics, especially tried/accepted counts and veto counters, without rerunning the successful smokes. Then prepare an independent 1k-generation smoke from each existing verified gridpack, and 25k LHE / 5k EVNT matching benchmarks under the staged `wenu_comparison16` framework, **without** MINT0/MINT1 reintegration.
+
+## Exact Pythia8 FxFx efficiencies from full user grep (2026-10-31)
+
+The `Pythia8 INFO Pythia8 efficiency (nAccepted/nTried %)` line is present in each successful shower-only run:
+
+| Configuration | Pythia8 accepted/tried efficiency | TestHepMC efficiency | Extra generator filter efficiency |
+| --- | ---: | ---: | ---: |
+| `standard111` | **42.5532%** | 100% | 100% [200/200] |
+| `delta111` | **42.9185%** | 100% | 100% [200/200] |
+| `delta221` | **41.9624%** | **99.5025%** | 100% [200/200] |
+
+These are Pythia8 *tried-to-accepted* efficiencies for small shower-only smokes; they are **not** the 200/1000 LHE-use ratio and **not** the 100% `Py:EvgenFilterSeq` efficiencies. Configured `JetMatching:doFxFx=on`, `JetMatching:nJetMax=2`, and `JetMatching:qCut=20` were present for all three. Difference across the three acceptances is <1 percentage point, smaller than the ~2.3-percentage-point statistical scale for ~470 shower attempts, so not a significant difference.
+
+The `delta221` TestHepMC efficiency 99.5025% differs from 100%; check **surrounding TestHepMC diagnostics** in its full `log.generate` around the final statistics before claiming every accepted Pythia event met all validation tests. `99.5025%=200/201` is *compatible with* one event failing downstream checks but is not by itself a proof of the exact cause; compare explicit counters.
+
+For a *very preliminary, sign-only, CPU-free* cost illustration, `D / epsilon_FxFx` from the old 1k LHE samples is 9.31 (standard111), 10.45 (delta111), and 5.68 (delta221). This proxy neglects unequal event weights, sample-selection effects and all integration/generation CPU timings; do not publish it as a final computational cost. The separate Delta441 cleaned 25k/5k pilot gives roughly 5.95 on the same proxy but is not an equal-statistics comparison.
