@@ -29,7 +29,7 @@ import json as _aqp_json
 
 def _aqp_claim(cwd, prog, arguments):
     if os.path.basename(str(prog)) != 'ajob1':
-        return
+        return None
     root = os.environ.get('AQP_CONDOR_GUARD_DIR')
     if not root or not os.path.isabs(root) or not os.path.isdir(root):
         raise ClusterManagmentError('Set existing AQP_CONDOR_GUARD_DIR before submission')
@@ -51,6 +51,7 @@ def _aqp_claim(cwd, prog, arguments):
         os.fsync(fd)
     finally:
         os.close(fd)
+    return path
 
 
 def _aqp_query(args):
@@ -122,7 +123,10 @@ CONTROL = '''    def control(self, me_dir):
                     run += 1
                 elif outcome == 'resubmit':
                     idle += 1
-                elif outcome != 'done':
+                elif outcome == 'done':
+                    if jid in getattr(self, '_aqp_paths', {}):
+                        os.unlink(self._aqp_paths.pop(jid))  # Only after verified completion.
+                else:
                     raise ClusterManagmentError('Unexpected MadGraph completion: %r' % outcome)
             else:
                 raise ClusterManagmentError('Unrecognized Condor state: ' + state)
@@ -173,11 +177,13 @@ def patch_source(source):
         ind = lines[first][:len(lines[first]) - len(lines[first].lstrip())]
         edits.extend([
             (first, [ind + '_aqp_args = tuple(argument)\n']),
-            (call, [ind + '_aqp_claim(cwd, prog, _aqp_args)\n']),
+            (call, [ind + '_aqp_path = _aqp_claim(cwd, prog, _aqp_args)\n']),
             (communicate + 1, [ind + 'if a.returncode != 0:\n',
                                ind + "    raise ClusterManagmentError('condor_submit nonzero exit: %s' % a.returncode)\n"]),
             (tracked, [ind + 'self.retry_args.setdefault(id, dict(cwd=cwd,\n',
-                       ind + '    required_output=list(required_output), nb_submit=nb_submit))\n']),
+                       ind + '    required_output=list(required_output), nb_submit=nb_submit))\n',
+                       ind + 'if _aqp_path is not None:\n',
+                       ind + '    self.__dict__.setdefault("_aqp_paths", {})[id] = _aqp_path\n']),
         ])
     for name, body in (('control', CONTROL), ('control_one_job', ONE)):
         f = funcs[name]
@@ -190,7 +196,7 @@ def patch_source(source):
         lines[index:index + remove] = replacement
     result = ''.join(lines)
     compile(result, '<AQP minimal Condor candidate>', 'exec')
-    if '_aqp_claim(cwd, prog, _aqp_args)' not in result:
+    if '_aqp_path = _aqp_claim(cwd, prog, _aqp_args)' not in result:
         raise ValueError('Patch did not add submission fence')
     return result
 
