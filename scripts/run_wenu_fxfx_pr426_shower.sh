@@ -44,10 +44,25 @@ gzip -t "$INPUT"
 gzip -cd "$INPUT" > input.events
 
 export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase
+# atlasLocalSetup/asetup warn and may misbehave if bash errexit (-e) is active.
+# Disable -e/-u ONLY while sourcing, check return codes, then restore both.
+set +e
 set +u
 source "$ATLAS_LOCAL_ROOT_BASE/user/atlasLocalSetup.sh"
-asetup AthGeneration,23.6.63
+atlas_setup_rc=$?
+if (( atlas_setup_rc == 0 )); then
+  asetup AthGeneration,23.6.63
+  athgen_setup_rc=$?
+else
+  athgen_setup_rc=99
+fi
 set -u
+set -e
+if (( atlas_setup_rc != 0 || athgen_setup_rc != 0 )); then
+  echo "ERROR: ATLAS setup failed (atlas=$atlas_setup_rc, asetup=$athgen_setup_rc)" >&2
+  exit 12
+fi
+command -v Gen_tf.py >/dev/null || { echo "ERROR: Gen_tf.py missing after setup" >&2; exit 12; }
 export AQP_FXFX_PR426_CASE="$CASE"
 export OMP_NUM_THREADS=1
 unset ATHENA_CORE_NUMBER
