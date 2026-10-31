@@ -22,6 +22,30 @@ class PR426Shower(unittest.TestCase):
         for forbidden in ("new_process(", "generate(", "arrange_output(", "MADGRAPH_PDFSETTING"):
             self.assertNotIn(forbidden,s)
 
+    def test_n_events_per_job_conforms_to_atlas_large_job_rule(self):
+        # Execute only the two assignment statements, without Athena.
+        import ast
+        from types import SimpleNamespace
+        tree=ast.parse(JO.read_text())
+        selected=[]
+        for node in tree.body:
+            if isinstance(node,ast.Assign):
+                names=[ast.unparse(t) for t in node.targets]
+                if "_requested_evnt" in names or "evgenConfig.nEventsPerJob" in names:
+                    selected.append(node)
+        self.assertEqual(len(selected),2)
+        assignment=compile(ast.Module(body=selected,type_ignores=[]),
+                           str(JO),"exec")
+        for requested,expected in [(200,200),(10000,10000),
+                                   (18000,20000),(20000,20000),
+                                   (20001,30000)]:
+            with self.subTest(requested=requested):
+                config=SimpleNamespace()
+                namespace={"runArgs":SimpleNamespace(maxEvents=requested),
+                           "evgenConfig":config}
+                exec(assignment,namespace)
+                self.assertEqual(config.nEventsPerJob,expected)
+
     def test_runner_isolation(self):
         r=subprocess.run(["bash","-n",str(RUNNER)],
                          capture_output=True,text=True,timeout=5)
