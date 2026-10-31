@@ -36,6 +36,13 @@ class PR426Shower(unittest.TestCase):
         self.assertNotIn("condor_submit",s)
         self.assertNotIn("run_mode=1",s)
         self.assertIn("_CONDOR_SCRATCH_DIR",s)
+        for stage in ("WORKDIR_CREATED", "VERIFYING_LHE_GZIP",
+                      "DECOMPRESSING_50K_LHE", "LHE_STAGED",
+                      "STARTING_ATLAS_SETUP", "ATLAS_SETUP_SUCCEEDED",
+                      "LAUNCHING_GEN_TF"):
+            self.assertIn("stage " + stage, s)
+        self.assertIn("trap early_exit EXIT", s)
+        self.assertIn("set +e\nset +u\nsource", s)
         self.assertIn("request",SUBMIT.read_text())
 
     def test_batch_is_one_core_not_nested(self):
