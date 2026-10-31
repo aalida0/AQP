@@ -2,7 +2,9 @@
 # AQP Wenu Standard111 FxFx PR426 shower-only, native HTCondor file transfer.
 # This worker NEVER accesses the user's absolute /home or /data paths.
 # Input: transferred 50k LHE and 100007 shower-only JO in Condor scratch.
-# Output: shower_artifacts directory automatically transferred to initialdir.
+# Output: shower_artifacts (small logs) returned to /home initialdir.
+# The EVNT ROOT file is separately remapped to /data by the submit file.
+# Keep this EVNT at the top level of the worker scratch directory.
 set -Eeuo pipefail
 
 CASE="${1:-}"
@@ -34,12 +36,23 @@ finish() {
                 prmon.summary.generate.json atlas_setup.log; do
         [[ -f "$SCRATCH/$file" ]] && cp -p "$SCRATCH/$file" "$ARTIFACTS/" || true
     done
-    if (( rc == 0 )); then
+    if (( rc == 0 )) && [[ ! -s "$SCRATCH/$EVNT" ]]; then
+        echo "ERROR: Gen_tf returned 0 but EVNT was not produced" >&2
+        rc=82
+    fi
+    # The submit file always lists the EVNT as an explicit output file.
+    # For unsuccessful jobs, create a ZERO-BYTE placeholder so HTCondor can
+    # still return the diagnostic folder; runner_exit_code remains nonzero.
+    # Such a placeholder MUST NEVER be treated as a real EVNT sample.
+    if [[ ! -e "$SCRATCH/$EVNT" ]]; then
+        : > "$SCRATCH/$EVNT"
+        echo "FAILED_NO_EVNT" > "$ARTIFACTS/evnt_transfer_status.txt"
+    else
         if [[ -s "$SCRATCH/$EVNT" ]]; then
-            mv "$SCRATCH/$EVNT" "$ARTIFACTS/$EVNT" || rc=81
+            sha256sum "$SCRATCH/$EVNT" > "$ARTIFACTS/evnt_source.sha256"
+            echo "EVNT_NONEMPTY" > "$ARTIFACTS/evnt_transfer_status.txt"
         else
-            echo "ERROR: Gen_tf returned 0 but EVNT was not produced" >&2
-            rc=82
+            echo "FAILED_EMPTY_EVNT" > "$ARTIFACTS/evnt_transfer_status.txt"
         fi
     fi
     printf '%s\n' "$rc" > "$ARTIFACTS/runner_exit_code"
