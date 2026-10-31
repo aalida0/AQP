@@ -115,7 +115,7 @@ CONTROL = '''    def control(self, me_dir):
                     raise ClusterManagmentError('Missing MadGraph output contract')
                 for name in record['required_output']:
                     path = os.path.join(record['cwd'], name) if record['cwd'] else name
-                    if not os.path.isfile(path) or not os.stat(path).st_size:
+                    if not os.path.exists(path) or not os.stat(path).st_size:
                         raise ClusterManagmentError('Missing MadGraph output: ' + path)
                 outcome = self.check_termination(jid)  # Original MG output handling.
                 if outcome == 'wait':
