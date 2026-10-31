@@ -285,3 +285,35 @@ echo "Exit code: $?"
 ```
 
 The updated six synthetic suites currently contain **80** `test_*` functions, not yet executed on AF. If all pass, the campaign should still exit 2 and print `PRODUCTION_READINESS BLOCKED`. Preserve all previous v1-v6 reports and all historical process trees. The next *meaningful* development milestone is a disposable worker-side manifest protocol plus cross-restart request-ID reconciliation, **not** enabling the candidate in a JO.
+
+## 2026-11-01 v7 PASS and v8 restart-specific candidate work
+
+**User-run v7:** 21/21 submission-fence, 13/13 completion, 15/15 output-manifest, 16/16 output-gate, 8/8 ajob worker and 7/7 controller-contract regressions PASS (**80/80**). Four historical source-pinned candidates and four combined status-method campaigns passed. Six installed-source flags YES with unchanged pinned SHA256s, and the independent legacy stress again completed 252,000 status opportunities without observed old-guard failures. The run explicitly returned `PRODUCTION_READINESS BLOCKED` / exit 2.
+
+Additional inspection of upstream MG5 3.5.11 `Cluster.check_termination` confirms that if `job_id` is absent from `retry_args`, its base implementation returns True **without removing the ID from `submitted_ids`**. The v7 override used a durable output-context verifier but delegated to that base method regardless. This can leave a verified, finished no-retry job in the active controller ID set.
+
+**v8 isolated candidate fixes (not yet run on AF):**
+
+1. `aqp_prepare_condor_output_gate.py` retires a successfully scheduler-and-manifest-verified job directly from `submitted_ids` when no retry context is available. It refuses to modify an untracked job or a packet-associated job without the packet bookkeeping. When a retry record exists, the original MG base method still handles the job.
+2. `aqp_condor_intent_ledger.claim(..., context=...)` now atomically persists the exact four worker arguments, normalized cwd and `getIO_ajob` required-output list **before** calling `condor_submit`. Existing model-only five-argument claims remain supported for backward test compatibility but are not recoverable after lost ACK.
+3. `aqp_condor_submission_guard.reserve` passes that full pre-submit context to the ledger. A scheduler-accepted job whose `condor_submit` reply was lost now leaves enough frozen worker context to reconstruct an acknowledgment *if its scheduler ID can be uniquely reidentified*.
+4. `aqp_condor_missing_ack_recovery.py` is a **standalone, opt-in, non-automated** helper. It queries active queue and history with `AQPRequestId` as a scheduler ClassAd constraint. Only one uniquely matching job in exactly one scheduler source can be acknowledged, and only with explicit `commit=True`. It NEVER submits, retries, cancels, deletes or proves GF results. Missing, duplicate, conflicted, malformed or failed scheduler responses remain blocked. Its command/attribute syntax has **not** been tested on UChicago HTCondor.
+5. `tests/test_aqp_condor_missing_ack_recovery.py` adds synthetic queue/history, duplicate identity, restart, malformed response and lost ACK tests. `tests/test_aqp_condor_output_guard.py` additionally checks completed-ID retirement only after successful verification and refusal of packet/untracked cases. `tests/test_aqp_condor_submission_fence.py` now verifies that the pre-submit intent retains the original required outputs when the ACK is lost.
+
+**Current limitations:** The standalone recovery helper is packaged with the isolated candidate but is **not invoked by MadGraph**; real controller restart reattachment and state restoration do not yet exist. New job identity is not passed to the real `ajob1` process, so no actual authenticated completion manifest can be emitted. The physics-input/card digest is not independently frozen in the intent. No automatic safe retry/release policy or real scheduler tests are implemented. A correctly blocked state does not mean the integration can continue; the policy must be designed around durable terminal lifecycle transitions. The historical delta441_backup pin is not a pin of active delta441.
+
+The updated single offline campaign contains **98 synthetic tests**. All v8 changes are committed to `audit/production-framework` but **have not yet been validated on AF**.
+
+```bash
+cd ~/AQP/aqp-production-audit
+git pull --ff-only origin audit/production-framework
+MG=/cvmfs/atlas.cern.ch/repo/sw/software/23.6/sw/lcg/releases/MCGenerators/madgraph5amc/3.5.11.atlas13-dbd05/x86_64-el9-gcc14-opt
+python3 scripts/aqp_condor_full_recovery_campaign.py \
+  --base "$HOME/AQP/Wjets/WENU" \
+  --central "$MG/madgraph/various/cluster.py" \
+  --channels 300 --rounds 210 \
+  --report .aqp_staged/condor_recovery_full_20261101_v8.json
+echo "Exit code: $?"
+```
+
+No deployment approval is implied by a PASS; successful offline campaign exit remains **2 / BLOCKED**. Do not modify Wenu process-local source, CVMFS, or gridpacks.
