@@ -88,7 +88,9 @@ def check(job_id, runner=subprocess.run):
         if (len(parts) != 4 or parts[0] != job or parts[1] != '0'
                 or parts[3] != token):
             raise CondorEvidenceError('Mismatched active job identity')
-        if parts[2] not in ('1', '2', '6', '7'):
+        # A JobStatus=4 still present in condor_q is not yet history-verified.
+        # Treat it as outstanding; do not advance integration on a transient C.
+        if parts[2] not in ('1', '2', '4', '6', '7'):
             raise CondorEvidenceError('Unsupported active job state ' + parts[2])
         return 'ACTIVE'
     history = _run(['condor_history', job, '-af', 'ClusterId', 'ProcId',
