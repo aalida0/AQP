@@ -87,7 +87,7 @@ class CompletionGuardTests(unittest.TestCase):
 
 
     def test_visible_completed_job_remains_outstanding(self):
-        line = f"910001 0 4 {self.token}\\n"
+        line = f"910001 0 4 {self.token}\n"
         self.assertEqual(self.guard.check(
             "910001", self.fake_runner(active=line)), "ACTIVE")
 
