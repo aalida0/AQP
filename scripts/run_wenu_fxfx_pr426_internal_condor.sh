@@ -38,10 +38,21 @@ if [[ "$LHE_COUNT" == 50000 ]]; then
         }
     done
 fi
-if [[ "$(hostname -s)" == login* ]]; then
-    echo "WARNING: AF login node: confirm use of front-end/compilation is allowed."
-    echo "Internal Condor offloads channel jobs, NOT necessarily all local work."
-fi
+# Parallel P* compilation uses nb_core processes on this host.
+# Never launch those processes on a shared login node.
+COMPILE_CORES="$(printenv AQP_FXFX_AB_COMPILE_CORES || true)"
+COMPILE_CORES="${COMPILE_CORES:-16}"
+case "$COMPILE_CORES" in 16|32) ;; *)
+    echo "ERROR: AQP_FXFX_AB_COMPILE_CORES must be 16 or 32" >&2; exit 6 ;;
+esac
+case "$(hostname -s)" in
+  login*|head*)
+    echo "ERROR: ${COMPILE_CORES}-core compilation on a shared login/head node is unsafe." >&2
+    echo "Use an AF interactive/compute allocation with matching CPUs." >&2
+    exit 6 ;;
+esac
+export AQP_FXFX_AB_COMPILE_CORES="$COMPILE_CORES"
+echo "AQP_FXFX_AB_COMPILE_CORES=$COMPILE_CORES"
 mkdir -p "$WORK/100006"
 cp -p "$REPO/joboptions/wenu_fxfx_pr426_internal_condor/$CASE/100006/$JO" "$WORK/100006/"
 cp -p "$REPO/scripts/aqp_prepare_fxfx_exclusive_kt_patch.py" "$WORK/"
@@ -58,7 +69,7 @@ OUTPUT="wenu_standard111_fxfx_pr426_$CASE""_seed$SEED""_$LHE_COUNT""lhe.TXT.tar.
 MAX_EVENTS=$((LHE_COUNT / 5))
 echo "CASE=$CASE LHE=$LHE_COUNT seed=$SEED"
 echo "WORK=$WORK"
-echo "Internal MG Condor unpatched: run_mode=1 cluster_size=100"
+echo "Internal MG Condor unpatched: run_mode=1 cluster_size=100; compile cores=$COMPILE_CORES"
 echo "Testing FxFx PR426 only; not testing the Condor scheduler patch"
 echo "Requested --maxEvents=$MAX_EVENTS (JO converts to $LHE_COUNT LHE)"
 
@@ -93,6 +104,7 @@ fi
 }
 grep -Fq "AQP_FXFX_AB_CASE=$CASE" log.generate || exit 8
 grep -Fq 'AQP_FXFX_AB_INTERNAL_CONDOR_MODE=1_CLUSTER_SIZE=100' log.generate || exit 8
+grep -Fq "AQP_FXFX_AB_COMPILE_CORES=$COMPILE_CORES" log.generate || exit 8
 grep -Fq "AQP_FXFX_AB_REQUESTED_LHE=$LHE_COUNT""_REQ_ACC=0.1" log.generate || exit 8
 if [[ "$CASE" == after ]]; then
     grep -Fq 'AQP_FXFX_AB_PR426_ENABLED=True' log.generate || exit 8
