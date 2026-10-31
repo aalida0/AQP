@@ -21,7 +21,8 @@ TESTS = ('test_aqp_condor_submission_fence.py',
          'test_aqp_condor_output_manifest.py',
          'test_aqp_condor_output_guard.py',
          'test_aqp_audit_generated_ajob1_worker.py',
-         'test_aqp_audit_ajob_controller_contract.py')
+         'test_aqp_audit_ajob_controller_contract.py',
+         'test_aqp_condor_missing_ack_recovery.py')
 
 
 def execute(argv, cwd):
@@ -62,6 +63,7 @@ def main():
             'NO_LIVE_SCHEDULER_TEST',
             'NO_WORKER_PUBLISHED_AND_PROVENANCE_BOUND_GF_OUTPUT_MANIFEST',
             'NO_END_TO_END_CONTROLLER_RESTART_RECONCILIATION',
+            'MISSING_ACK_RECOVERY_IS_STANDALONE_NOT_CALLED_BY_MADGRAPH',
             'NO_ATLAS_JOB_OPTION_DEPLOYMENT_VALIDATION',
         ],
     }
@@ -175,6 +177,7 @@ def main():
                             'aqp_condor_completion_guard.py',
                             'aqp_condor_output_manifest.py',
                             'aqp_condor_output_guard.py',
+                            'aqp_condor_missing_ack_recovery.py',
                             'cluster.py', '__init__.py',
                         )
                         ready = (
