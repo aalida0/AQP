@@ -21,14 +21,16 @@ class TransferTest(unittest.TestCase):
             "transfer_executable = True",
             "when_to_transfer_output = ON_EXIT",
             "transfer_input_files = ",
-            "transfer_output_files = shower_artifacts",
+            "transfer_output_files = shower_artifacts,wenu_pr426_before_accepted18000.EVNT.pool.root",
+            "transfer_output_remaps = ",
+            "wenu_pr426_before_accepted18000.EVNT.pool.root = /data/aalida/AQP/",
             "source_50k_lhe.gz",
             "source_50k_lhe.sha256",
             "joboptions/wenu_fxfx_pr426_shower/100007",
             "request_cpus = 1",
             "request_memory = 8000MB",
             "request_disk = 8000MB",
-            "initialdir = /data/aalida/AQP/",
+            "initialdir = /home/aalida/AQP/",
         ):
             self.assertIn(expected, text)
         for forbidden in (
@@ -37,6 +39,7 @@ class TransferTest(unittest.TestCase):
             "TARGET.FileSystemDomain",
             "getenv = True",
             "condor_submit -interactive",
+            "initialdir = /data/",
         ):
             self.assertNotIn(forbidden, text)
 
@@ -47,6 +50,7 @@ class TransferTest(unittest.TestCase):
         self.assertEqual(p.returncode, 0, p.stderr)
         for expected in (
             "_CONDOR_SCRATCH_DIR",
+            "evnt_transfer_status.txt",
             "source_50k_lhe.gz",
             "source_50k_lhe.sha256",
             "100007/mc.aMCPy8EG_Wenu_FxFx_2jets_PR426_shower.py",
@@ -70,7 +74,8 @@ class TransferTest(unittest.TestCase):
         for expected in ("4059847.0", "condor_rm",
                          "sha256sum", "gzip -t", "mkdir",
                          "stage_manifest.txt", "bash -n",
-                         "target already exists"):
+                         "SUBMIT_INITIALDIR", "REUSING_REJECTED_SUBMISSION_STAGE",
+                         "EVNT or returned diagnostics already exist"):
             self.assertIn(expected, text)
 
 
