@@ -136,7 +136,7 @@ modify_run_card(
 # --------------------------------------------------------------------
 # Execute local multicore workers inside ONE HTCondor allocation.
 # MadGraph run_mode=2 is local multicore; mode=1 is cluster submission.
-# A separate outer HTCondor batch job requests exactly 8 CPUs.
+# A separate outer HTCondor batch job requests exactly 16 CPUs.
 # --------------------------------------------------------------------
 pythia8_path = os.getenv("PY8PATH")
 if not pythia8_path:
