@@ -46,10 +46,9 @@ def patch_text(src):
             edits.append((idx, [
                 indent + "elif status == 'C':\n",
                 indent + '    _aqp_visible = _aqp_completion_guard.check(id)\n',
-                indent + "    if _aqp_visible == 'ACTIVE':\n",
-                indent + '        run += 1\n',
-                indent + "    elif _aqp_visible != 'TERMINATED':\n",
-                indent + "        raise ClusterManagmentError('Unresolved Condor completion')\n",
+                indent + "    if _aqp_visible != 'ACTIVE':\n",
+                indent + "        raise ClusterManagmentError('Queue-visible completed job is not yet verified')\n",
+                indent + '    run += 1\n',
             ]))
         else:
             matches = [i for i, value in pairs if value == 'return output']
