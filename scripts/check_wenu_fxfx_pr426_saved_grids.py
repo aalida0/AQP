@@ -78,8 +78,8 @@ def inspect(case,work):
         for line in stream:
             # MG5 FxFx LHE tags may include attributes, e.g. <event id='...'>.
             # Match opening tags, but never an unrelated <eventgroup> tag.
-            starts += bool(re.fullmatch(r"<event(?:\\s[^>]*)?>", line.strip()))
-            ends += bool(re.fullmatch(r"</event\\s*>", line.strip()))
+            starts += bool(re.fullmatch(r"<event(?:\s[^>]*)?>", line.strip()))
+            ends += bool(re.fullmatch(r"</event\s*>", line.strip()))
             complete |= "</LesHouchesEvents>" in line
     if starts != 200 or ends != 200 or not complete:
         raise ValueError("original LHE incomplete: %d opens %d closes" %
