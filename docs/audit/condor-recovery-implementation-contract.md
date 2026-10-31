@@ -149,3 +149,13 @@ echo "Exit code: $?"
 ```
 
 **Do not install these candidates into the historical processes or invoke physics generation.**
+
+## 2026-10-31 additional controller-state regression and integrated-method stress
+
+The previous candidate could count a **queue-visible `JobStatus=4`** as a completed GF in `CondorCluster.control()`: the first attempt guarded the job identity but allowed the `finished = submitted - (idle + running + failed)` accounting to increment without passing through `check_termination`. This is not acceptable. The candidate now explicitly keeps every queue-visible `C` job counted as **outstanding** until it disappears from the active queue and is independently reconciled. `tests/test_aqp_condor_completion_guard.py` gained a concrete controller-counter regression (running=1, finished=0 rather than running=0, finished=1).
+
+`scripts/aqp_condor_combined_control_stress.py` now exercises the **actual newly composed** `CondorCluster.control` and `control_one_job` method AST from each source-pinned isolated candidate with a fake `condor_q`. It tests visible running jobs, queue-visible C, successful terminal reconciliation, missing/unresolved jobs, malformed outputs, empty replies and failed queue queries. It injects an identity-checking callback rather than running real `condor_history`; that callback's parser has separate unit tests. The full existing offline campaign now runs this test across all four configurations with the same `--channels` and `--rounds` dimensions before the older method/ledger model stress.
+
+This increment is committed but has **not yet been run on the AF**. The campaign MUST remain `PRODUCTION_READINESS BLOCKED`, even if all method-level stress checks pass. There is still no real-process import, scheduler history/ACK reconciliation against an actual schedd, validated GF output manifest, safe release of a durable intent after a legitimate failure, or controller crash/restart acceptance.
+
+Use a fresh output filename such as `.aqp_staged/condor_recovery_full_20261031_v3.json`. Never overwrite the previous v2 report. Do not copy candidates into the historical process trees.
