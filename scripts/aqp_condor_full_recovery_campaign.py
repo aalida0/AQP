@@ -17,7 +17,9 @@ import tempfile
 
 CONFIGS = ('standard111', 'delta111', 'delta221', 'delta441_backup')
 TESTS = ('test_aqp_condor_submission_fence.py',
-         'test_aqp_condor_completion_guard.py')
+         'test_aqp_condor_completion_guard.py',
+         'test_aqp_condor_output_manifest.py',
+         'test_aqp_condor_output_guard.py')
 
 
 def execute(argv, cwd):
@@ -54,7 +56,7 @@ def main():
         'old_backend_stress': None,
         'readiness_blockers': [
             'NO_LIVE_SCHEDULER_TEST',
-            'NO_INDEPENDENT_GF_OUTPUT_MANIFEST',
+            'NO_WORKER_PUBLISHED_AND_PROVENANCE_BOUND_GF_OUTPUT_MANIFEST',
             'NO_END_TO_END_CONTROLLER_RESTART_RECONCILIATION',
             'NO_ATLAS_JOB_OPTION_DEPLOYMENT_VALIDATION',
         ],
@@ -106,6 +108,8 @@ def main():
                             'aqp_condor_submission_guard.py',
                             'aqp_condor_intent_ledger.py',
                             'aqp_condor_completion_guard.py',
+                            'aqp_condor_output_manifest.py',
+                            'aqp_condor_output_guard.py',
                             'cluster.py', '__init__.py',
                         )
                         ready = (
@@ -113,6 +117,7 @@ def main():
                             and source.count('_aqp_submission_guard.reserve(') == 2
                             and source.count('_aqp_submission_guard.acknowledge(') == 2
                             and source.count('_aqp_completion_guard.check(') == 3
+                            and source.count('_aqp_output_guard.require_verified(') == 1
                             and source.count('+AQPRequestId =') == 2
                         )
                     except (OSError, SyntaxError) as exc:
@@ -201,7 +206,7 @@ def main():
     print('OFFLINE_CANDIDATE_VALIDATION',
           summary['offline_candidate_validation'])
     print('PRODUCTION_READINESS', summary['production_readiness'])
-    print('NOTE: no real scheduler; output integrity and restart tests outstanding')
+    print('NOTE: no real scheduler; worker manifest publication and restart recovery outstanding')
     return 1 if failed else 2
 
 
