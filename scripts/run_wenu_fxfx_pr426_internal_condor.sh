@@ -16,17 +16,25 @@ command -v Gen_tf.py >/dev/null || { echo "ERROR: Gen_tf.py unavailable" >&2; ex
 command -v condor_submit >/dev/null || { echo "ERROR: Condor CLI unavailable" >&2; exit 3; }
 command -v condor_q >/dev/null || { echo "ERROR: Condor query unavailable" >&2; exit 3; }
 
-# Use a new workspace for multicore runs; never reuse the one-core attempt.
+# New workspace keyed by compile cores; never reuse old one-core process.
 COMPILE_CORES="$(printenv AQP_FXFX_AB_COMPILE_CORES || true)"
-COMPILE_CORES="${COMPILE_CORES:-16}"
-case "$COMPILE_CORES" in 16|32) ;; *)
-    echo "ERROR: AQP_FXFX_AB_COMPILE_CORES must be 16 or 32" >&2; exit 6 ;;
+COMPILE_CORES="${COMPILE_CORES:-4}"
+case "$COMPILE_CORES" in 4|16|24|32) ;; *)
+    echo "ERROR: AQP_FXFX_AB_COMPILE_CORES must be 4, 16, 24, or 32" >&2; exit 6 ;;
 esac
 case "$(hostname -s)" in
   login*|head*)
-    echo "ERROR: ${COMPILE_CORES}-core compilation on a shared login/head node is unsafe." >&2
-    echo "Use an AF interactive/compute allocation with matching CPUs." >&2
-    exit 6 ;;
+    if (( COMPILE_CORES > 4 )); then
+        echo "ERROR: shared AF login/head allows at most four local compile cores." >&2
+        echo "24 compilation cores require a separately authorized host." >&2
+        exit 6
+    fi ;;
+  *)
+    AVAILABLE_CPUS="$(nproc)"
+    if (( AVAILABLE_CPUS < COMPILE_CORES )); then
+        echo "ERROR: visible CPUs ($AVAILABLE_CPUS) < requested $COMPILE_CORES" >&2
+        exit 6
+    fi ;;
 esac
 export AQP_FXFX_AB_COMPILE_CORES="$COMPILE_CORES"
 echo "AQP_FXFX_AB_COMPILE_CORES=$COMPILE_CORES"
