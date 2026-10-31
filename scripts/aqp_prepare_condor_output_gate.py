@@ -32,9 +32,11 @@ def patch_text(src):
         "    def check_termination(self, job_id):\n",
         "        # Require scheduler identity + a rehashed, worker-published\n",
         "        # completion manifest BEFORE original MG output handling.\n",
-        "        if not hasattr(self, 'retry_args') or job_id not in self.retry_args:\n",
-        "            raise ClusterManagmentError('Missing GF retry provenance')\n",
-        "        _aqp_output_guard.require_verified(job_id, self.retry_args[job_id])\n",
+        "        # MG store_input() only populates retry_args when nb_retry > 0.\n",
+        "        # The durable submission ACK always carries the output contract.\n",
+        "        _aqp_retry = (self.retry_args.get(job_id)\n",
+        "                      if hasattr(self, 'retry_args') else None)\n",
+        "        _aqp_output_guard.require_verified(job_id, _aqp_retry)\n",
         "        return super(CondorCluster, self).check_termination(job_id)\n",
     ]
     edits = [
