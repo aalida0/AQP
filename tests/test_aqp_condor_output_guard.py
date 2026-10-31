@@ -72,7 +72,7 @@ class OutputGateTests(unittest.TestCase):
             self.root, self.cwd,
             request_id=self.token, cluster_id="910001",
             input_sha256=self.sha, process=str(self.cwd),
-            stage="MINT1", gf="GF7.0", required_output=["res_1.dat"])
+            stage="MINT1", gf="ajob1:GF7.0:foo:bar", required_output=["res_1.dat"])
 
     def checked(self):
         with patch.object(self.scheduler, "check", return_value="TERMINATED"):
