@@ -188,7 +188,7 @@ arrange_output(
     process_dir=process_dir,
     runArgs=runArgs,
     lhe_version=3,
-    saveProcDir=False,
+    saveProcDir=True,
 )
 
 # In Gen_tf TXT mode this creates only the skeleton's nonphysical dummy
