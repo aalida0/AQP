@@ -37,6 +37,16 @@ def patch_text(src):
         "        _aqp_retry = (self.retry_args.get(job_id)\n",
         "                      if hasattr(self, 'retry_args') else None)\n",
         "        _aqp_output_guard.require_verified(job_id, _aqp_retry)\n",
+        "        if _aqp_retry is None:\n",
+        "            # Base Cluster.check_termination returns True without\n",
+        "            # retiring this ID if nb_retry=0. Do not leave a phantom\n",
+        "            # running job after verified terminal status+manifest.\n",
+        "            if not hasattr(self, 'submitted_ids') or job_id not in self.submitted_ids:\n",
+        "                raise ClusterManagmentError('Completed job not tracked')\n",
+        "            if getattr(self, 'id_to_packet', {}).get(job_id) is not None:\n",
+        "                raise ClusterManagmentError('Unsupported packet without retry context')\n",
+        "            self.submitted_ids.remove(job_id)\n",
+        "            return 'done'\n",
         "        return super(CondorCluster, self).check_termination(job_id)\n",
     ]
     edits = [
