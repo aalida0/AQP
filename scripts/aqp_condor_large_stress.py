@@ -35,10 +35,19 @@ from aqp_condor_submit_mock import get_method, MockClusterError
 
 EXPECTED_CANDIDATES = {
     "standard111": "682075381f79c6ad027244a4a2157f6c21b1202ea561fbc40a8fc0d0383a4a2e",
-    "delta111": "b2879ef87fa4f70a79699b2db6c1025c0770c3828d704a6c19acb5d2d17a",
+    "delta111": "b2879ef87fa4f1a4f70a79699b2db6c1025c0770c3828d704a6c19acb5d2d17a",
     "delta221": "f17032fc4f814bcbff1b878d1f9192832a266f6f453b82827afe4140dc4c8263",
     "delta441_backup": "a1d0916e8c9a03b2825a87a781077cc85e4f7119cd2a310bc1b9532cefa791c2",
 }
+def validate_candidate_fingerprints():
+    """Reject mistyped or incomplete pinned SHA256 constants before any campaign."""
+    if set(EXPECTED_CANDIDATES) != set(BUNDLES):
+        raise ValueError("Expected candidate fingerprint set differs from bundled configurations")
+    for name, fingerprint in EXPECTED_CANDIDATES.items():
+        if len(fingerprint) != 64 or any(char not in "0123456789abcdef" for char in fingerprint):
+            raise ValueError("Malformed expected SHA256 for " + name + ": " + fingerprint)
+
+
 JOBSTATUS = {"0": "U", "1": "I", "2": "R", "3": "X", "4": "C", "5": "H", "6": "E"}
 
 
@@ -274,6 +283,12 @@ def main():
         parser.error("channels must be 10..2000 and rounds 14..5000")
     if args.report and args.report.exists():
         parser.error("Report exists; refusing overwrite")
+
+    try:
+        validate_candidate_fingerprints()
+    except ValueError as exc:
+        print("STRESS_SETUP_FAILED", type(exc).__name__, str(exc), file=sys.stderr)
+        return 1
 
     reports = {}
     try:
