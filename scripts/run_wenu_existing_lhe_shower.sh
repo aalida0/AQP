@@ -30,11 +30,17 @@ on_exit() {
   rc=$?
   trap - EXIT
   set +e
-  echo "$rc" > "$OUT/runner_exit_code"
   for f in Gen_tf_shower.log log.generate runargs.generate.py jobReport.json prmon.summary.generate.json; do
-    [[ ! -f "$SCRATCH/$f" ]] || cp -p "$SCRATCH/$f" "$OUT/"
+    if [[ -f "$SCRATCH/$f" ]]; then
+      cp -p "$SCRATCH/$f" "$OUT/" || rc=80
+    fi
   done
-  [[ ! -s "$SCRATCH/$EVNT" ]] || cp -p "$SCRATCH/$EVNT" "$OUT/"
+  if [[ -s "$SCRATCH/$EVNT" ]]; then
+    cp -p "$SCRATCH/$EVNT" "$OUT/" || rc=81
+  elif [[ "$rc" -eq 0 ]]; then
+    rc=82
+  fi
+  echo "$rc" > "$OUT/runner_exit_code"
   if [[ -f "$SCRATCH/Gen_tf_shower.log" ]]; then
     grep -Ei 'AQP_|JetMatching|FxFx|ERROR|FATAL|Traceback|efficiency|accepted|rejected' \
       "$SCRATCH/Gen_tf_shower.log" | tail -n 140 > "$OUT/diagnostic_tail.txt" || true
