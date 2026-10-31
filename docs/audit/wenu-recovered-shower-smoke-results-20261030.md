@@ -59,3 +59,30 @@ Saved output directories:
 4. Then compare cross sections and Rivet distributions against W+jets reference measurements/simulations.
 
 Avoid unnecessary repetition of the successful 1000-LHE shower-only checks.
+
+
+## Additional user-reported weight diagnostics (2026-10-30)
+
+The three saved `lhe_weight_audit.json` files were summarized by the user:
+
+| Configuration | LHE events | LHE raw NWF | LHE absolute-weighted NWF | LHE sign dilution `1/(1-2f)^2` |
+| --- | ---: | ---: | ---: | ---: |
+| `standard111` | 1000 | 29.90% | 24.88% | 3.9606 |
+| `delta111` | 1000 | 25.90% | 26.39% | 4.4866 |
+| `delta221` | 1000 | 19.00% | 17.61% | 2.3836 |
+
+For reference, *a different, larger* `delta441_cleaned_v1` pilot (25,000 LHE) previously showed 18.36% raw, 18.07% weighted, and 2.4514 dilution. **Do not infer a ranking of delta221 vs delta441 from different statistics**, nor claim delta111 improves weight-sign dilution: in these old 1k LHEs it is *worse* than Standard111.
+
+The complete 200-EVNT `log.generate` metadata `sumOfPosWeights` and `sumOfNegWeights` reported positive magnitudes:
+
+| Configuration | `sumOfPosWeights` | `sumOfNegWeights` | Ratio `sumNeg/(sumPos+sumNeg)` |
+| --- | ---: | ---: | ---: |
+| `standard111` | 1.940799e7 | 2.283136e6 | 10.526% |
+| `delta111` | 1.225215e7 | 1.893612e6 | 13.386% |
+| `delta221` | 1.641397e7 | 1.091176e6 | 6.233% |
+
+These are only **metadata-derived post-shower ratios**. Their physical interpretation as the post-FxFx weighted NWF depends on verifying the generator-metadata semantics and event-weight bookkeeping. They must not be conflated with the full 1,000-event LHE fractions. `sumOfPosWeightsNoFilter` and `sumOfNegWeightsNoFilter` equalled the corresponding reported sums in these three snippets; **this does not determine Pythia's FxFx matching rejection rate**. The excerpted grep yielded no attempted/accepted FxFx counters.
+
+**Important statistical limit:** the sign-only proxy `D=1/(1-2f)^2` is not a complete effective-statistical-cost measure for unequal-magnitude HT2-biased weights; compute `N_eff=(sum_i w_i)^2 / sum_i w_i^2` (and appropriate post-FxFx weights) on a properly normalized comparable sample.
+
+Next: inspect the full per-job Pythia8 final statistics, especially tried/accepted counts and veto counters, without rerunning the successful smokes. Then prepare an independent 1k-generation smoke from each existing verified gridpack, and 25k LHE / 5k EVNT matching benchmarks under the staged `wenu_comparison16` framework, **without** MINT0/MINT1 reintegration.
