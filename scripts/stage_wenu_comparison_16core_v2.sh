@@ -103,10 +103,12 @@ if grep -q 'AQP_WENU_ARCHIVE_INVENTORY_CONTAINS_BLOCKERS' \
   exit 9
 fi
 mkdir -p "$STAGE/logs"
+cp -p "$ROOT/condor/wenu_comparison16_v2/smoke.dag" "$STAGE/smoke.dag"
+cp -p "$ROOT/condor/wenu_comparison16_v2/pilot25k.dag" "$STAGE/pilot25k.dag"
 printf '%s\n' "$(git rev-parse HEAD)" > "$STAGE/source_commit.txt"
 echo "AQP_WENU_COMPARISON16_V2_STAGING_PASS"
 echo "STAGED_ONLY: NO JOBS SUBMITTED"
 echo "Audit: $STAGE/gridpack_inventory.txt"
 echo "When reviewed, submit Phase A ONCE from the checkout root:"
-echo "  condor_submit_dag condor/wenu_comparison16_v2/smoke.dag"
+echo "  condor_submit_dag .aqp_staged/wenu_compare16_v2/smoke.dag"
 echo "Do not submit the 25k pilot DAG until all 3 generation+shower gates pass."
