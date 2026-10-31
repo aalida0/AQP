@@ -31,12 +31,20 @@ def reserve(prog, argument, cwd):
     """Reserve a durable GF/stage identity BEFORE creating condor_submit."""
     if os.path.basename(str(prog)) != 'ajob1':
         raise SubmissionSafetyError('Unrecognized executable: only tested ajob1 GF submissions are supported')
-    if not isinstance(argument, (list, tuple)) or len(argument) < 4:
-        raise SubmissionSafetyError('Expected original ajob1 argument list including GF and stage')
-    gf, stage = str(argument[0]), str(argument[3])
-    if (not re.fullmatch(r'[A-Za-z0-9_.-]{1,128}', gf)
-            or stage not in ('0', '1')):
+    # MG5 3.5.11 ajob1 arguments are (channel, run_mode, runnumber,
+    # integration_step). A single worker can process MULTIPLE G* directories.
+    # In particular, argument[0] is not a GF directory/unique job identity.
+    if not isinstance(argument, (list, tuple)) or len(argument) != 4:
+        raise SubmissionSafetyError('Expected exactly four original ajob1 arguments')
+    channel, run_mode, runnumber, step = map(str, argument)
+    if (not all(re.fullmatch(r'[A-Za-z0-9_.-]{1,128}', part)
+                for part in (channel, run_mode, runnumber))
+            or step not in ('0', '1')):
         raise SubmissionSafetyError('Unknown GF/stage argument format; refusing submission')
+    # This ledger field names the WHOLE worker submission group, not a GF.
+    # The ledger API retains its historical field name 'gf' until the
+    # next versioned schema migration; do not infer single-GF semantics.
+    worker_group = 'ajob1:' + ':'.join((channel, run_mode, runnumber))
     if not cwd or not os.path.isabs(str(cwd)):
         raise SubmissionSafetyError('GF working directory must be an absolute path')
     channel = os.path.realpath(str(cwd))
@@ -44,7 +52,7 @@ def reserve(prog, argument, cwd):
         raise SubmissionSafetyError('GF channel working directory does not exist')
     request_id = 'AQP' + secrets.token_hex(20)
     try:
-        ledger.claim(_root(), channel, 'MINT' + stage, gf, request_id)
+        ledger.claim(_root(), channel, 'MINT' + step, worker_group, request_id)
     except ledger.UnresolvedIntent as exc:
         raise SubmissionSafetyError('Existing GF submission intent; manual reconciliation required') from exc
     return request_id
