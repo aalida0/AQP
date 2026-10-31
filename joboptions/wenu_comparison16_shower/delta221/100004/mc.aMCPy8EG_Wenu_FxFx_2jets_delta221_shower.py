@@ -14,7 +14,7 @@ if abs(float(runArgs.ecmEnergy) - 13000.0) > 1.0e-6:
 
 evgenConfig.description = (
     "Shower-only validation: Wenu+0,1,2j NLO FxFx HT2-biased "
-    "MC@NLO-Delta folding 441, seed-237 LHE"
+    "MC@NLO-Delta folding 221; gridpack-generated LHE"
 )
 evgenConfig.contact = ["lenart.jerala@cern.ch"]
 evgenConfig.keywords += ["W", "jets"]
