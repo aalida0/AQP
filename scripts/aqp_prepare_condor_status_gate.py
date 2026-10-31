@@ -66,10 +66,15 @@ def patch_text(src):
                 indent + "        return 'C'\n",
                 indent + "    raise ClusterManagmentError('Unresolved Condor completion')\n",
             ]))
-    imports = [i for i, value in enumerate(lines)
-               if value.strip() == 'import sys']
-    if len(imports) != 1:
-        raise ValueError('Missing unique import sys')
+    # MG5 3.5.11 also contains a nested "import sys" in another
+    # scheduler backend. Only the TOP-LEVEL import is a valid anchor.
+    imports = [
+        node.lineno - 1 for node in tree.body
+        if isinstance(node, ast.Import)
+        and len(node.names) == 1 and node.names[0].name == 'sys'
+    ]
+    if len(imports) != 1 or lines[imports[0]].strip() != 'import sys':
+        raise ValueError('Expected exactly one module-level import sys')
     edits.append((imports[0] + 1, [
         'from internal import aqp_condor_completion_guard as _aqp_completion_guard\n',
     ]))
