@@ -76,7 +76,7 @@ class TransferTest(unittest.TestCase):
         p = subprocess.run(["bash", "-n", str(STAGE)],
                            capture_output=True, text=True, timeout=5)
         self.assertEqual(p.returncode, 0, p.stderr)
-        for expected in ("4059847.0", "condor_rm",
+        for expected in ("4059847.0", "inspect and remove it first",
                          "sha256sum", "gzip -t", "mkdir",
                          "stage_manifest.txt", "bash -n",
                          "SUBMIT_INITIALDIR", "TRANSFER_INPUT_FROM=/home",
