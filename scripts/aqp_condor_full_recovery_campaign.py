@@ -50,6 +50,7 @@ def main():
         'production_readiness': 'BLOCKED',
         'tests': {},
         'candidate_imports': {},
+        'combined_candidate_control_stress': {},
         'old_backend_stress': None,
         'readiness_blockers': [
             'NO_LIVE_SCHEDULER_TEST',
@@ -125,6 +126,38 @@ def main():
                     print('SOURCE_PINNED_CANDIDATE', config,
                           'PASS' if ready else 'FAIL')
                     failed = failed or not ready
+
+        if not failed:
+            # Unlike the legacy large stress, exercise the newly COMBINED
+            # candidate's exact CondorCluster control method bodies.
+            for config in CONFIGS:
+                candidate = staged / config / 'internal' / 'cluster.py'
+                command = [
+                    sys.executable,
+                    str(repo / 'scripts/aqp_condor_combined_control_stress.py'),
+                    '--candidate', str(candidate),
+                    '--channels', str(args.channels),
+                    '--rounds', str(args.rounds),
+                ]
+                combined = execute(command, repo)
+                passed = (combined.returncode == 0 and
+                          combined.stdout.startswith('COMBINED_CANDIDATE_STATUS_PASS '))
+                if passed:
+                    payload = json.loads(combined.stdout.split(' ', 1)[1])
+                    passed = (payload['simulated_status_opportunities']
+                              == args.channels * args.rounds)
+                summary['combined_candidate_control_stress'][config] = {
+                    'passed': passed,
+                    'simulated_status_opportunities':
+                        args.channels * args.rounds if passed else 0,
+                }
+                print('COMBINED_CANDIDATE_CONTROL', config,
+                      'PASS' if passed else 'FAIL')
+                if not passed:
+                    failed = True
+                    print('COMBINED_CONTROL_FAILURE', config,
+                          combined.stderr[-3500:] or combined.stdout[-3500:],
+                          file=sys.stderr)
 
         if not failed:
             stress_report = scratch / 'old_stress.json'
