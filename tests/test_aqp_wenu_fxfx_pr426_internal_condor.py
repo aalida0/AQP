@@ -27,13 +27,15 @@ class InternalCondorAbTests(unittest.TestCase):
 
     def test_internal_condor_settings_and_fresh_process(self):
         s=jo("before").read_text()
-        for needle in ('"run_mode": 1','"nb_core": 1',
+        for needle in ('"run_mode": 1','"nb_core": compile_cores',
                        '"cluster_type": "condor"','"cluster_size": 100',
                        "new_process(process)","grid_pack=False",
                        "REQUIRED_ACCURACY = 0.1", "FOLDING = \"1, 1, 1\"",
                        "USE_DELTA = False", "dummy_fct.f",
                        "montecarlocounter_MINE.f",
-                       "AQP_FXFX_AB_INTERNAL_CONDOR_MODE=1_CLUSTER_SIZE=100"):
+                       "AQP_FXFX_AB_INTERNAL_CONDOR_MODE=1_CLUSTER_SIZE=100",
+                       "AQP_FXFX_AB_COMPILE_CORES=%d", 
+                       "AQP_FXFX_AB_COMPILE_CORES_MUST_BE_16_OR_32"):
             self.assertIn(needle,s)
         self.assertNotIn('enable_condor_timing',s)
         self.assertNotIn('AQP_FXFX_AB_LOCAL_MULTICORE_MODE',s)
@@ -54,6 +56,8 @@ class InternalCondorAbTests(unittest.TestCase):
             self.assertIn(needle,txt)
         self.assertNotIn("gridpacks/",txt)
         self.assertNotIn("condor_rm",txt)
+        self.assertIn('login*|head*',txt)
+        self.assertIn('AQP_FXFX_AB_COMPILE_CORES=$COMPILE_CORES',txt)
 
 if __name__=="__main__":
     unittest.main()
