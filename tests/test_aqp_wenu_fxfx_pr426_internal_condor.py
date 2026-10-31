@@ -35,7 +35,7 @@ class InternalCondorAbTests(unittest.TestCase):
                        "montecarlocounter_MINE.f",
                        "AQP_FXFX_AB_INTERNAL_CONDOR_MODE=1_CLUSTER_SIZE=100",
                        "AQP_FXFX_AB_COMPILE_CORES=%d", 
-                       "AQP_FXFX_AB_COMPILE_CORES_MUST_BE_16_OR_32"):
+                       "AQP_FXFX_AB_COMPILE_CORES_MUST_BE_4_16_24_OR_32"):
             self.assertIn(needle,s)
         self.assertNotIn('enable_condor_timing',s)
         self.assertNotIn('AQP_FXFX_AB_LOCAL_MULTICORE_MODE',s)
@@ -57,6 +57,9 @@ class InternalCondorAbTests(unittest.TestCase):
         self.assertNotIn("gridpacks/",txt)
         self.assertNotIn("condor_rm",txt)
         self.assertIn('login*|head*',txt)
+        self.assertIn('4|16|24|32',txt)
+        self.assertIn('COMPILE_CORES > 4',txt)
+        self.assertIn('AVAILABLE_CPUS="$(nproc)"',txt)
         self.assertIn('AQP_FXFX_AB_COMPILE_CORES=$COMPILE_CORES',txt)
 
 if __name__=="__main__":
