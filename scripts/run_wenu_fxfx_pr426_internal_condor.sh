@@ -29,6 +29,15 @@ done
 if [[ -e "$WORK" || -L "$WORK" ]]; then
     echo "ERROR: work directory already exists: $WORK" >&2; exit 5;
 fi
+if [[ "$LHE_COUNT" == 50000 ]]; then
+    for version in before after; do
+        smoke="$BASE/$version""_200_seed311/runner_exit_code"
+        [[ -f "$smoke" && "$(cat "$smoke")" == 0 ]] || {
+            echo "ERROR: missing passing 200-LHE smoke for $version: $smoke" >&2
+            exit 5
+        }
+    done
+fi
 if [[ "$(hostname -s)" == login* ]]; then
     echo "WARNING: AF login node: confirm use of front-end/compilation is allowed."
     echo "Internal Condor offloads channel jobs, NOT necessarily all local work."
@@ -53,6 +62,14 @@ echo "Internal MG Condor unpatched: run_mode=1 cluster_size=100"
 echo "Testing FxFx PR426 only; not testing the Condor scheduler patch"
 echo "Requested --maxEvents=$MAX_EVENTS (JO converts to $LHE_COUNT LHE)"
 
+record_exit() {
+    local rc=$?
+    trap - EXIT
+    printf '%s\n' "$rc" > "$WORK/runner_exit_code"
+    echo "AQP_FXFX_AB_TERMINAL_EXIT=$rc CASE=$CASE LHE=$LHE_COUNT"
+}
+trap record_exit EXIT
+
 set +e
 Gen_tf.py \
     --ecmEnergy=13000 \
@@ -65,7 +82,6 @@ Gen_tf.py \
     > Gen_tf.log 2>&1
 rc=$?
 set -e
-printf '%s\n' "$rc" > runner_exit_code
 echo "Gen_tf exit=$rc"
 if [[ "$rc" -ne 0 ]]; then
     tail -n 80 Gen_tf.log >&2
