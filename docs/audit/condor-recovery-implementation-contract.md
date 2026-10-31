@@ -215,3 +215,39 @@ echo "Exit code: $?"
 ```
 
 **Expected passing outcome remains exit 2 / BLOCKED.** The novel useful output is the `WORKER_AUDIT` lines and the embedded `generated_worker_contract_audit` JSON section. Do not replay expensive physics or replace process-local backends for this audit.
+
+## 2026-11-01: v5 PASS, but worker-group identity/output mapping requires correction
+
+User-run v5: all **61/61** regression tests, four candidate builds, four combined-candidate status tests PASS; 252,000 synthetic status opportunities and 2,400 simulated submissions, with zero guard failures. Read-only scan found **82 P*/ajob1 scripts per historical configuration**; 300 observed `res_0.dat`, `res_1.dat`, `log_MINT0.txt`, `log_MINT1.txt` files each. No run was submitted; **production remained blocked**.
+
+### Corrected semantic error: one ajob1 submission is not one GF
+
+Review of upstream MG5_aMC 3.5.11 `Template/NLO/SubProcesses/ajob_template` and `aMCatNLOCmd.run_all_jobs` confirms the actual argument order **(channel, run_mode, runnumber/split, integration_step)**. The previous `aqp_condor_submission_guard.reserve` called argument[0] the `gf` field and used only channel and stage for the ledger key. That would wrongly collapse distinct valid submissions of different modes or run numbers into the same reservation. Prior "1,200 duplicate intents blocked" counts were derived from the simplified mock; they are **not proof of correct deduplication across actual aMC worker groups**.
+
+`scripts/aqp_condor_submission_guard.py` now includes the full 4-field worker identity in the ledger key (`ajob1:<channel>:<run_mode>:<runnumber>`, stage `MINT<integration_step>`). The legacy ledger JSON field `gf` currently stores a **whole worker-group key**, *not* a single GF directory. Two new regression tests check independent modes/run numbers and one checks blocking identical four-argument resubmissions. The output-gate fixture was aligned with the corrected identity. This remains candidate-only. The old ledger's write-once semantics still intentionally block legitimate repeat runs in the same root until independently reconciled.
+
+### Required outputs are controller-dependent
+
+Upstream `aMCatNLOCmd.getIO_ajob` constructs `required_output` relative to the **channel cwd**. In the MINTMC `F/B` branch, it appends stage-specific `G.../log_MINT<step>.txt` and, for steps 0 and 1, `G.../results.dat`. It does not add `G.../res_<step>.dat` to that list in the same way as the fixed-order branch. This must be checked against the actual installed ATLAS fork and generated process before any manifest publication. A worker script may produce more result files than the controller lists as required; do **not** substitute a generic `res_1.dat` list.
+
+Upstream `store_input` records `self.retry_args[id]` only when `self.nb_retry > 0`; the prototype output-gated `check_termination` override currently depends on that state. Thus a valid submission using `cluster_nb_retry = 0` could lack `retry_args`, and the prototype would fail closed. **This is an outstanding integration defect, not a reason to enable retries or loosen the output checks.**
+
+New `scripts/aqp_audit_ajob_controller_contract.py` extracts source-verified (AST) `run_all_jobs`, `getIO_ajob`, `store_input` and `Cluster.check_termination` from the user's installed ATLAS MG5 files. It is **read-only**, stores relevant source snippets and flags in JSON, and never runs MadGraph or Condor. `tests/test_aqp_audit_ajob_controller_contract.py` covers the audit on synthetic source. It now runs within the one comprehensive campaign before candidate construction. The output is source evidence, not an approved worker/manifest contract.
+
+**Remaining release gates:** Bind input/card fingerprints to the immutable submission intent; correct retry-independent provenance; determine the exact per-worker group of GF outputs for the generated Wenu mode; publish and independently verify all required artifacts only after successful copy; reconcile lost acknowledgments by request-ID across scheduler queue and history; prove start/restart and legitimate retry; then run one disposable non-physics live HTCondor canary. Existing integrations, gridpacks and JOs remain unchanged.
+
+### Next source audit and unified offline rerun (v6, new report filename)
+
+```bash
+cd ~/AQP/aqp-production-audit
+git pull --ff-only origin audit/production-framework
+MG=/cvmfs/atlas.cern.ch/repo/sw/software/23.6/sw/lcg/releases/MCGenerators/madgraph5amc/3.5.11.atlas13-dbd05/x86_64-el9-gcc14-opt
+python3 scripts/aqp_condor_full_recovery_campaign.py \
+  --base "$HOME/AQP/Wjets/WENU" \
+  --central "$MG/madgraph/various/cluster.py" \
+  --channels 300 --rounds 210 \
+  --report .aqp_staged/condor_recovery_full_20261101_v6.json
+echo "Exit code: $?"
+```
+
+The campaign remains **BLOCKED by design**. New useful output: `AJOB_SOURCE_FLAG` lines, installed ATLAS source SHA256s and exact required-output/retry snippets in the JSON.
