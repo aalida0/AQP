@@ -118,6 +118,7 @@ class Tests(unittest.TestCase):
         self.submit();self.terminal()
         self.assertEqual(self.c.control('.'),(0,0,1,0))
         self.assertFalse(self.c.submitted_ids)
+        self.assertFalse(list(self.root.glob('*.intent')))
 
     def test_duplicate_blocked(self):
         self.submit()
@@ -160,6 +161,7 @@ class Tests(unittest.TestCase):
         self.submit();self.terminal();(self.cwd/'G1'/'results.dat').unlink()
         with self.assertRaisesRegex(RuntimeError,'Missing MadGraph output'):self.c.control('.')
         self.assertEqual(self.c.submitted_ids,['910001'])
+        self.assertEqual(len(list(self.root.glob('*.intent'))),1)
 
     def test_bad_status_blocks(self):
         self.submit()
@@ -174,6 +176,13 @@ class Tests(unittest.TestCase):
     def test_submit2_delegation(self):
         self.c.submit2(str(self.prog), ['1','F','0','1'],str(self.cwd),required_output=['G1/results.dat'])
         self.assertEqual(len(self.calls),1)
+
+    def test_reusing_worker_after_verified_completion_is_allowed(self):
+        self.submit();self.terminal()
+        self.c.control('.')
+        self.responses.append((b'1 job(s) submitted to cluster 910002.\n',0))
+        self.assertEqual(self.submit(), '910002')
+        self.assertEqual(len(self.calls),2)
 
     def test_candidate_repatch_fails(self):
         with self.assertRaises(ValueError):minimal.patch_source(minimal.patch_source(SOURCE))
