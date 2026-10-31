@@ -125,3 +125,27 @@ Exit code 2 means the *offline* checks completed but **PRODUCTION_READINESS BLOC
 - The history guard queries the exact acknowledged cluster ID; it does not yet search all jobs by request token to prove no *other* scheduler ID was accepted during an ambiguous ACK. The live canary must test that.
 - Full normal and faulted controller lifecycle (output publication, mixed stage transitions, exceptions and retries) has **not** been tested end-to-end against a real scheduler. The large synthetic runner cannot replace this.
 - **No production deployment and no JO patch installation are authorized by these offline results.**
+
+## 2026-10-31 candidate-generation failure: nested import anchor
+
+AF report: submission-fence 11/11 and completion-guard 10/10 synthetic regression tests passed, but actual source-pinned candidate construction stopped with `ValueError: Expected exactly one import sys` in `aqp_prepare_condor_submission_fence.py`.
+
+Root cause was confirmed in upstream MG5 3.5.11: its `cluster.py` contains **two** `import sys` statements, one at file scope and one nested in another backend class. Both candidate-injection helpers incorrectly searched all lines rather than the AST module-level import.
+
+Both `scripts/aqp_prepare_condor_submission_fence.py` and `scripts/aqp_prepare_condor_status_gate.py` now locate a *single top-level `ast.Import` importing sys* and require its exact source line. Additional regression cases cover a nested `import sys` and reject a source with only a nested import.
+
+**This correction has been committed but not yet rerun on the actual AF.** The prior failed report path exists, so use a NEW report name, e.g.:
+
+```bash
+cd ~/AQP/aqp-production-audit
+git pull --ff-only origin audit/production-framework
+MG=/cvmfs/atlas.cern.ch/repo/sw/software/23.6/sw/lcg/releases/MCGenerators/madgraph5amc/3.5.11.atlas13-dbd05/x86_64-el9-gcc14-opt
+python3 scripts/aqp_condor_full_recovery_campaign.py \
+  --base "$HOME/AQP/Wjets/WENU" \
+  --central "$MG/madgraph/various/cluster.py" \
+  --channels 300 --rounds 210 \
+  --report .aqp_staged/condor_recovery_full_20261031_v2.json
+echo "Exit code: $?"
+```
+
+**Do not install these candidates into the historical processes or invoke physics generation.**
