@@ -97,12 +97,12 @@ if [[ ! -s "$EVENT" ]]; then
 fi
 python3 - "$EVENT" <<'PY'
 from pathlib import Path
-import gzip,sys
+import gzip,sys,re
 path=Path(sys.argv[1]); beg=end=0; closed=False
 with gzip.open(path,"rt",errors="replace") as stream:
     for line in stream:
-        beg+=(line.strip()=="<event>")
-        end+=(line.strip()=="</event>")
+        beg += bool(re.fullmatch(r"<event(?:\s[^>]*)?>", line.strip()))
+        end += bool(re.fullmatch(r"</event\s*>", line.strip()))
         closed|="</LesHouchesEvents>" in line
 if (beg,end)!=(50000,50000) or not closed:
     raise SystemExit(f"LHE_BAD_EVENT_COUNT {beg}/{end}, closed={closed}")
