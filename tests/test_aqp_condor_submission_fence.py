@@ -134,6 +134,25 @@ class SubmissionFenceTests(unittest.TestCase):
     def count_intents(self):
         return len([f for f in self.root.glob("*.json") if len(f.stem) == 64])
 
+    def test_nested_import_sys_does_not_shadow_module_anchor(self):
+        # Official MG5 3.5.11 has a second, nested import sys elsewhere.
+        source = SOURCE.replace(
+            "    def submit(self, prog, argument=[], cwd=None):",
+            "    def submit(self, prog, argument=[], cwd=None):\n        import sys", 1)
+        candidate = patch_text(source)
+        self.assertEqual(candidate.count(
+            "from internal import aqp_condor_submission_guard as"), 1)
+        compile(candidate, "cluster_with_nested_sys.py", "exec")
+
+    def test_no_top_level_import_sys_fails_even_with_nested_one(self):
+        source = SOURCE.replace("import sys\nclass CondorCluster:",
+                                "class CondorCluster:")
+        source = source.replace(
+            "    def submit(self, prog, argument=[], cwd=None):",
+            "    def submit(self, prog, argument=[], cwd=None):\n        import sys", 1)
+        with self.assertRaisesRegex(ValueError, "module-level import sys"):
+            patch_text(source)
+
     def test_both_methods_patched(self):
         result = patch_text(SOURCE)
         self.assertEqual(result.count("_aqp_submission_guard.reserve("), 2)
