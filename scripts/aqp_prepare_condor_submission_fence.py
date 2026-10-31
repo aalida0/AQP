@@ -61,11 +61,12 @@ def patch_text(src):
         edits.append((text_i, [indent + '_aqp_original_args = tuple(argument)\n']))
         edits.append((call_i, [
             indent + '_aqp_request_id = _aqp_submission_guard.reserve(\n',
-            indent + '    prog, _aqp_original_args, cwd)\n',
+            indent + '    prog, _aqp_original_args, cwd, required_output)\n',
             indent + "dico['requirement'] += '\\n+AQPRequestId = \"%s\"' % _aqp_request_id\n",
         ]))
         edits.append((ack_i + 1, [
-            indent + '_aqp_submission_guard.acknowledge(_aqp_request_id, id)\n',
+            indent + '_aqp_submission_guard.acknowledge(\n',
+            indent + '    _aqp_request_id, id, cwd, required_output)\n',
         ]))
     # MG5 3.5.11 also contains a nested "import sys" in another
     # scheduler backend. Only the TOP-LEVEL import is a valid anchor.
