@@ -37,6 +37,20 @@ def patch_text(src):
                 indent + "if _aqp_state != 'TERMINATED':\n",
                 indent + "    raise ClusterManagmentError('Unresolved Condor completion')\n",
             ]))
+            visible_finished = [i for i, value in pairs
+                                if value == "elif status != 'C':"]
+            if len(visible_finished) != 1:
+                raise ValueError('Expected exactly one visible-completion branch')
+            idx = visible_finished[0]
+            indent = lines[idx][:len(lines[idx]) - len(lines[idx].lstrip())]
+            edits.append((idx, [
+                indent + "elif status == 'C':\n",
+                indent + '    _aqp_visible = _aqp_completion_guard.check(id)\n',
+                indent + "    if _aqp_visible == 'ACTIVE':\n",
+                indent + '        run += 1\n',
+                indent + "    elif _aqp_visible != 'TERMINATED':\n",
+                indent + "        raise ClusterManagmentError('Unresolved Condor completion')\n",
+            ]))
         else:
             matches = [i for i, value in pairs if value == 'return output']
             if len(matches) != 1:
@@ -44,7 +58,7 @@ def patch_text(src):
             idx = matches[0]
             indent = lines[idx][:len(lines[idx])-len(lines[idx].lstrip())]
             edits.append((idx, [
-                indent + 'if not output:\n',
+                indent + "if not output or output == 'C':\n",
                 indent + '    _aqp_state = _aqp_completion_guard.check(id)\n',
                 indent + "    if _aqp_state == 'ACTIVE':\n",
                 indent + "        return 'R'\n",
@@ -63,6 +77,6 @@ def patch_text(src):
         lines[idx:idx] = insertion
     candidate = ''.join(lines)
     compile(candidate, '<isolated status-gated cluster.py>', 'exec')
-    if candidate.count('_aqp_completion_guard.check(') != 2:
+    if candidate.count('_aqp_completion_guard.check(') != 3:
         raise ValueError('Both status methods must verify history')
     return candidate
