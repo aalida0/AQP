@@ -68,6 +68,20 @@ def inspect(case,work):
     raw=plain if plain.is_file() else zipped
     if not raw.is_file() or raw.stat().st_size==0:
         raise ValueError("missing original 200-event LHE (plain or gzip)")
+    # Validate the original small LHE; the wrapper exit code may be 8
+    # because its failure happened later in arrange_output().
+    import gzip
+    reader = gzip.open if raw.suffix == ".gz" else open
+    starts = ends = 0
+    complete = False
+    with reader(raw, "rt", errors="replace") as stream:
+        for line in stream:
+            starts += line.strip() == "<event>"
+            ends += line.strip() == "</event>"
+            complete |= "</LesHouchesEvents>" in line
+    if starts != 200 or ends != 200 or not complete:
+        raise ValueError("original LHE incomplete: %d opens %d closes" %
+                         (starts, ends))
     print("AQP_FXFX_PR426_SAVED_GRIDS_PREFLIGHT_PASS")
     print("CASE",case)
     print("PROCESS",process)
