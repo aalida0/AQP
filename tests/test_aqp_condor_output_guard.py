@@ -56,10 +56,12 @@ class OutputGateTests(unittest.TestCase):
         })
         self.environment.start()
         self.addCleanup(self.environment.stop)
-        self.token = self.submission.reserve(
-            str(self.root / "ajob1"), ["GF7.0", "foo", "bar", "1"], str(self.cwd))
-        self.submission.acknowledge(self.token, "910001")
         self.retry = {"cwd": str(self.cwd), "required_output": ["res_1.dat"]}
+        self.token = self.submission.reserve(
+            str(self.root / "ajob1"), ["GF7.0", "foo", "bar", "1"], str(self.cwd),
+            self.retry["required_output"])
+        self.submission.acknowledge(
+            self.token, "910001", str(self.cwd), self.retry["required_output"])
 
     @staticmethod
     def clear_modules():
@@ -110,9 +112,26 @@ class OutputGateTests(unittest.TestCase):
             with self.assertRaisesRegex(self.guard.CondorOutputError, "not been independently"):
                 self.guard.require_verified("910001", self.retry)
 
-    def test_no_required_output_blocks_completion(self):
-        with self.assertRaisesRegex(self.guard.CondorOutputError, "cwd/required_output"):
+    def test_empty_retry_output_disagrees_with_durable_ack(self):
+        with self.assertRaisesRegex(self.guard.CondorOutputError, "disagree with durable ACK"):
             self.guard.require_verified("910001", {"cwd": str(self.cwd), "required_output": []})
+
+    def test_no_retry_args_still_validates_completion_manifest(self):
+        self.publish()
+        with patch.object(self.scheduler, "check", return_value="TERMINATED"):
+            self.assertTrue(self.guard.require_verified("910001", None))
+
+    def test_missing_retry_args_cannot_bypass_missing_manifest(self):
+        with patch.object(self.scheduler, "check", return_value="TERMINATED"):
+            with self.assertRaisesRegex(self.guard.CondorOutputError, "manifest invalid"):
+                self.guard.require_verified("910001", None)
+
+    def test_mismatched_retry_outputs_fail_even_with_valid_manifest(self):
+        self.publish()
+        with patch.object(self.scheduler, "check", return_value="TERMINATED"):
+            with self.assertRaisesRegex(self.guard.CondorOutputError, "disagree with durable ACK"):
+                self.guard.require_verified("910001",
+                    {"cwd": str(self.cwd), "required_output": ["other.dat"]})
 
     def test_missing_frozen_input_hash_blocks(self):
         self.publish()
@@ -147,14 +166,26 @@ class OutputGateTests(unittest.TestCase):
             self.assertEqual(controller.check_termination("910001"), "done")
             verified.assert_called_once_with("910001", self.retry)
 
-    def test_missing_retry_provenance_blocks_base_completion(self):
+    def test_missing_retry_dict_is_not_required_for_verified_completion(self):
         source = patch_text(FIXTURE)
         env = {"ClusterManagmentError": RuntimeError}
         exec(source, env)
         controller = env["CondorCluster"]()
         controller.retry_args = {}
-        with self.assertRaisesRegex(RuntimeError, "Missing GF retry provenance"):
-            controller.check_termination("910001")
+        with patch.object(self.guard, "require_verified", return_value=True) as checked:
+            self.assertEqual(controller.check_termination("910001"), "done")
+            checked.assert_called_once_with("910001", None)
+
+    def test_no_retry_dict_still_blocks_unverified_output(self):
+        source = patch_text(FIXTURE)
+        env = {"ClusterManagmentError": RuntimeError}
+        exec(source, env)
+        controller = env["CondorCluster"]()
+        controller.retry_args = {}
+        with patch.object(self.guard, "require_verified",
+                          side_effect=self.guard.CondorOutputError("no manifest")):
+            with self.assertRaises(self.guard.CondorOutputError):
+                controller.check_termination("910001")
 
 
 if __name__ == "__main__":
