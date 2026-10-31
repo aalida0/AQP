@@ -1,0 +1,21 @@
+# Isolated Wenu comparison v2, pinned to AQP audit checkout. Submit via DAG only.
+# Independent Wenu standard111/delta111/delta221 MadGraph local 16-CPU MINT2.
+# Vars injected by DAG: CFG SEED NEVENTS TAG.
+universe = vanilla
+executable = /home/aalida/AQP/aqp-production-audit/scripts/run_wenu_comparison_16core_lhe.sh
+arguments = $(CFG) $(SEED) $(NEVENTS) $(TAG)
+initialdir = /home/aalida/AQP/aqp-production-audit
+getenv = True
+should_transfer_files = YES
+transfer_executable = True
+transfer_input_files = /home/aalida/AQP/aqp-production-audit/joboptions/wenu_comparison16/$(CFG)/100003,/home/aalida/AQP/aqp-production-audit/scripts/audit_wenu_delta441_lhe.py
+when_to_transfer_output = ON_EXIT
+transfer_output_files = ""
+request_cpus = 16
+request_memory = 32000MB
+request_disk = 90000MB
+output = /home/aalida/AQP/aqp-production-audit/.aqp_staged/wenu_compare16_v2/logs/wenu_cmp_$(TAG)_$(CFG)_lhe.$(Cluster).out
+error = /home/aalida/AQP/aqp-production-audit/.aqp_staged/wenu_compare16_v2/logs/wenu_cmp_$(TAG)_$(CFG)_lhe.$(Cluster).err
+log = /home/aalida/AQP/aqp-production-audit/.aqp_staged/wenu_compare16_v2/logs/wenu_cmp_$(TAG)_$(CFG)_lhe.$(Cluster).log
+notification = Never
+queue 1
