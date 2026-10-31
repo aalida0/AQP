@@ -5,7 +5,7 @@
 Two identical full JOs, differing only in `FXFX_APPLY_PR426=False/True` and the provenance label:
 `joboptions/wenu_fxfx_pr426_internal_condor/{before,after}/100006/*.py`.
 
-Both use MG5_aMC 3.5.11.atlas13 via AthGeneration/23.6.63, direct LHE `generate(grid_pack=False)` with fresh integration, `req_acc=0.1`, Wenu+0,1,2j, Standard111, PDF 325100, Pythia8 shower deferred, same original custom Fortran, and **unmodified** MG `cluster.py`. Execution `run_mode=1`, `cluster_type=condor`, `cluster_size=100`, `nb_core=1`. The two cases use different working directories, and the patcher refuses unknown or already patched generated source. **The live codepath has not yet been tested.**
+Both use MG5_aMC 3.5.11.atlas13 via AthGeneration/23.6.63, direct LHE `generate(grid_pack=False)` with fresh integration, `req_acc=0.1`, Wenu+0,1,2j, Standard111, PDF 325100, Pythia8 shower deferred, same original custom Fortran, and **unmodified** MG `cluster.py`. Execution `run_mode=1`, `cluster_type=condor`, `cluster_size=100`, `nb_core=16` by default (optionally 32 on an allocated 32-CPU machine). The two cases use different working directories, and the patcher refuses unknown or already patched generated source. **The live codepath has not yet been tested.**
 
 ## Tradeoffs and risks
 
@@ -57,3 +57,40 @@ bash scripts/run_wenu_fxfx_pr426_internal_condor.sh after 50000 411
 The correct before/after `AQP_FXFX_AB_ACTIVE_CUTS_SHA256` must differ, while `AQP_FXFX_AB_BASELINE_CUTS_SHA256` and all other inputs match. Both must compile and produce LHE. Shower using identical Pythia8 FxFx settings in a **separate** run. Compare `\Delta R(j_1,j_2)` distribution and binned `p_T(W)`, especially `\Delta R<1`, with weighted uncertainty estimates. Same random seed is not an event-by-event pairing guarantee.
 
 References: https://github.com/mg5amcnlo/mg5amcnlo/pull/426 ; https://gitlab.cern.ch/atlas-physics/pmg/mcjoboptions/-/work_items/252
+
+
+## 2026-10-31 update: local parallel compilation
+
+MG5_aMC 3.5.11 has separate concurrency paths. `run_mode=1` delegates integration to HTCondor, while `nb_core` controls the local `P*` subprocess compilation pool via `cluster.MultiCore`. We set `nb_core` to environment-controlled `AQP_FXFX_AB_COMPILE_CORES` (16 by default; optional 32 only if allocated). The two JOs remain identical outside the FxFx patch flag/case label.
+
+**Do not launch 16/32 compilation workers on a shared login/head node.** The updated runner rejects login/head hosts. Use the supplied `condor/wenu_fxfx_pr426_interactive16.submit` to obtain a 16-CPU interactive allocation, if the site supports internal Condor submissions from execute nodes. That nested-submission permission must be checked first.
+
+Run from the login node:
+
+```bash
+cd /home/aalida/AQP/aqp-production-audit
+git pull --ff-only
+python3 -m unittest discover -s tests -p 'test_aqp_wenu_fxfx_pr426_internal_condor.py' -v
+condor_submit -interactive condor/wenu_fxfx_pr426_interactive16.submit
+```
+
+Then inside the allocated interactive shell:
+
+```bash
+hostname -s
+condor_q -nobatch
+cd /home/aalida/AQP/aqp-production-audit
+source /cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase/user/atlasLocalSetup.sh
+asetup AthGeneration,23.6.63
+export AQP_FXFX_AB_COMPILE_CORES=16
+bash scripts/run_wenu_fxfx_pr426_internal_condor.sh before 200 311
+bash scripts/run_wenu_fxfx_pr426_internal_condor.sh after 200 311
+```
+
+Expect `Compiling on 16 cores`; integration afterward remains `run_mode=1` with the original unpatched internal Condor scheduler backend. The launcher now creates **new distinct directories** named `before_200_seed311_compile16` and `after_200_seed311_compile16`, preserving the earlier one-core attempt.
+
+**Before interrupting the currently running serial attempt**, check whether it has already submitted integration channels (using its `Gen_tf.log`, `log.generate` and `condor_q`). If Condor child tasks exist, do not blindly restart: reconcile their state, as the original backend can suffer ambiguous scheduler responses. A new local JO does not alter an already running MadGraph process.
+
+If the interactive worker cannot run `condor_q`/`condor_submit`, do **not** run 16 cores on the login node. Use an AF-approved multicore interactive host with scheduler access or an outer Condor batch workflow. A 16-core interactive allocation stays reserved even while waiting for independently scheduled child jobs, so performance/resource cost is not guaranteed to improve.
+
+The 50k smoke gate checks that both `*_200_seed311_compile16/runner_exit_code` files are 0; only then launch 50k with the same compile-core count.
