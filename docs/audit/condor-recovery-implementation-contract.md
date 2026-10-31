@@ -1,6 +1,6 @@
 # AQP MG5_aMC 3.5.11 internal HTCondor: recovery implementation contract
 
-Status (2026-10-31): **DESIGN / NOT IMPLEMENTED / NOT DEPLOYABLE**.
+Status (2026-10-31): **write-once intent prototype implemented and locally smoke-tested; NOT INTEGRATED / NOT DEPLOYABLE**.
 
 ## Evidence and boundaries
 
@@ -60,4 +60,8 @@ Do not patch standard111/delta111/delta221 historical processes, historical delt
 
 The existing large stress result is **OLD_GUARDS_PASS / PRODUCTION_BLOCKED**, not production approval. No implementation that merely converts all empty exit-0 status responses into errors should be called complete. Any feature that cannot reconcile a stale/unavailable job safely must fail closed and leave the GF unchanged. No automatic retries of ambiguous submissions.
 
-The present status of this document is design-only. There is **no new recovery implementation, no integrated patched backend, and no live-scheduler evidence** yet.
+A standalone prototype, `scripts/aqp_condor_intent_ledger.py`, now implements write-once GF/stage intent claims using O_EXCL and fsync, and a **pure, model-only** reconciliation decision function. A limited local smoke test (including concurrent claim contention, confirmed terminal decision, and unreliable scheduler refusal) passed. This does **not** implement the actual MadGraph submission hook, persistent scheduler ClassAd injection, real `condor_q`/`condor_history` queries, authoritative output verification, or lifecycle restarts.
+
+The existing single large stress runner `scripts/aqp_condor_large_stress.py` now includes this independent ledger model for all four historical configurations, alongside the original extracted-method checks. It must continue to report **PRODUCTION_READINESS BLOCKED**, including `DURABLE_INTENT_MODEL_NOT_INTEGRATED_WITH_MADGRAPH_OR_HTCONDOR`. Use a new JSON report path for each attempt: the runner refuses overwrite.
+
+**Remaining work:** source-pinned integration into `CondorCluster.submit`/`submit2` and `control`/`control_one_job`, real scheduler reconciliation, artifact provenance, full controller crash testing, and a disposable live canary. The prototype is **not** a safe production drop-in; no existing Wenu generated process has been modified.
