@@ -102,7 +102,7 @@ sha256sum "$run/launch.sh" "$run/gridpack_timing.py" > "$run/code.sha256"
 dsid=$(basename "$jo")
 export GP_JO="$run/jo/$dsid"
 export GP_ECM="${2:-13000}" GP_EVENTS="${3:-2000}" GP_SEED="${4:-12345}"
-export GP_OUT="/data/$USER/gridpacks/$name/$(basename "$run")"
+export GP_OUT="/data/$USER/NWR/gridpacks/$name/$(basename "$run")"
 mkdir -p "$GP_OUT"
 [[ -w "$GP_OUT" ]] || { echo "Cannot write output directory $GP_OUT" >&2; exit 2; }
 export DATAPATH="$GP_JO:${DATAPATH:-}"
