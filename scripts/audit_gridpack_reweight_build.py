@@ -118,7 +118,7 @@ def main():
         seen.add(p)
         with p.open("rb") as stream:
             magic = stream.read(4)
-        if magic != b"\\x7fELF":
+        if magic != b"\x7fELF":
             print("NOT_ELF", p.relative_to(run), "BYTES", p.stat().st_size)
             continue
         elf_files.append(p)
