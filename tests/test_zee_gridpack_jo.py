@@ -34,7 +34,17 @@ class ZeeSmokeJOTests(unittest.TestCase):
                         source.index("mgc = MGControl("))
         self.assertIn("MGC.MADGRAPH_PDFSETTING = MG.MADGRAPH_PDFSETTING", source)
         self.assertIn("mgc = MGControl()", source)
-        self.assertNotIn("MGControl(pdf_setting=", source)
+        # Check the AST rather than comments: the unsupported syntax may
+        # legitimately be mentioned in the JobOption documentation.
+        constructors = [
+            node for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "MGControl"
+        ]
+        self.assertEqual(len(constructors), 1)
+        self.assertEqual(constructors[0].args, [])
+        self.assertEqual(constructors[0].keywords, [])
 
     def test_reuse_does_not_reintegrate(self):
         source = JO.read_text()
