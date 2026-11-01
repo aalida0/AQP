@@ -63,6 +63,14 @@ class IndependentRuns(unittest.TestCase):
                 reports.append(report)
             with self.assertRaisesRegex(AssertionError, "Worker IDs counted in both"):
                 check(*reports)
+            second = json.loads(reports[1].read_text())
+            second["worker_job_ids"] = ["122.0"]
+            reports[1].write_text(json.dumps(second))
+            check(*reports)  # Distinct workers with overlapping execution: PASS.
+            second["start_epoch"], second["end_epoch"] = 1300, 1500
+            reports[1].write_text(json.dumps(second))
+            with self.assertRaisesRegex(AssertionError, "did not overlap"):
+                check(*reports)
 
 
 if __name__ == "__main__":
