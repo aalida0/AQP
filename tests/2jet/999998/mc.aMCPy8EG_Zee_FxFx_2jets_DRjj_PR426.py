@@ -18,7 +18,8 @@ if not hasattr(MGControl, "_original_add_runArgs"):
 
 USE_DELTA = False
 FOLDING = "1, 1, 1"
-REQUIRED_ACCURACY = 1.0e-4
+# Fast integration smoke test only: req_acc=0.5 is NOT physics-grade.
+REQUIRED_ACCURACY = 0.5
 GRIDPACK_MODE = not is_gen_from_gridpack()
 
 # Optional controlled recompile of the *extracted copy* of an NLO gridpack.
@@ -44,7 +45,7 @@ MG.MADGRAPH_PDFSETTING = {
 }
 MGC.MADGRAPH_PDFSETTING = MG.MADGRAPH_PDFSETTING
 
-evgenConfig.description = "Zee+0,1,2j FxFx PR426 exclusive-kT validation"
+evgenConfig.description = "Zee+0,1,2j FxFx PR426 standard111 accuracy0p5 smoke"
 evgenConfig.contact = ["francesco.giuli@cern.ch"]
 evgenConfig.keywords += ["Z", "jets"]
 evgenConfig.generators += ["aMcAtNlo", "Pythia8"]
