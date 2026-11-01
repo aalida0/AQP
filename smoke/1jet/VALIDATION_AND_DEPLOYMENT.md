@@ -1,6 +1,6 @@
 # AQP minimal Condor patch — validated scope and deployment gates
 
-**Status (2026-11-01): MINT0 worker validated; full FxFx production NOT approved.**
+**Status (2026-11-01): one and two real MINT0 workers PASS; full FxFx production NOT approved.**
 
 This document applies to the `aalida0/AQP` **experimental** smoke-test branch.
 The frozen, two-file patch and tests live separately in
@@ -17,7 +17,7 @@ Do not merge the smoke-test helpers or generated process files into `main`.
 | Worker exits 17 | HTCondor 4062220.0: rejected, guard retained |
 | Successful job with missing output | HTCondor 4062221.0: rejected, guard retained |
 | Real FxFx 1-jet `ajob1` MINT0 | HTCondor 4062514.0 PASS; `GF1.0/log_MINT0.txt` and `GF1.0/results.dat` verified |
-| Simultaneous jobs through one controller | PENDING two-worker pilot |
+| Two real MINT0 jobs through one controller | HTCondor 4062520.0 and 4062521.0 PASS; controller (2,0,0,0) TRACKED 2 -> (0,0,2,0) TRACKED 0; `TWO_REAL_AJOB1_PASS` |
 | Real MINT0->MINT1->MINT2 stage transitions | NOT TESTED |
 | Full FxFx NLO integration and event generation | NOT TESTED |
 
@@ -66,7 +66,16 @@ space reported by the user is **not** a green light for a large FxFx gridpack.
 Do not adopt HTCondor `-spool` until output retrieval and reconciliation
 have been implemented and separately validated.
 
-## Two-real-worker pilot (one controller, two jobs)
+## Two-real-worker pilot (one controller, two jobs) — PASS 2026-11-01
+
+**Observed:** two independent `ajob1` submissions, jobs `4062520.0` and
+`4062521.0`, both completed and validated in one controller; `TWO_REAL_AJOB1_PASS`.
+The polling samples showed all 2 jobs initially idle and then both completed;
+we did **not** observe an intermediate one-complete/one-pending state.
+No MINT1/MINT2 stages ran.
+
+The procedure below reproduces the bounded pilot if ever needed; **do not
+rerun just to repeat the same validation**.
 
 No process generation and no 56-worker submission. Both workers are
 copied from the *already compiled* original MadGraph MINT0 process in
@@ -118,7 +127,7 @@ Use the saved job IDs and `condor_q`/`condor_history` to reconcile.
 ## Deployment decision
 
 The pilot verifies concurrent MINT0 handling, **not** a production-ready
-full FxFx run. Even after it passes, MINT stage transitions and production
+full FxFx run. MINT0->MINT1->event-generation stage transitions and production
 filesystem/quota handling remain unvalidated. Freeze source hashes and use
 a new isolated pilot process for any later full-workflow testing; never
 retrofit the candidate into existing integration/gridpack directories.
