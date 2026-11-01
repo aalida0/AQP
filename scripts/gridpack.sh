@@ -59,10 +59,12 @@ jo=$(cd "$1" && pwd -P)
     echo "Expected a DSID directory under JOs/ or tests/" >&2; exit 2;
 }
 python3 "$repo/scripts/check_sample.py" "$jo" || exit 2
-command -v Gen_tf.py >/dev/null
-command -v condor_submit >/dev/null
-command -v tmux >/dev/null
-command -v /usr/bin/time >/dev/null
+for cmd in Gen_tf.py condor_submit tmux /usr/bin/time; do
+    command -v "$cmd" >/dev/null 2>&1 || {
+        echo "PRECHECK_FAILED: missing $cmd (check AthGeneration setup and installed tools)" >&2
+        exit 2
+    }
+done
 
 # The existing, source-pinned v3 candidate is still experimental.
 patchroot="${GP_PATCH_ROOT:-$repo/.condor}"
