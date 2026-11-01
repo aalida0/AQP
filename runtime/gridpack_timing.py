@@ -80,7 +80,13 @@ def stages_from_log(path, start_epoch, end_epoch=None):
 
 def history(run, start_epoch, end_epoch, intervals):
     owner = os.environ.get("USER") or run.owner()
-    constraint = "Owner == " + json.dumps(owner)
+    # Restrict the server-side history scan to this unique workspace.
+    # Anchor the following slash: run-AB must never match run-ABCD.
+    root = str(run.resolve()) + os.sep
+    pattern = json.dumps("^" + re.escape(root))
+    constraint = ("Owner == " + json.dumps(owner) +
+                  " && (regexp(" + pattern + ", Iwd) || regexp(" +
+                  pattern + ", Cmd))")
     if start_epoch:
         constraint += f" && QDate >= {start_epoch - 300}"
     if end_epoch:
@@ -101,7 +107,6 @@ def history(run, start_epoch, end_epoch, intervals):
         return [], f"HTCondor history query failed: {exc}", 0
 
     jobs = []
-    root = str(run.resolve()) + os.sep
     for ad in ads:
         if not isinstance(ad, dict):
             return [], "Unexpected HTCondor history JSON record", len(ads)
@@ -179,7 +184,9 @@ def report(run, out):
     worker_cpu = sum(x["reported_cpu_seconds"] for x in summary
                      if x["reported_cpu_seconds"] is not None)
     result = {
-        "run": str(run), "transform_exit": number(timing.get("transform_exit"), int),
+        "run": str(run), "start_epoch": start, "end_epoch": end,
+        "worker_job_ids": sorted(j["job_id"] for j in jobs),
+        "transform_exit": number(timing.get("transform_exit"), int),
         "result_exit": number(timing.get("result_exit"), int),
         "transform_wall_seconds": number(timing.get("wall_seconds")),
         "pre_grid_stage_seconds": pre_grid,
