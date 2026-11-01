@@ -1,0 +1,3 @@
+.condor/
+__pycache__/
+*.pyc
