@@ -121,6 +121,40 @@ end-to-end run. Unit-test outcome must be separately confirmed; none was
 included with the replay output. Do not repeat integration to obtain this proof.
 
 
+
+## Next gate: native v3 `--reweightonly` in the isolated collector copy
+
+MG5 3.5.11 `generate_events` supports `-r/--reweightonly`,
+`-c/--cluster`, `-p/--parton`, `-f/--force`, and `-n/--name`.
+The `reweightonly` path bypasses MINT0/MINT1/MINT2 and calls
+`reweight_and_collect_events`; it restores `nevents_unweighted.orig`
+before starting the reweight workers. The original `/home` failed run
+must remain untouched.
+
+Use **only** the existing separate collector copy:
+`~/AQP/condor-collect/collect.Dp3LBn/PROCNLO`. After verifying the v3
+SHA256, the 27 unit tests, the `.orig` manifest and a new
+`Events/run_02` name, remove stale generated reweight results and
+`allevents_0_001` **from that copy only**. With the separate v3
+bootstrap first on `PYTHONPATH` and a fresh
+`AQP_CONDOR_GUARD_DIR`, launch from inside the copy:
+
+```bash
+python3 bin/generate_events aMC@NLO -r -c -p -f -n run_02 \
+  2>&1 | tee ../v3_reweight_only.log
+```
+
+Expected: **16 new reweight jobs**, automatic native
+`collect_events`, and a new `Events/run_02/events.lhe[.gz]`.
+A successful reweight-only run demonstrates MG-level automatic
+finalization with v3, **not** completion of the full Athena `Gen_tf`
+transform or Pythia8 FxFx shower. Verify no MINT jobs, no duplicate
+submissions, nonzero events and the final LHE structural integrity;
+never claim success based only on an exit code.
+
+**Status: NOT RUN YET.**
+
+
 ## Exact source and runtime contract
 
 - Use `asetup 23.6.63,AthGeneration` on AF (GCC14 / Python 3.12).
