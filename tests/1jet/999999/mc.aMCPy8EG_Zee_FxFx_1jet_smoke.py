@@ -2,6 +2,7 @@ import os
 import subprocess
 
 import MadGraphControl.MadGraphUtils as MG
+import MadGraphControl.MGC as MGC
 from MadGraphControl.MadGraphUtils import *
 from MadGraphControl.MGC import MGControl
 
@@ -21,7 +22,8 @@ REQUIRED_ACCURACY = 0.1
 GRIDPACK_MODE = not is_gen_from_gridpack()
 
 # PMG-approved Zee FxFx scale/PDF weight recipe.
-# Set before constructing MGControl so the gridpack instance sees it.
+# Set in the legacy MadGraphUtils/MGC modules before constructing MGControl.
+# AthGeneration/23.6.63 does NOT support MGControl(pdf_setting=...).
 # The 1-jet smoke gridpack retains its original process and nominal PDF.
 MG.MADGRAPH_PDFSETTING = {
     "central_pdf": 325100,
@@ -32,6 +34,7 @@ MG.MADGRAPH_PDFSETTING = {
     ],
     "scale_variations": [0.5, 1, 2],
 }
+MGC.MADGRAPH_PDFSETTING = MG.MADGRAPH_PDFSETTING
 
 evgenConfig.description = "Zee+0,1j NLO FxFx Condor gridpack smoke"
 evgenConfig.contact = ["francesco.giuli@cern.ch"]
@@ -62,7 +65,7 @@ else:
     process_dir = str(MADGRAPH_GRIDPACK_LOCATION)
     # On this AthGeneration release the gridpack config must be reloaded
     # before modify_run_card and generate from an existing NLO gridpack.
-    mgc = MGControl(pdf_setting=MG.MADGRAPH_PDFSETTING)
+    mgc = MGControl()
     mgc.get_config_cardloc()
     mgc.getConfigFromPath(mgc.config_path)
     mgc.getRunCardDict()
