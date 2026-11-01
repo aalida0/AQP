@@ -80,7 +80,14 @@ def stages_from_log(path, start_epoch, end_epoch=None):
 
 def history(run, start_epoch, end_epoch, intervals):
     owner = os.environ.get("USER") or run.owner()
-    constraint = "Owner == " + json.dumps(owner)
+    # Match the literal run directory including its trailing slash.
+    # ClassAd substr avoids regex/ClassAd double-escaping pitfalls.
+    root = str(run.resolve()) + os.sep
+    prefix = json.dumps(root)
+    n = len(root)
+    constraint = ("Owner == " + json.dumps(owner) +
+                  f" && (substr(Iwd, 0, {n}) == {prefix}" +
+                  f" || substr(Cmd, 0, {n}) == {prefix})")
     if start_epoch:
         constraint += f" && QDate >= {start_epoch - 300}"
     if end_epoch:
@@ -101,7 +108,6 @@ def history(run, start_epoch, end_epoch, intervals):
         return [], f"HTCondor history query failed: {exc}", 0
 
     jobs = []
-    root = str(run.resolve()) + os.sep
     for ad in ads:
         if not isinstance(ad, dict):
             return [], "Unexpected HTCondor history JSON record", len(ads)
@@ -148,6 +154,8 @@ def report(run, out):
     end = number(timing.get("end_epoch"), int)
     spans, pre_grid, intervals = stages_from_log(run / "log.generate", start, end)
     jobs, error, candidates = history(run, start, end, intervals)
+    if not jobs and not error and spans:
+        error = "No worker ClassAds matched this run; verify HTCondor Iwd/Cmd prefix query."
     expected = {x["stage"]: x["expected_workers"] for x in spans}
     summary = []
     for name in ("grid", "envelope", "generation", "reweight", "other"):
@@ -179,7 +187,9 @@ def report(run, out):
     worker_cpu = sum(x["reported_cpu_seconds"] for x in summary
                      if x["reported_cpu_seconds"] is not None)
     result = {
-        "run": str(run), "transform_exit": number(timing.get("transform_exit"), int),
+        "run": str(run), "start_epoch": start, "end_epoch": end,
+        "worker_job_ids": sorted(j["job_id"] for j in jobs),
+        "transform_exit": number(timing.get("transform_exit"), int),
         "result_exit": number(timing.get("result_exit"), int),
         "transform_wall_seconds": number(timing.get("wall_seconds")),
         "pre_grid_stage_seconds": pre_grid,
@@ -213,5 +223,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run", type=Path)
     parser.add_argument("--output", type=Path, default=None)
+    parser.add_argument("--require-complete", action="store_true")
     args = parser.parse_args()
-    report(args.run.resolve(strict=True), args.output or args.run)
+    result = report(args.run.resolve(strict=True), args.output or args.run)
+    if args.require_complete and not result["worker_accounting_complete"]:
+        raise SystemExit(1)
