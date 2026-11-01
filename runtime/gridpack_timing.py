@@ -110,14 +110,18 @@ def history(run, start_epoch, end_epoch, intervals):
         prog = str(ad.get("Cmd") or "")
         if not iwd.startswith(root) and not prog.startswith(root):
             continue
-        qdate = number(ad.get("QDate"), int)
-        if qdate is None:
-            stage = "other"
+        # ajob1's final argument is the native MadGraph MINT phase
+        # (0: grid, 1: upper envelope, 2: event generation).
+        # This is more reliable than queue timestamps, which can fall
+        # outside MadGraph's printed stage boundaries.
+        args = str(ad.get("Args") or "").split()
+        if Path(prog).name == "ajob1" and len(args) == 4:
+            stage = {"0": "grid", "1": "envelope", "2": "generation"}.get(
+                args[-1], "other")
+        elif "reweight" in Path(prog).name:
+            stage = "reweight"
         else:
-            matching = [span["stage"] for span in intervals
-                        if (span["start_epoch"] - 5 <= qdate
-                            <= (span["end_epoch"] or end_epoch or qdate) + 5)]
-            stage = matching[0] if len(matching) == 1 else "other"
+            stage = "other"
         starts = number(ad.get("NumJobStarts"), int)
         cpu1 = number(ad.get("CumulativeRemoteUserCpu"))
         cpu2 = number(ad.get("CumulativeRemoteSysCpu"))
@@ -169,8 +173,9 @@ def report(run, out):
     user = number(controller.get("controller_user_cpu_seconds"))
     system = number(controller.get("controller_system_cpu_seconds"))
     cpu = user + system if user is not None and system is not None else None
-    worker_complete = bool(spans) and all(x["accounting_complete"] for x in summary
-                                          if x["stage"] != "other")
+    worker_complete = bool(spans and jobs and error is None
+                           and all(x["accounting_complete"] for x in summary)
+                           and len(jobs) == sum(x["expected_workers"] for x in spans))
     worker_cpu = sum(x["reported_cpu_seconds"] for x in summary
                      if x["reported_cpu_seconds"] is not None)
     result = {
@@ -180,11 +185,13 @@ def report(run, out):
         "pre_grid_stage_seconds": pre_grid,
         "controller_cpu_seconds": cpu, "worker_history_query_error": error,
         "history_worker_count": len(jobs), "history_candidates_in_time_window": candidates,
+        "worker_stage_assignment": "MadGraph ajob1 final argument (0/1/2)",
         "worker_accounting_complete": worker_complete,
         "remote_cpu_seconds": worker_cpu if worker_complete else None,
         "total_cpu_seconds": cpu + worker_cpu if cpu is not None and worker_complete else None,
         "stages": summary,
-        "notes": ["CumulativeRemote*Cpu is preferred to include evicted attempts.",
+        "notes": ["MadGraph ajob1 phase argument identifies grid/envelope/generation.",
+                  "CumulativeRemote*Cpu is preferred to include evicted attempts.",
                   "Restart count is a lower bound from NumJobStarts; eviction timestamps are unavailable.",
                   "Restarted workers without cumulative CPU values are marked incomplete.",
                   "Null CPU totals mean incomplete worker accounting, not zero CPU use."]}
