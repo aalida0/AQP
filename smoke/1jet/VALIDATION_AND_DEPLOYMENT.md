@@ -1,6 +1,6 @@
 # AQP minimal Condor patch — validated scope and deployment gates
 
-**Status (2026-11-01): v3 Condor integration, generation, automatic reweighting and LHE collection PASS; 20-event PDF/scale systematics postprocessor FAILED with division by zero. Full Athena transform and production approval remain OPEN.**
+**Status (2026-11-01): v3 Condor integration/generation and 16/16 automatic reweight completions PASS; full Athena transform remains OPEN because optional systematics or output-weight checks failed. Current smoke JO intentionally disables those extras; production approval remains OPEN.**
 
 This document applies to the `aalida0/AQP` **experimental** smoke-test branch.
 The frozen, two-file patch and tests live separately in
@@ -260,32 +260,43 @@ when `pdf_variations` exists as an empty list in the explicit
 appends that central weight for *any* list-type `pdf_variations`, even
 an empty one.
 
-The experimental **complete** JO
-`smoke/1jet/JO_v3_nosyst/mc.MGPy8EG_Zll_FxFx_1jets_AQPsmoke.py`
-now invokes `arrange_output(..., pdf_setting={})` to disable **only**
-the nonexistent systematic-weight name requirement in this nominal-only
-smoke. MadGraph's event generation and PDF setting, and the v3 Condor
-patch, are unchanged. This waiver is expressly forbidden in actual
-production JOs where PDF/scale variations must be generated and checked.
+The attempted `arrange_output(..., pdf_setting={})` fix was **invalid
+for AthGeneration 23.6.63**: `TypeError: arrange_output() got an
+unexpected keyword argument 'pdf_setting'`. The incompatible recovery
+script was deleted from this branch. Do not use the retired
+`JO_v3_nosyst` setup; it is retained only as an audit trail.
 
-The next minimal gate is a **no-Condor, no-integration** invocation of
-`arrange_output` on a copied, isolated 20-event LHE from
-`MG1jet-v3nosyst.LTC55Y`, with `pdf_setting={}`. The disposable
-`smoke/1jet/recover_v3_nosyst_lhe.py` implements that gate, creates a
-unique temporary process containing only a **copy** of the LHE file,
-and validates the resulting 20-event ATLAS tarball:
+### Current requested workflow: no reweighting or systematic variations
+
+A complete replacement smoke JO is available at
+`smoke/1jet/JO_v3_norw/mc.MGPy8EG_Zll_FxFx_1jets_AQPsmoke.py`.
+This sets `MADGRAPH_PDFSETTING={}`; retains the nominal LHAPDF
+`lhaid=325100`; explicitly disables `reweight_scale`,
+`reweight_pdf`, and `store_rwgt_info`; and selects
+`systematics_program=none`. It restores the **original four-argument**
+`arrange_output` call supported by Athena 23.6.63.
+
+The separate `prepare_v3.sh` pins the unchanged v3 Condor patch,
+points to the new `JO_v3_norw`, and generates a fresh
+`MG1jet-v3norw.XXXXXX` directory and launch script. It also checks
+that the generation log contains neither `Doing reweight` nor
+`Running Systematics computation`.
 
 ```bash
+setupATLAS
 asetup 23.6.63,AthGeneration
 cd ~/AQP/aqp-condor-minimal
 git pull --ff-only origin test/condor-fxfx-1jet-smoke
-python3 smoke/1jet/recover_v3_nosyst_lhe.py
+python3 -m py_compile smoke/1jet/JO_v3_norw/mc.MGPy8EG_Zll_FxFx_1jets_AQPsmoke.py
+bash -n smoke/1jet/prepare_v3.sh
+bash smoke/1jet/prepare_v3.sh # preflight only
+# Then run ONLY the newly printed MG1jet-v3norw.XXXXXX/launch.sh
 ```
 
-Require `V3_NOMINAL_ONLY_ARRANGE_PASS 20 events`. This verifies the
-ATLAS packaging API and archive structure, but does not retrospectively
-make `Gen_tf.py` exit zero or demonstrate Pythia8 FxFx showering.
-
+**Not production-valid physics weights:** this probe intentionally
+omits PDF/scale systematic variations. The v3 reweighting completion
+logic was already validated separately with 16/16 real workers; this
+new no-reweight smoke checks integration, LHE arrangement and showering.
 
 ## Exact source and runtime contract
 
