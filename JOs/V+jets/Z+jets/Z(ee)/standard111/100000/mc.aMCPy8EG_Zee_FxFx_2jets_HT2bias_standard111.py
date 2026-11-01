@@ -34,6 +34,14 @@ nevents = 5 * (runArgs.maxEvents if runArgs.maxEvents > 0
                else evgenConfig.nEventsPerJob)
 
 
+# Apply central PDF only to gridpack integration; reweight on Grid jobs.
+MadGraphControl.MadGraphUtils.MADGRAPH_PDFSETTING = {
+    "central_pdf": 325100,
+    "pdf_variations": [] if GRIDPACK_MODE else [325100],
+    "alternative_pdfs": [] if GRIDPACK_MODE else [304400],
+    "scale_variations": [] if GRIDPACK_MODE else [0.5, 1.0, 2.0],
+}
+
 def install_file(filename, destination):
     subprocess.check_call(["get_files", "-data", filename])
     if not os.path.isfile(filename):
@@ -76,14 +84,6 @@ else:
     mgc.getRunCardDict()
     MadGraphControl.MadGraphUtils.my_MGC_instance = mgc
 
-
-# Apply central PDF only to gridpack integration; reweight on Grid jobs.
-MadGraphControl.MadGraphUtils.MADGRAPH_PDFSETTING = {
-    "central_pdf": 325100,
-    "pdf_variations": [] if GRIDPACK_MODE else [325100],
-    "alternative_pdfs": [] if GRIDPACK_MODE else [304400],
-    "scale_variations": [] if GRIDPACK_MODE else [0.5, 1.0, 2.0],
-}
 
 modify_run_card(
     process_dir=process_dir,
