@@ -85,5 +85,5 @@ PY2
 
 echo
 echo 'PRECHECK PASSED. Run the printed command ONLY when you want to submit the one 1-jet smoke test:'
-printf 'cd %q && AQP_CONDOR_GUARD_DIR=%q AQP_CLUSTER_CANDIDATE=%q AQP_MG_ROOT=%q PYTHONPATH=%q Gen_tf.py --ecmEnergy=13000 --maxEvents=10 --firstEvent=1 --randomSeed=34123 --outputTXTFile=smoke_lhe_events.tar.gz --jobConfig=%q 2>&1 | tee generation.log\n' \
-  "$RUN" "$AQP_CONDOR_GUARD_DIR" "$AQP_CLUSTER_CANDIDATE" "$AQP_MG_ROOT" "$PYTHONPATH" "$BASE/JO"
+printf 'cd %q && MADPATH=%q AQP_CONDOR_GUARD_DIR=%q AQP_CLUSTER_CANDIDATE=%q AQP_MG_ROOT=%q PYTHONPATH=%q Gen_tf.py --ecmEnergy=13000 --maxEvents=10 --firstEvent=1 --randomSeed=34123 --outputTXTFile=smoke_lhe_events.tar.gz --jobConfig=%q 2>&1 | tee generation.log\n' \
+  "$RUN" "$ACTIVE_ROOT" "$AQP_CONDOR_GUARD_DIR" "$AQP_CLUSTER_CANDIDATE" "$AQP_MG_ROOT" "$PYTHONPATH" "$BASE/JO"
