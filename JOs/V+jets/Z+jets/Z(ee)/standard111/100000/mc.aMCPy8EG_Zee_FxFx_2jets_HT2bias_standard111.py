@@ -2,21 +2,19 @@ import os
 import shutil
 import subprocess
 
-import MadGraphControl.MadGraphUtils
+import MadGraphControl.MadGraphUtils as MG
 from MadGraphControl.MadGraphUtils import *
 from MadGraphControl.MGC import MGControl
 
-# AthGeneration 23.6.63 gridpack-finalization workaround.
+# Workaround for AthGeneration 23.6.63.
 if not hasattr(MGControl, "_original_add_runArgs"):
     MGControl._original_add_runArgs = MGControl.add_runArgs
 
     def _safe_add_runArgs(self, runArgs=None):
-        if runArgs is None:
-            return
-        return MGControl._original_add_runArgs(self, runArgs)
+        if runArgs is not None:
+            return MGControl._original_add_runArgs(self, runArgs)
 
     MGControl.add_runArgs = _safe_add_runArgs
-
 
 USE_DELTA = False
 FOLDING = "1, 1, 1"
@@ -29,36 +27,12 @@ evgenConfig.keywords += ["Z", "jets"]
 evgenConfig.generators += ["aMcAtNlo", "Pythia8"]
 evgenConfig.nEventsPerJob = 2000 if GRIDPACK_MODE else 5000
 
-beam_energy = float(runArgs.ecmEnergy) / 2.0
-nevents = 5 * (runArgs.maxEvents if runArgs.maxEvents > 0
-               else evgenConfig.nEventsPerJob)
-
-
-# Apply central PDF only to gridpack integration; reweight on Grid jobs.
-MadGraphControl.MadGraphUtils.MADGRAPH_PDFSETTING = {
+MG.MADGRAPH_PDFSETTING = {
     "central_pdf": 325100,
     "pdf_variations": [] if GRIDPACK_MODE else [325100],
     "alternative_pdfs": [] if GRIDPACK_MODE else [304400],
     "scale_variations": [] if GRIDPACK_MODE else [0.5, 1.0, 2.0],
 }
-
-def install_file(filename, destination):
-    subprocess.check_call(["get_files", "-data", filename])
-    if not os.path.isfile(filename):
-        raise RuntimeError("Missing required source: " + filename)
-    shutil.copy2(filename, destination)
-
-
-def install_patch(filename, process_dir):
-    subprocess.check_call(["get_files", "-data", filename])
-    if not os.path.isfile(filename):
-        raise RuntimeError("Missing required patch: " + filename)
-    source = os.path.abspath(filename)
-    subprocess.check_call(["patch", "--batch", "--forward", "--dry-run",
-                           "-p1", "-d", process_dir, "-i", source])
-    subprocess.check_call(["patch", "--batch", "--forward",
-                           "-p1", "-d", process_dir, "-i", source])
-
 
 if GRIDPACK_MODE:
     process = """
@@ -71,41 +45,48 @@ if GRIDPACK_MODE:
     output -f
     """
     process_dir = str(new_process(process))
-    install_file("dummy_fct.f",
-                 os.path.join(process_dir, "SubProcesses", "dummy_fct.f"))
-    install_file("montecarlocounter_MINE.f",
-                 os.path.join(process_dir, "SubProcesses", "montecarlocounter.f"))
-    install_patch("fxfx_exclusive_kt.patch", process_dir)
+    for source, target in (
+        ("dummy_fct.f", "dummy_fct.f"),
+        ("montecarlocounter_MINE.f", "montecarlocounter.f"),
+    ):
+        subprocess.check_call(["get_files", "-data", source])
+        shutil.copy2(source, os.path.join(process_dir, "SubProcesses", target))
+
+    patch_name = "fxfx_exclusive_kt.patch"
+    subprocess.check_call(["get_files", "-data", patch_name])
+    patch = os.path.abspath(patch_name)
+    command = ["patch", "--batch", "--forward", "-p1", "-d", process_dir, "-i", patch]
+    subprocess.check_call(command + ["--dry-run"])
+    subprocess.check_call(command)
 else:
     process_dir = str(MADGRAPH_GRIDPACK_LOCATION)
     mgc = MGControl()
     mgc.get_config_cardloc()
     mgc.getConfigFromPath(mgc.config_path)
     mgc.getRunCardDict()
-    MadGraphControl.MadGraphUtils.my_MGC_instance = mgc
+    MG.my_MGC_instance = mgc
 
+beam_energy = runArgs.ecmEnergy / 2.0
+nevents = 5 * (runArgs.maxEvents if runArgs.maxEvents > 0
+               else evgenConfig.nEventsPerJob)
 
-modify_run_card(
-    process_dir=process_dir,
-    runArgs=runArgs,
-    settings={
-        "ebeam1": beam_energy,
-        "ebeam2": beam_energy,
-        "event_norm": "bias",
-        "maxjetflavor": 5,
-        "parton_shower": "PYTHIA8",
-        "nevents": int(nevents),
-        "req_acc": REQUIRED_ACCURACY,
-        "ickkw": 3,
-        "jetradius": 1.0,
-        "ptj": 8,
-        "etaj": 10,
-        "mll": 40,
-        "mll_sf": 40,
-        "mcatnlo_delta": USE_DELTA,
-        "folding": FOLDING,
-    },
-)
+modify_run_card(process_dir=process_dir, runArgs=runArgs, settings={
+    "ebeam1": beam_energy,
+    "ebeam2": beam_energy,
+    "event_norm": "bias",
+    "maxjetflavor": 5,
+    "parton_shower": "PYTHIA8",
+    "nevents": int(nevents),
+    "req_acc": REQUIRED_ACCURACY,
+    "ickkw": 3,
+    "jetradius": 1.0,
+    "ptj": 8,
+    "etaj": 10,
+    "mll": 40,
+    "mll_sf": 40,
+    "mcatnlo_delta": USE_DELTA,
+    "folding": FOLDING,
+})
 
 config_settings = (
     {"run_mode": 1, "nb_core": 1, "cluster_type": "condor",
@@ -119,7 +100,6 @@ if USE_DELTA:
     config_settings["pythia8_path"] = pythia8_path
 
 modify_config_card(process_dir=process_dir, settings=config_settings)
-
 generate(required_accuracy=REQUIRED_ACCURACY, process_dir=process_dir,
          runArgs=runArgs, grid_pack=GRIDPACK_MODE)
 
