@@ -92,7 +92,22 @@ assert hasattr(cluster,'_aqp_claim') and hasattr(cluster,'_aqp_states'), 'Patche
 print('PRECHECK_PATCH_ACTIVE PASS')
 PY2
 
+
+# Write a self-contained launcher to avoid copying a huge LCG PYTHONPATH.
+# The launcher remains under /scratch and does not run during preflight.
+{
+  printf '#!/usr/bin/env bash\nset -euo pipefail\n'
+  printf 'cd %q\n' "$RUN"
+  printf 'export MADPATH=%q\n' "$ACTIVE_ROOT"
+  printf 'export AQP_CONDOR_GUARD_DIR=%q\n' "$AQP_CONDOR_GUARD_DIR"
+  printf 'export AQP_CLUSTER_CANDIDATE=%q\n' "$AQP_CLUSTER_CANDIDATE"
+  printf 'export AQP_MG_ROOT=%q\n' "$AQP_MG_ROOT"
+  printf 'export PYTHONPATH=%q\n' "$PYTHONPATH"
+  printf 'Gen_tf.py --ecmEnergy=13000 --maxEvents=10 --firstEvent=1 --randomSeed=34123 --outputTXTFile=smoke_lhe_events.tar.gz --jobConfig=%q 2>&1 | tee generation.log\n' "$BASE/JO"
+} > "$RUN/launch.sh"
+chmod 700 "$RUN/launch.sh"
+
 echo
-echo 'PRECHECK PASSED. Run the printed command ONLY when you want to submit the one 1-jet smoke test:'
-printf 'cd %q && MADPATH=%q AQP_CONDOR_GUARD_DIR=%q AQP_CLUSTER_CANDIDATE=%q AQP_MG_ROOT=%q PYTHONPATH=%q Gen_tf.py --ecmEnergy=13000 --maxEvents=10 --firstEvent=1 --randomSeed=34123 --outputTXTFile=smoke_lhe_events.tar.gz --jobConfig=%q 2>&1 | tee generation.log\n' \
-  "$RUN" "$ACTIVE_ROOT" "$AQP_CONDOR_GUARD_DIR" "$AQP_CLUSTER_CANDIDATE" "$AQP_MG_ROOT" "$PYTHONPATH" "$BASE/JO"
+echo "PRECHECK PASSED. No Condor jobs submitted."
+echo "Review and launch this one 1-jet smoke test when ready:"
+printf 'bash %q\n' "$RUN/launch.sh"
