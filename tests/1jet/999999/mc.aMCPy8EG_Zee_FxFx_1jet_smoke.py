@@ -20,6 +20,19 @@ FOLDING = "1, 1, 1"
 REQUIRED_ACCURACY = 0.1
 GRIDPACK_MODE = not is_gen_from_gridpack()
 
+# PMG-approved Zee FxFx scale/PDF weight recipe.
+# Set before constructing MGControl so the gridpack instance sees it.
+# The 1-jet smoke gridpack retains its original process and nominal PDF.
+MG.MADGRAPH_PDFSETTING = {
+    "central_pdf": 325100,
+    "pdf_variations": [325100, 93300],
+    "alternative_pdfs": [
+        304400, 13000, 25300, 14000, 14100, 14200, 61200, 42560,
+        303200, 27400, 331500,
+    ],
+    "scale_variations": [0.5, 1, 2],
+}
+
 evgenConfig.description = "Zee+0,1j NLO FxFx Condor gridpack smoke"
 evgenConfig.contact = ["francesco.giuli@cern.ch"]
 evgenConfig.keywords += ["Z", "jets"]
@@ -54,13 +67,6 @@ else:
     mgc.getConfigFromPath(mgc.config_path)
     mgc.getRunCardDict()
     MG.my_MGC_instance = mgc
-
-MG.MADGRAPH_PDFSETTING = {
-    "central_pdf": 325100,
-    "pdf_variations": [],
-    "alternative_pdfs": [],
-    "scale_variations": [],
-}
 
 nevents = (
     max(20, 2 * int(runArgs.maxEvents))
