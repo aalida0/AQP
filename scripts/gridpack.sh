@@ -39,12 +39,12 @@ if [[ "${1:-}" == --run ]]; then
         dest="$GP_OUT/$(basename "$pack")"
         cp "$pack" "$dest.partial" && mv "$dest.partial" "$dest" && rm "$pack" || rc=1
     fi
-    for file in generation.log log.generate controller_cpu.txt timing.txt jo.sha256; do
+    for file in generation.log log.generate controller_cpu.txt timing.txt jo.sha256 code.sha256; do
         [[ ! -f "$file" ]] || cp "$file" "$GP_OUT/"
     done
     printf 'result_exit=%s\n' "$rc" | tee -a timing.txt
     cp timing.txt "$GP_OUT/timing.txt"
-    python3 "$GP_REPO/runtime/gridpack_timing.py" "$run" --output "$GP_OUT" || \
+    python3 "$run/gridpack_timing.py" "$run" --output "$GP_OUT" || \
         echo "WARNING: timing report failed; original logs preserved" >&2
     exit "$rc"
 fi
@@ -96,9 +96,11 @@ name=$(printf '%s' "$name" | tr -c '[:alnum:]_.-' '_')
 run=$(mktemp -d "$base/$name.XXXXXX")
 mkdir -p "$run/jo" "$run/guard"
 cp -a "$jo" "$run/jo/"
+cp "$repo/scripts/gridpack.sh" "$run/launch.sh"
+cp "$repo/runtime/gridpack_timing.py" "$run/gridpack_timing.py"
+sha256sum "$run/launch.sh" "$run/gridpack_timing.py" > "$run/code.sha256"
 dsid=$(basename "$jo")
 export GP_JO="$run/jo/$dsid"
-export GP_REPO="$repo"
 export GP_ECM="${2:-13000}" GP_EVENTS="${3:-2000}" GP_SEED="${4:-12345}"
 export GP_OUT="/data/$USER/gridpacks/$name/$(basename "$run")"
 mkdir -p "$GP_OUT"
@@ -112,7 +114,7 @@ export PYTHONPATH="$bootstrap:$(realpath -e "$MADPATH"):${PYTHONPATH:-}"
 python -c 'import madgraph.various.cluster as c; assert hasattr(c, "_aqp_states"); print("CONDOR_BACKEND_OK")'
 
 socket="gp-$(basename "$run")"
-printf -v cmd '%q ' bash "$repo/scripts/gridpack.sh" --run "$run"
+printf -v cmd '%q ' bash "$run/launch.sh" --run "$run"
 tmux -L "$socket" new-session -d -s gridpack -c "$run" "$cmd"
 tmux -L "$socket" set-window-option -t gridpack remain-on-exit on
 printf 'RUN=%s\nOUTPUT=%s\nATTACH=tmux -L %q attach -t gridpack\n' \
