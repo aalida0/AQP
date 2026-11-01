@@ -65,6 +65,49 @@ from `generation.log` or
 `PROCNLO_loop_sm-no_b_mass_0/run_01_tag_1_debug.log` before patching or
 rerunning. Do not erase the run or reuse its submission guards.
 
+
+## Experimental v3: replay completion of the already-finished reweight jobs
+
+Candidate generated on AF:
+`/home/aalida/AQP/aqp-condor-minimal/.aqp_staged/minimal_v3/cluster.py`.
+Expected SHA256:
+`ab60358a273531522835cd64c0f76acaca91faed1d426374ae8c04796ca4ef3c`.
+
+This candidate is NOT installed for production, and its end-to-end
+correctness is NOT established. Do not replace the v2 patch.
+
+The file `smoke/1jet/bootstrap_v3/sitecustomize.py` uses the new pin,
+leaving the original v2 bootstrap untouched. The read-only
+`smoke/1jet/replay_reweight_completion.py` checks 16 archived workers
+(4062653–4062668) against their original HTCondor history, files and v3
+completion logic. It submits no jobs and does not rerun physics.
+
+```bash
+# Same AF host, with access to the original completed /home process
+setupATLAS
+asetup 23.6.63,AthGeneration
+cd ~/AQP/aqp-condor-minimal
+git pull --ff-only origin test/condor-fxfx-1jet-smoke
+
+python3 -m unittest discover -s tests -p 'test_condor_minimal.py' -v
+# Require all 27 tests PASS before continuing.
+sha256sum .aqp_staged/minimal_v3/cluster.py
+# Require the exact v3 SHA above.
+
+export AQP_CLUSTER_CANDIDATE="$PWD/.aqp_staged/minimal_v3/cluster.py"
+export PYTHONPATH="$PWD/smoke/1jet/bootstrap_v3:$(readlink -f "$MADPATH"):${PYTHONPATH:-}"
+python3 -c 'import madgraph.various.cluster as c; assert hasattr(c, "_aqp_output_contract"); print("V3_PATCH_LOADED")'
+python3 -m py_compile smoke/1jet/replay_reweight_completion.py
+python3 smoke/1jet/replay_reweight_completion.py
+```
+
+**Accept only** `REWEIGHT_REPLAY_PASS 16 workers`. This would
+demonstrate replay of successful reweight output contracts against
+archived HTCondor history, **not** successful LHE assembly, showering or
+a production end-to-end run. Do not launch a new integration to obtain
+this proof.
+
+
 ## Exact source and runtime contract
 
 - Use `asetup 23.6.63,AthGeneration` on AF (GCC14 / Python 3.12).
