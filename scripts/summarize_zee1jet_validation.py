@@ -122,6 +122,12 @@ def summarize(run):
     lhe = find_lhe(run)
     pythia, evidence = parse_shower_counters(log)
     transform_ok = parameters.get("transform_exit") == "0"
+    verified_path = run / "evnt_count_verified.txt"
+    verified_count = None
+    if verified_path.is_file():
+        verified_text = verified_path.read_text().strip()
+        if verified_text.isdigit():
+            verified_count = int(verified_text)
     expected = parameters.get("maxEvents")
     summary = {
         "run": str(run),
@@ -129,9 +135,9 @@ def summarize(run):
         "transform_exit_zero": transform_ok,
         "evnt_exists_nonempty": evnt.is_file() and evnt.stat().st_size > 0,
         "evnt_events_requested": int(expected) if expected and expected.isdigit() else None,
-        # An exit-0 transform + nonempty output does not verify the exact
-        # EVNT count here; the caller's ROOT-based validation does that.
-        "evnt_count_confirmed_in_validation_wrapper": None,
+        # This marker is written only after the caller's PyROOT
+        # CollectionTree.GetEntries() check has succeeded.
+        "evnt_count_confirmed_in_validation_wrapper": verified_count,
         "arrange_output_central_pmg_weight_check_passed":
             transform_ok and CENTRAL in log and
             "Did not find expected weight" not in log,
