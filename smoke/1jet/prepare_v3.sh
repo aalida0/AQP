@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Experimental v3 nominal-only preflight. No Condor jobs are submitted.
-# Keep the original PDF/scale-variation smoke JobOption unchanged.
+# Experimental v3 NO-REWEIGHT preflight. No Condor jobs are submitted.
+# Keep the original and previous test JobOptions unchanged.
 # First run: asetup 23.6.63,AthGeneration (pinned atlas13/GCC14 source).
 
 BASE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -64,7 +64,7 @@ esac
 echo "PRECHECK_RUN_BASE=$RUN_BASE"
 echo "PRECHECK_HOME_FILESYSTEM=$(df -T "$RUN_BASE" | tail -1)"
 echo "PRECHECK_HOME_FREE=$(df -h "$RUN_BASE" | tail -1)"
-RUN=$(mktemp -d "$RUN_BASE/MG1jet-v3nosyst.XXXXXX")
+RUN=$(mktemp -d "$RUN_BASE/MG1jet-v3norw.XXXXXX")
 mkdir -p "$RUN/guard"
 
 export AQP_CLUSTER_CANDIDATE="$(readlink -f "$CANDIDATE")"
@@ -115,15 +115,16 @@ PY2
   printf 'export AQP_CLUSTER_CANDIDATE=%q\n' "$AQP_CLUSTER_CANDIDATE"
   printf 'export AQP_MG_ROOT=%q\n' "$AQP_MG_ROOT"
   printf 'export PYTHONPATH=%q\n' "$PYTHONPATH"
-  printf 'Gen_tf.py --ecmEnergy=13000 --maxEvents=10 --firstEvent=1 --randomSeed=34123 --outputTXTFile=smoke_lhe_events.tar.gz --jobConfig=%q 2>&1 | tee generation.log\n' "$BASE/JO_v3_nosyst"
+  printf 'Gen_tf.py --ecmEnergy=13000 --maxEvents=10 --firstEvent=1 --randomSeed=34123 --outputTXTFile=smoke_lhe_events.tar.gz --jobConfig=%q 2>&1 | tee generation.log\n' "$BASE/JO_v3_norw"
   printf 'if grep -Eq '\''Command .*interrupted with error:|Transform now exiting early|TransformValidationException'\'' generation.log; then echo "AQP_V3_GENERATION_FAILED: detected MadGraph/Athena error" >&2; exit 1; fi\n'
   printf 'test -s smoke_lhe_events.tar.gz || { echo "AQP_V3_GENERATION_FAILED: missing LHE archive" >&2; exit 1; }\n'
   printf 'tar -tzf smoke_lhe_events.tar.gz >/dev/null || { echo "AQP_V3_GENERATION_FAILED: invalid LHE archive" >&2; exit 1; }\n'
-  printf 'echo "AQP_V3_GEN_TF_ARCHIVE_PASS"\n'
+  printf 'if grep -Eq '\''Doing reweight|Running Systematics computation'\'' generation.log; then echo "AQP_V3_GENERATION_FAILED: unexpected reweighting/systematics" >&2; exit 1; fi\n'
+  printf 'echo "AQP_V3_NORW_GEN_TF_ARCHIVE_PASS"\n'
 } > "$RUN/launch.sh"
 chmod 700 "$RUN/launch.sh"
 
 echo
-echo "V3 NOMINAL-ONLY PRECHECK PASSED. No Condor jobs submitted."
+echo "V3 NO-REWEIGHT PRECHECK PASSED. No Condor jobs submitted."
 echo "Review and launch this one 1-jet smoke test when ready:"
 printf 'bash %q\n' "$RUN/launch.sh"
