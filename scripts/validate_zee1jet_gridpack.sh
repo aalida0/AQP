@@ -121,6 +121,20 @@ print("EVNT_EVENT_COUNT_PASS")
 root_file.Close()
 PY
 
+# Record that the ROOT CollectionTree event-count check above passed.
+printf '%s\n' "$max_events" > evnt_count_verified.txt
+
+# Make a reproducible, conservative physics-statistics summary.
+# Failure to parse statistics must not invalidate a successful EVNT smoke test.
+if ! python3 "$repo/scripts/summarize_zee1jet_validation.py" "$run" \
+     --json "$run/validation_summary.json" \
+     > "$run/validation_summary.log" 2>&1; then
+    echo "WARNING: summary extraction failed; see $run/validation_summary.log" >&2
+else
+    echo "VALIDATION_SUMMARY=$run/validation_summary.json"
+    echo "VALIDATION_SUMMARY_LOG=$run/validation_summary.log"
+fi
+
 echo "GRIDPACK_LHE_PYTHIA8_SMOKE_PASS"
 echo "VALIDATION_DIR=$run"
 echo "EVNT_FILE=$run/zee1jet.EVNT.pool.root"
