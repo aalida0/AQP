@@ -54,7 +54,7 @@ modify_run_card(process_dir=process_dir, runArgs=runArgs, settings=settings)
 
 # Ensure the generated process uses Condor and does not auto-resubmit failures.
 modify_config_card(process_dir=process_dir, settings={
-    'run_mode': 2,
+    'run_mode': 1,
     'cluster_type': 'condor',
     'cluster_queue': 'None',
     'cluster_nb_retry': 0,
