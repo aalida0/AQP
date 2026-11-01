@@ -1,0 +1,21 @@
+{
+  "status": "scaffold_only_not_for_production",
+  "dsid": "200003",
+  "dsid_registered": false,
+  "process": "Wenu",
+  "matrix_element": "p p > e+ ve [QCD], with 0,1,2 jets",
+  "matching": "FxFx",
+  "delta": true,
+  "folding": [4, 4, 1],
+  "ht2_bias": false,
+  "gridpack": {"backend": "condor", "pdf_scale_variations": false},
+  "events": {"backend": "grid", "pdf_scale_variations": true},
+  "patches": {
+    "fxfx_pr426": "included_unvalidated_for_this_release",
+    "delta_tolerance": "missing",
+    "condor_bootstrap": "pending_validation"
+  },
+  "integration_timing": "not_implemented",
+  "event_timing": "not_implemented",
+  "rivet": "not_implemented"
+}

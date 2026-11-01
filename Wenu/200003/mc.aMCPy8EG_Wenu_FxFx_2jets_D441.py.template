@@ -1,0 +1,95 @@
+# EXAMPLE ONLY. Requires validated patch and Grid workflow before production.
+import os
+import subprocess
+
+import MadGraphControl.MadGraphUtils as MG
+from MadGraphControl.MadGraphUtils import *
+
+USE_DELTA = True
+FOLDING = "4, 4, 1"
+REQUIRED_ACCURACY = 1e-4
+N_JETS = 2
+Q_CUT = 20.0
+BUILD_GRIDPACK = not is_gen_from_gridpack()
+
+evgenConfig.description = "Wenu+0,1,2j NLO FxFx MC@NLO-Delta folding 441"
+evgenConfig.contact = []  # Set approved contacts before production.
+evgenConfig.keywords += ["W", "jets"]
+evgenConfig.nEventsPerJob = 5000
+
+
+def apply_source_patch(filename, process_dir):
+    """Fetch and apply a process-local source patch before compilation."""
+    subprocess.check_call(["get_files", "-data", filename])
+    source = os.path.abspath(filename)
+    if not os.path.isfile(source):
+        raise RuntimeError("Missing required patch: " + filename)
+    subprocess.check_call(
+        ["patch", "--batch", "--forward", "-p1", "-d", process_dir,
+         "--dry-run", "-i", source])
+    subprocess.check_call(
+        ["patch", "--batch", "--forward", "-p1", "-d", process_dir,
+         "-i", source])
+
+
+if BUILD_GRIDPACK:
+    process = """
+    import model loop_sm-no_b_mass
+    define p = u u~ d d~ s s~ c c~ b b~ g
+    define j = p
+    generate p p > e+ ve [QCD] @0
+    add process p p > e+ ve j [QCD] @1
+    add process p p > e+ ve j j [QCD] @2
+    output -f
+    """
+    process_dir = str(new_process(process))
+    apply_source_patch("fxfx_exclusive_kt.patch", process_dir)
+    if USE_DELTA:
+        # Intentionally unavailable until a validated tolerance patch is added.
+        apply_source_patch("delta_tolerance.patch", process_dir)
+else:
+    process_dir = str(MADGRAPH_GRIDPACK_LOCATION)
+
+# Gridpack: central-only. Events: PDF/scale variations (unvalidated example).
+MG.MADGRAPH_PDFSETTING = (
+    dict(central_pdf=325100, pdf_variations=[], alternative_pdfs=[],
+         scale_variations=[])
+    if BUILD_GRIDPACK else
+    dict(central_pdf=325100, pdf_variations=[325100],
+         alternative_pdfs=[], scale_variations=[0.5, 1.0, 2.0])
+)
+
+beam_energy = float(runArgs.ecmEnergy) / 2.0
+nevents = int(5 * (runArgs.maxEvents if runArgs.maxEvents > 0
+                   else evgenConfig.nEventsPerJob))
+modify_run_card(
+    process_dir=process_dir,
+    runArgs=runArgs,
+    settings={
+        "ebeam1": beam_energy, "ebeam2": beam_energy,
+        "nevents": nevents, "req_acc": REQUIRED_ACCURACY,
+        "maxjetflavor": 5, "parton_shower": "PYTHIA8",
+        "ickkw": 3, "jetradius": 1.0, "ptj": 8, "etaj": 10,
+        "mcatnlo_delta": USE_DELTA, "folding": FOLDING,
+    },
+)
+if BUILD_GRIDPACK:
+    modify_config_card(
+        process_dir=process_dir,
+        settings={"run_mode": 1, "cluster_type": "condor",
+                  "cluster_nb_retry": 0})
+else:
+    modify_config_card(process_dir=process_dir,
+                       settings={"run_mode": 0, "nb_core": 1})
+
+generate(required_accuracy=REQUIRED_ACCURACY, process_dir=process_dir,
+         runArgs=runArgs, grid_pack=BUILD_GRIDPACK)
+
+if not BUILD_GRIDPACK:
+    arrange_output(process_dir=process_dir, runArgs=runArgs,
+                   lhe_version=3, saveProcDir=False)
+    include("Pythia8_i/Pythia8_A14_NNPDF23LO_EvtGen_Common.py")
+    include("Pythia8_i/Pythia8_aMcAtNlo.py")
+    PYTHIA8_nJetMax = N_JETS
+    PYTHIA8_qCut = Q_CUT
+    include("Pythia8_i/Pythia8_FxFx_A14mod.py")
