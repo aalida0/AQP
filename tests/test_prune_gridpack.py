@@ -44,7 +44,7 @@ class PruneTests(unittest.TestCase):
     def condor(self, args, **kwargs):
         self.assertEqual(args[0], 'condor_q')
         self.assertIn(str(self.run) + os.sep, args[args.index('-constraint') + 1])
-        return SimpleNamespace(stdout='[]', returncode=0)
+        return SimpleNamespace(stdout='[]', stderr='', returncode=0)
 
     def validate(self, **kwargs):
         return cleanup.validate(self.run, self.out, self.home, 'user',
@@ -104,7 +104,7 @@ class PruneTests(unittest.TestCase):
 
     def test_fail_closed_for_active_jobs(self):
         with self.assertRaisesRegex(cleanup.CleanupRefused, 'still active'):
-            self.validate(runner=lambda *_, **__: SimpleNamespace(stdout='[{"ClusterId":123}]'))
+            self.validate(runner=lambda *_, **__: SimpleNamespace(stdout='[{"ClusterId":123}]', stderr='', returncode=0))
         self.assertTrue(self.run.exists())
 
     def test_fail_closed_for_incomplete_accounting(self):
