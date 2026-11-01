@@ -152,7 +152,19 @@ transform or Pythia8 FxFx shower. Verify no MINT jobs, no duplicate
 submissions, nonzero events and the final LHE structural integrity;
 never claim success based only on an exit code.
 
-**Status: NOT RUN YET.**
+**Observed attempt 2026-11-01: FAILED before worker submission.**
+27/27 tests passed, SHA256 v3 pin checked, v3 module loaded; native
+`bin/generate_events aMC@NLO --reweightonly --cluster --parton --force --name=run_02`
+immediately reported `KeyError: 'mgshowercard'` before
+`Starting run`/`Doing reweight`. No `Events/run_02` exists.
+Crucially, `bin/generate_events` returned exit code **0 even after
+reporting this fatal error**; the wrapper printed a false
+`REWEIGHT_ONLY_COMMAND_EXIT_0`. Never accept subprocess status alone:
+require expected MadGraph stage markers, absence of an interrupted-command
+error, and structural checks on the actual output. The cause of the
+missing `mgshowercard` must be determined from
+`run_02_tag_1_debug.log` before another test. This is not evidence
+that the Condor v3 patch failed, as the run never submitted jobs.
 
 
 ## Exact source and runtime contract
