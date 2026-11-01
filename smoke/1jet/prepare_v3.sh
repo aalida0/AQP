@@ -70,6 +70,8 @@ mkdir -p "$RUN/guard"
 export AQP_CLUSTER_CANDIDATE="$(readlink -f "$CANDIDATE")"
 export AQP_CONDOR_GUARD_DIR="$RUN/guard"
 export AQP_MG_ROOT="$(readlink -f "$MG_ROOT")"
+export AQP_SMOKE_JO="$BASE/JO_v3_norw/mc.MGPy8EG_Zll_FxFx_1jets_AQPsmoke.py"
+[[ -f "$AQP_SMOKE_JO" ]] || { echo "Missing v3 smoke JobOption" >&2; exit 2; }
 export PYTHONPATH="$BASE/bootstrap_v3:$AQP_MG_ROOT:${PYTHONPATH:-}"
 
 cd "$RUN"
@@ -103,19 +105,35 @@ assert original == expected, 'Wrong MadGraph installation imported'
 assert all(hasattr(cluster, n) for n in ('_aqp_claim','_aqp_states','_aqp_output_contract')), 'V3 patched backend not loaded'
 print('PRECHECK_PATCH_ACTIVE PASS')
 
-# Match the previously working central-PDF fragment and verify no
-# reweighting/systematics will be enabled by the installed ATLAS helper.
-from MadGraphControl.MadGraphSystematicsUtils import get_pdf_and_systematic_settings
-_pdf = dict(central_pdf=325100, pdf_variations=[],
-            alternative_pdfs=[], scale_variations=[])
-expected = get_pdf_and_systematic_settings(_pdf, True)
-assert str(expected['lhaid']) == '325100', expected
-assert expected['pdlabel'] == 'lhapdf', expected
-assert expected['systematics_program'] == 'none', expected
-assert str(expected['reweight_PDF']).lower() == 'false', expected
-assert str(expected['reweight_scale']).lower() == 'false', expected
-assert str(expected.get('store_rwgt_info', 'False')).lower() == 'false', expected
-print('PRECHECK_NORW_PDF_SETUP_PASS', expected['lhaid'])
+# Check JO settings without importing ATLAS systematics internals.
+# A direct standalone import of MadGraphSystematicsUtils is circular in 23.6.63.
+import ast
+from pathlib import Path
+jo = Path(os.environ['AQP_SMOKE_JO'])
+tree = ast.parse(jo.read_text())
+pdf_assigns = [n for n in tree.body if isinstance(n, ast.Assign) and
+               any(isinstance(t, ast.Attribute) and
+                   t.attr == 'MADGRAPH_PDFSETTING' for t in n.targets)]
+assert len(pdf_assigns) == 2, 'Expected PDF fragment and arrangement-only reset'
+assert ast.literal_eval(pdf_assigns[0].value) == {
+    'central_pdf': 325100, 'pdf_variations': [],
+    'alternative_pdfs': [], 'scale_variations': []}
+assert ast.literal_eval(pdf_assigns[1].value) is None
+settings_nodes = [n for n in tree.body if isinstance(n, ast.Assign) and
+                  any(isinstance(t, ast.Name) and t.id == 'settings'
+                      for t in n.targets)]
+assert len(settings_nodes) == 1 and isinstance(settings_nodes[0].value, ast.Dict)
+settings = {ast.literal_eval(k): ast.literal_eval(v)
+            for k, v in zip(settings_nodes[0].value.keys,
+                            settings_nodes[0].value.values)
+            if isinstance(k, ast.Constant) and k.value in (
+                'reweight_scale', 'reweight_pdf', 'store_rwgt_info',
+                'systematics_program', 'lhaid')}
+assert settings == {
+    'reweight_scale': False, 'reweight_pdf': False,
+    'store_rwgt_info': False, 'systematics_program': 'none',
+    'lhaid': 325100}, settings
+print('PRECHECK_NORW_STATIC_CONFIG_PASS 325100')
 PY2
 
 
