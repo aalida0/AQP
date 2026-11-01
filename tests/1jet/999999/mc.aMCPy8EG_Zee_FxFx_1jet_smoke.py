@@ -21,6 +21,14 @@ FOLDING = "1, 1, 1"
 REQUIRED_ACCURACY = 0.1
 GRIDPACK_MODE = not is_gen_from_gridpack()
 
+# Optional controlled recompile of the *extracted copy* of an NLO gridpack.
+# MadGraphControl otherwise invokes generate_events with --nocompile.
+# This has no effect on gridpack creation/integration.
+recompile_setting = os.environ.get("GRIDPACK_RECOMPILE", "0")
+if recompile_setting not in ("0", "1"):
+    raise RuntimeError("GRIDPACK_RECOMPILE must be 0 or 1")
+RECOMPILE_GRIDPACK = (recompile_setting == "1") and not GRIDPACK_MODE
+
 # PMG-approved Zee FxFx scale/PDF weight recipe.
 # Set in the legacy MadGraphUtils/MGC modules before constructing MGControl.
 # AthGeneration/23.6.63 does NOT support MGControl(pdf_setting=...).
@@ -106,7 +114,8 @@ config_settings = (
 modify_config_card(process_dir=process_dir, settings=config_settings)
 
 generate(process_dir=process_dir, runArgs=runArgs,
-         required_accuracy=REQUIRED_ACCURACY, grid_pack=GRIDPACK_MODE)
+         required_accuracy=REQUIRED_ACCURACY, grid_pack=GRIDPACK_MODE,
+         gridpack_compile=RECOMPILE_GRIDPACK)
 
 if not GRIDPACK_MODE:
     arrange_output(process_dir=process_dir, runArgs=runArgs,
