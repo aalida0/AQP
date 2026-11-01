@@ -105,6 +105,7 @@ config_settings = {
     "run_mode": 1,
     "nb_core": 1,
     "cluster_type": "condor",
+    "cluster_nb_retry": 0,
     "cluster_size": 100,
 }
 
