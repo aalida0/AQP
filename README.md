@@ -119,3 +119,23 @@ proof that the requested scale-weight exclusion is applied.**
 Check full header groups, event-level weights and final EVNT weight
 names before PMG approval. No changes to the physics JO have been
 made based on this observation.
+
+### Verify LHE systematic weights event by event (no generation)
+
+The header for the 1000-EVNT smoke run contains exactly 163 declared
+weights (8 noncentral scale, 101 NNPDF3.1, 43 PDF4LHC21, 11 alternative
+PDF central members). The 7-point scale-envelope exclusions were
+requested but the two anti-correlated weights remain in the LHE header.
+
+Run the read-only checker:
+
+    python3 -m unittest discover -s tests -p 'test_zee*py' -v
+    python3 scripts/audit_zee1jet_weight_inventory.py \
+      ~/gridpack-validation/zee1jet.cC7MYdWf/events.lhe \
+      --max-events 10
+
+The checker verifies header IDs, PDF families, presence of the two
+anti-correlated scales, and finite per-event variation values for the
+first ten LHE events. It does **not** validate EVNT weight-name mapping,
+prove that the seven-point envelope was applied, or determine matching
+efficiency. There is no modification of the JO or gridpack.
