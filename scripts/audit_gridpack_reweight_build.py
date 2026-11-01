@@ -84,25 +84,63 @@ def main():
                 print("  FILE", p.name, "BYTES", p.stat().st_size,
                       "MTIME_NS", p.stat().st_mtime_ns)
 
-    # A compiled binary *may* contain the literal marker; its presence
-    # is informative, but its absence alone does not prove a code defect.
-    print("\n===== COMPILED WORKER CODE MARKER CHECK =====")
-    found = []
+    print("\n===== WORKER LAUNCHERS AND COMPILED PROGRAMS =====")
     proc = gf.parent if gf.is_dir() else sub
-    for p in [gf / "ajob1", proc / "ajob1", proc / "madevent",
-              gf / "madevent", gf / "driver", proc / "driver"]:
-        if p.is_file() and p.stat().st_size > 0:
-            found.append(p)
-            with p.open("rb") as stream:
-                # Limit read to avoid loading unusually large binaries.
-                data = stream.read(100 * 1024 * 1024)
-            print("BINARY", p.relative_to(run), "SIZE", p.stat().st_size,
-                  "HAS_AMCATNLO_LITERAL", b"#aMCatNLO" in data,
-                  "HAS_WRITE_EVENTS_LITERAL", b"write_events_lhe" in data)
-    if not found:
-        print("NO_FOCUSED_WORKER_EXECUTABLE_FOUND")
-    print("\nAUDIT_COMPLETE. Source declarations and the effective run card must")
-    print("be reconciled before rebuilding workers or changing gridpack provenance.")
+    for p in (proc / "ajob1", gf / "ajob1"):
+        if not p.is_file():
+            continue
+        print("LAUNCHER", p.relative_to(run), "SIZE", p.stat().st_size)
+        for n, line in enumerate(p.read_text(errors="replace").splitlines(), 1):
+            # No secrets, no arbitrary commands executed: show only
+            # lines indicating which generator binary the worker invokes.
+            if re.search(r"madevent|mintMC|driver|compile|run_card|event|\.exe|\.x", line, re.I):
+                print(f"  L{n}:", line[:240])
+                if n > 220:
+                    break
+
+    program_candidates = []
+    for directory in (proc, gf, sub):
+        if not directory.is_dir():
+            continue
+        for candidate in directory.iterdir():
+            if candidate.is_file() and candidate.stat().st_size > 0:
+                if candidate.name in ("madevent", "madevent_mintMC", "driver",
+                                      "ajob1", "reweight_xsec_events") or (
+                        candidate.stat().st_mode & 0o111 and
+                        any(token in candidate.name.lower()
+                            for token in ("madevent", "mint", "driver"))):
+                    program_candidates.append(candidate)
+    seen = set()
+    elf_files = []
+    for p in program_candidates:
+        if p in seen:
+            continue
+        seen.add(p)
+        with p.open("rb") as stream:
+            magic = stream.read(4)
+        if magic != b"\\x7fELF":
+            print("NOT_ELF", p.relative_to(run), "BYTES", p.stat().st_size)
+            continue
+        elf_files.append(p)
+        with p.open("rb") as stream:
+            data = stream.read(80 * 1024 * 1024)
+        print("ELF", p.relative_to(run), "BYTES", p.stat().st_size,
+              "HAS_AMCATNLO_LITERAL", b"#aMCatNLO" in data,
+              "HAS_WRITE_EVENTS_LITERAL", b"write_events_lhe" in data)
+    print("ELF_PROGRAMS_FOUND", len(elf_files))
+
+    log = gf / "log_MINT2.txt"
+    print("\n===== EVENT GENERATION WORKER LOG =====")
+    if log.is_file():
+        patterns = [re.compile(pattern, re.I)
+                    for pattern in ("imode", "event", "write", "reweight",
+                                    "warning", "error", "run card")]
+        show_lines(log, patterns, 55)
+    else:
+        print("WORKER_LOG_MISSING", log)
+
+    print("\nAUDIT_COMPLETE. The launcher, ELF files and worker log must")
+    print("be reconciled with the source before rebuilding anything.")
 
 
 if __name__ == "__main__":
