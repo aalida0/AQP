@@ -1,11 +1,14 @@
-# Zee NLO FxFx
+# Zee FxFx
 
-`standard111/100000/` and
-`event_generation/grid_submit_standard111/100000/` are **historical
-reference JOs** from the user's working configuration, with the upstream
-FxFx PR #426 patch staged next to the gridpack JO. They are not new
-validated production samples: the exact Zee HT2 Fortran files must be
-supplied and reweighting on the Grid has yet to be configured and tested.
+The unified standard111 Zee JobOption is in
+`standard111/100000/` with its `dummy_fct.f` HT2 bias,
+`montecarlocounter_MINE.f` and FxFx exclusive-kT patch.
 
-Further configurations: delta111, delta221, delta441, each with its
-own DSID directory and local patch files.
+The single JO uses `GRIDPACK_MODE = not is_gen_from_gridpack()`.
+Condor gridpack creation uses central PDF only; event generation from
+the same gridpack uses PDF/scale reweighting and Pythia8 FxFx.
+
+**Status:** scaffold adapted from the user's older two JOs and source
+files. The combined modes, patched Condor backend, upstream FxFx cut
+fix, Grid reweighting and real shower still need end-to-end testing.
+Further configurations: delta111, delta221 and delta441.

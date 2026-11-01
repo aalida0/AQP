@@ -1,22 +1,26 @@
-# Files needed before running this sample
+# Zee standard111 source inventory
 
-This JO calls `get_files -data` for these **process-local original files**:
+All three source files requested by the JO are now **colocated here**:
 
-- `dummy_fct.f` — the validated **Zee HT2-bias** Fortran implementation.
-- `montecarlocounter_MINE.f` — the user's version-pinned source
-  replacement installed as `SubProcesses/montecarlocounter.f`.
-- `fxfx_exclusive_kt.patch` — included in this directory; upstream
-  MadGraph5_aMC PR #426. Patch needs `patch --dry-run` and
-  appropriate release validation.
+- `dummy_fct.f`: the **uploaded** 94-line file
+  `dummy_fct(4).f`, SHA-256
+  `76f47c8fdfacd7d2136f13e5261765ab27aae21752448cae0cb4d05120e9fc08`.
+  Its active bias function returns `H_T**2`; with `event_norm=bias`,
+  retain weights for analysis.
+- `montecarlocounter_MINE.f`: the **uploaded** 5487-line file
+  `montecarlocounter_MINE(1).f`, SHA-256
+  `fee80cac03c15fc5e7b85c791dbb4f7b284fb004faec47b2e3c6a33c9a861f0a`.
+  Contains a Sudakov tolerance check at 100 machine epsilons.
+- `fxfx_exclusive_kt.patch`: upstream MG5_aMC PR #426; replaces the
+  inclusive jet-counting FxFx criterion with an exclusive-kT criterion.
+  It is applied to the generated `SubProcesses/cuts.f` with a
+  strict dry run before compilation.
 
-The original two `.f` files are not available in this conversation's
-mounted sources, and therefore **are intentionally NOT replaced** with
-generic or unrelated files. In particular, the currently mounted
-`dummy_fct.f` contains diphoton logic and an inactive HT2 example;
-it is NOT an established Zee HT2 source.
+Gridpack mode needs the **separately bootstrapped, source-pinned
+Condor backend**. That backend is not patched inside the JO after
+MadGraph has been imported.
 
-Gridpack JO requires the pre-import Condor backend source patch
-and safe, isolated guard directory. It must be tested with the matching
-AthGeneration/MG5 versions. The new FxFx PR #426 patch deliberately
-changes the generated jet acceptance relative to historical results:
-perform an explicit before/after validation before physics use.
+Physics/PMG release requires a live gridpack → Grid event generation
+→ Pythia8 validation (including named PDF/scale weights, matching
+efficiency, bias and normalization). The example DSID 100000
+is illustrative.

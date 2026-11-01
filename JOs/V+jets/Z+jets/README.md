@@ -1,6 +1,7 @@
-# Z+jets samples
+# Z+jets
 
-Store Zee sample JOs under `Z(ee)/<configuration>/<DSID>/` and the
-matching Grid-generation JOs under
-`Z(ee)/event_generation/grid_submit_<configuration>/<DSID>/`.
-All required `.f` or `.patch` files belong next to their own JO.
+Keep one complete JO per physics configuration and DSID in
+`Z(ee)/<configuration>/<DSID>/`. That same JO is used on the AF
+to build the Condor gridpack and on the ATLAS Grid to produce
+events using that gridpack. Source patches and auxiliary `.f`
+files belong alongside each JO.

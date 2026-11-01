@@ -1,5 +1,10 @@
 # Wenu FxFx
 
-The prior Wenu Delta441 scaffold has been moved to
-`delta441/200003/` to match the process/configuration/DSID structure.
-That illustrative DSID and JO template are not production validated.
+Each process/configuration/DSID has one JO that handles both
+gridpack building and event generation using the supplied gridpack.
+The Delta441 example remains a non-production template at
+`delta441/200003/` until its missing Delta tolerance patch and
+backend conditions have been validated.
+
+The corresponding Grid submission workflow lives at top-level
+`grid/event_generation/`; no duplicate JO is needed.
