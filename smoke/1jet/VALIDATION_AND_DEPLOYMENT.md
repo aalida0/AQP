@@ -101,11 +101,12 @@ python3 -m py_compile smoke/1jet/replay_reweight_completion.py
 python3 smoke/1jet/replay_reweight_completion.py
 ```
 
-**Accept only** `REWEIGHT_REPLAY_PASS 16 workers`. This would
-demonstrate replay of successful reweight output contracts against
-archived HTCondor history, **not** successful LHE assembly, showering or
-a production end-to-end run. Do not launch a new integration to obtain
-this proof.
+**Observed PASS (2026-11-01):** `ZERO_BYTE_SCALE_PDF_SUMMARIES 16`,
+`V3_CONTROL_STATE (0, 0, 16, 0)`, and `REWEIGHT_REPLAY_PASS 16 workers`.
+This validates source-pinned v3 reweight completion bookkeeping for all
+16 archived jobs, **not** successful LHE assembly, showering, or a production
+end-to-end run. Unit-test outcome must be separately confirmed; none was
+included with the replay output. Do not repeat integration to obtain this proof.
 
 
 ## Exact source and runtime contract
