@@ -77,8 +77,10 @@ class SummaryTests(unittest.TestCase):
                 "Checking whether the following expected weights are in LHE file: "
                 "MUR1.0_MUF1.0_PDF325100\n")
             (run / "zee1jet.EVNT.pool.root").write_bytes(b"nonempty")
+            (run / "evnt_count_verified.txt").write_text("2\n")
             summary = summarize(run)
             self.assertTrue(summary["transform_exit_zero"])
+            self.assertEqual(summary["evnt_count_confirmed_in_validation_wrapper"], 2)
             self.assertTrue(summary["arrange_output_central_pmg_weight_check_passed"])
             self.assertIsNone(summary["post_fxfx_negative_weight_fraction"])
             self.assertEqual(summary["lhe_pre_fxfx"]["lhe_events"], 4)
