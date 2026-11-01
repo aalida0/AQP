@@ -114,6 +114,60 @@ def parse_shower_counters(log):
     }, evidence[-40:]
 
 
+
+def parse_evnt_weight_metadata(log):
+    """Compute post-shower signed-weight dilution from ATLAS MetaData lines.
+
+    sumOfNegWeights is printed as a positive absolute weight sum.
+    Never infer FxFx matching efficiency from these sums.
+    """
+    wanted = (
+        "sumOfPosWeights", "sumOfNegWeights",
+        "sumOfPosWeightsNoFilter", "sumOfNegWeightsNoFilter"
+    )
+    found = {name: [] for name in wanted}
+    for line in log.splitlines():
+        match = re.search(
+            r"\bMetaData:\s*(sumOf(?:Pos|Neg)Weights(?:NoFilter)?)\s*=\s*"
+            r"([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eEdD][+-]?\d+)?)",
+            line,
+        )
+        if match and match.group(1) in found:
+            found[match.group(1)].append(
+                float(match.group(2).replace("D", "E").replace("d", "e"))
+            )
+    values = {name: measurements[-1] if len(measurements) == 1 else None
+              for name, measurements in found.items()}
+    pos = values["sumOfPosWeights"]
+    neg = values["sumOfNegWeights"]
+    result = {
+        "metadata_weight_sums": values,
+        "metadata_occurrences": {k: len(v) for k, v in found.items()},
+        "weighted_post_fxfx_negative_fraction": None,
+        "weighted_post_fxfx_dilution": None,
+        "generator_filter_weight_sums_equal": None,
+        "metadata_status": "UNKNOWN: incomplete or duplicated ATLAS weight-sum records",
+    }
+    if (pos is not None and neg is not None and
+            pos >= 0 and neg >= 0 and pos + neg > 0):
+        f = neg / (pos + neg)
+        result["weighted_post_fxfx_negative_fraction"] = f
+        result["weighted_post_fxfx_dilution"] = (
+            1.0 / (1 - 2*f)**2 if abs(1 - 2*f) > 1e-12 else None
+        )
+        result["metadata_status"] = (
+            "Measured from signed nominal weight sums after shower/event selection"
+        )
+    pn = values["sumOfPosWeightsNoFilter"]
+    nn = values["sumOfNegWeightsNoFilter"]
+    if None not in (pos, neg, pn, nn):
+        result["generator_filter_weight_sums_equal"] = (
+            abs(pos - pn) <= 1e-5 * max(abs(pos), abs(pn), 1)
+            and abs(neg - nn) <= 1e-5 * max(abs(neg), abs(nn), 1)
+        )
+    return result
+
+
 def summarize(run):
     parameters = read_parameters(run / "validation_parameters.txt")
     main_log_path = run / "generation_shower.log"
@@ -121,6 +175,7 @@ def summarize(run):
     evnt = run / "zee1jet.EVNT.pool.root"
     lhe = find_lhe(run)
     pythia, evidence = parse_shower_counters(log)
+    post = parse_evnt_weight_metadata(log)
     transform_ok = parameters.get("transform_exit") == "0"
     verified_path = run / "evnt_count_verified.txt"
     verified_count = None
@@ -143,9 +198,13 @@ def summarize(run):
             "Did not find expected weight" not in log,
         "lhe_file": str(lhe) if lhe else None,
         "lhe_pre_fxfx": inspect_lhe(lhe) if lhe else None,
-        "post_fxfx_negative_weight_fraction": None,
+        "post_fxfx_negative_weight_fraction":
+            post["weighted_post_fxfx_negative_fraction"],
+        "post_fxfx_weighted_dilution":
+            post["weighted_post_fxfx_dilution"],
         "post_fxfx_negative_weight_fraction_status":
-            "UNKNOWN: requires accepted EVNT nominal weight sums; LHE is pre-veto",
+            post["metadata_status"],
+        "evnt_metadata_weight_summary": post,
         "pythia8_counters": pythia,
         "pythia8_statistic_evidence_lines": evidence,
     }
