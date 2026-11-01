@@ -65,6 +65,43 @@ class PruneTests(unittest.TestCase):
         self.assertEqual((out / 'provenance' / 'jo' / '999999' / 'jo.py').read_text(), 'example jo')
         self.assertTrue((out / 'provenance' / 'cleanup_manifest.json').is_file())
 
+    def test_empty_json_and_empty_id_query_is_safe(self):
+        calls = []
+        def runner(args, **kwargs):
+            calls.append(args)
+            return SimpleNamespace(stdout='', stderr='', returncode=0)
+        self.validate(runner=runner)
+        self.assertEqual(len(calls), 2)
+        self.assertIn('-json', calls[0])
+        self.assertIn('-af', calls[1])
+        self.assertTrue(self.run.exists())
+
+    def test_empty_json_but_matching_id_refuses(self):
+        calls = []
+        def runner(args, **kwargs):
+            calls.append(args)
+            return SimpleNamespace(
+                stdout='' if '-json' in args else '123 0\n',
+                stderr='', returncode=0)
+        with self.assertRaisesRegex(cleanup.CleanupRefused, 'Matching Condor jobs'):
+            self.validate(runner=runner)
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(self.run.exists())
+
+    def test_empty_json_with_query_error_refuses(self):
+        def runner(args, **kwargs):
+            return SimpleNamespace(stdout='', stderr='HTCondor failed', returncode=0)
+        with self.assertRaisesRegex(cleanup.CleanupRefused, 'emitted stderr'):
+            self.validate(runner=runner)
+        self.assertTrue(self.run.exists())
+
+    def test_malformed_nonempty_json_refuses(self):
+        def runner(args, **kwargs):
+            return SimpleNamespace(stdout='{invalid', stderr='', returncode=0)
+        with self.assertRaises(json.JSONDecodeError):
+            self.validate(runner=runner)
+        self.assertTrue(self.run.exists())
+
     def test_fail_closed_for_active_jobs(self):
         with self.assertRaisesRegex(cleanup.CleanupRefused, 'still active'):
             self.validate(runner=lambda *_, **__: SimpleNamespace(stdout='[{"ClusterId":123}]'))
