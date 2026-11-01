@@ -74,10 +74,14 @@ class SummaryTests(unittest.TestCase):
             "generate MetaData: sumOfPosWeightsNoFilter = 4.847110e+06\n"
             "generate MetaData: sumOfNegWeightsNoFilter = 9.927816e+05\n"
         )
+        expected_fraction = 992781.6 / (4847110.0 + 992781.6)
+        expected_dilution = 1.0 / (1.0 - 2.0 * expected_fraction)**2
         self.assertAlmostEqual(
-            report["weighted_post_fxfx_negative_fraction"], 0.17)
+            report["weighted_post_fxfx_negative_fraction"],
+            expected_fraction, places=12)
         self.assertAlmostEqual(
-            report["weighted_post_fxfx_dilution"], 1 / 0.66**2)
+            report["weighted_post_fxfx_dilution"],
+            expected_dilution, places=12)
         self.assertTrue(report["generator_filter_weight_sums_equal"])
 
     def test_evnt_metadata_missing_is_unknown(self):
