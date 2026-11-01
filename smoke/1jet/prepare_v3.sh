@@ -102,6 +102,15 @@ print('PRECHECK_ORIGINAL_CLUSTER_PATH', original)
 assert original == expected, 'Wrong MadGraph installation imported'
 assert all(hasattr(cluster, n) for n in ('_aqp_claim','_aqp_states','_aqp_output_contract')), 'V3 patched backend not loaded'
 print('PRECHECK_PATCH_ACTIVE PASS')
+
+# Validate the 23.6.63 PDF setup against the installed ATLAS helper before
+# running expensive MINT jobs. Using {} here fails: missing central_pdf.
+from MadGraphControl.MadGraphUtils import setup_pdf_and_systematic_weights
+_pdf = dict(pdlabel='lhapdf', lhaid=325100, reweight_scale=False,
+            reweight_pdf=False, store_rwgt_info=False,
+            systematics_program='none')
+setup_pdf_and_systematic_weights(None, _pdf, True)
+print('PRECHECK_NORW_PDF_SETUP_PASS')
 PY2
 
 
