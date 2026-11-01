@@ -276,14 +276,30 @@ This sets `MADGRAPH_PDFSETTING={}`; retains the nominal LHAPDF
 `systematics_program=none`. It restores the **original four-argument**
 `arrange_output` call supported by Athena 23.6.63.
 
+**Correction from the older working 2-jet gridpack JO:** its
+`MADGRAPH_PDFSETTING` contains `central_pdf=325100` and empty
+`pdf_variations`, `alternative_pdfs`, and `scale_variations`.
+The prior `MADGRAPH_PDFSETTING=None` recommendation was unnecessary and
+did not follow the established ATLAS pattern. The current no-reweight JO
+now uses the same complete dictionary during `modify_run_card`,
+enforcing the central PDF and no systematic variations. After
+`generate` it sets `MADGRAPH_PDFSETTING=None` **only before
+`arrange_output`**, which prevents the 23.6.63 output helper from
+looking for a nominal *named systematic weight* that was intentionally
+not produced. This does not modify the physical central PDF recorded
+in the LHE or run card. This arrangement-only waiver is for the tiny
+nominal smoke test, not production; it retains the supported
+`arrange_output(..., saveProcDir=True)` signature. The preflight
+calls `get_pdf_and_systematic_settings` on the actual legacy fragment
+and asserts no store/reweight/systematics are enabled.
+
 A clean no-reweight smoke attempt at `MG1jet-v3norw.r1opIU` did
 **not** enter integration: the intentional empty dictionary
 `MADGRAPH_PDFSETTING={}` caused
 `RuntimeError: No "central_pdf" configured in base fragment` from
-`modify_run_card`. The **fix** is
-`MadGraphControl.MadGraphUtils.MADGRAPH_PDFSETTING = None`, not
-`{}`: the 23.6.63 helper accepts the absence of a PDF base fragment
-when `pdlabel='lhapdf'` and `lhaid=325100` are explicitly provided.
+`modify_run_card`. The fix is the older, fully populated central-PDF dictionary
+with empty variation lists, followed by an arrangement-only waiver
+of nonexistent named systematic-weight checks.
 No systematic weights or extra reweight jobs are requested.
 
 The separate `prepare_v3.sh` pins the unchanged v3 Condor patch,
