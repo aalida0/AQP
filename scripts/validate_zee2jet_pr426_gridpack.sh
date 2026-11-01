@@ -4,7 +4,7 @@
 set -euo pipefail
 
 if (( $# < 1 || $# > 4 )); then
-    echo "Usage: bash scripts/validate_zee2jet_gridpack.sh GRIDPACK [maxEvents=100] [seed=34124] [--recompile]" >&2
+    echo "Usage: bash scripts/validate_zee2jet_pr426_gridpack.sh GRIDPACK [maxEvents=100] [seed=34124] [--recompile]" >&2
     exit 2
 fi
 
