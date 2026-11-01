@@ -41,17 +41,28 @@ if [[ "$ACTIVE_ROOT" != "$PINNED_ROOT" || "$ACTIVE_SHA" != "$PINNED_SHA" ]]; the
   exit 2
 fi
 
-# Condor submission and process generation MUST run from /scratch, never /data.
-RUN_BASE=${AQP_SMOKE_RUN_BASE:-"/scratch/$USER/AQP/condor-smoke"}
+# UChicago AF Condor schedd cannot read login03's node-local /scratch.
+# Use /home only for this disposable test (previous live canaries succeeded).
+# Never submit from /data, and never use node-local /scratch as Initialdir.
+RUN_BASE=${AQP_SMOKE_RUN_BASE:-"$HOME/AQP/condor-smoke"}
 case "$RUN_BASE" in
-  /scratch|/scratch/*) ;;
-  *) echo "PRECHECK_BLOCKED: smoke run directory must be under /scratch: $RUN_BASE" >&2; exit 2 ;;
+  "$HOME"|"$HOME"/*) ;;
+  *) echo "PRECHECK_BLOCKED: smoke run directory must be under HOME: $RUN_BASE" >&2; exit 2 ;;
 esac
 mkdir -p "$RUN_BASE"
 RUN_BASE=$(readlink -f "$RUN_BASE")
+HOME_REAL=$(readlink -f "$HOME")
 case "$RUN_BASE" in
-  /data|/data/*) echo "PRECHECK_BLOCKED: resolved smoke run directory is under /data" >&2; exit 2 ;;
+  "$HOME_REAL"|"$HOME_REAL"/*) ;;
+  *) echo "PRECHECK_BLOCKED: resolved run directory escapes HOME: $RUN_BASE" >&2; exit 2 ;;
 esac
+case "$RUN_BASE" in
+  /data|/data/*|/scratch|/scratch/*)
+    echo "PRECHECK_BLOCKED: run directory is not Condor-accessible: $RUN_BASE" >&2; exit 2 ;;
+esac
+echo "PRECHECK_RUN_BASE=$RUN_BASE"
+echo "PRECHECK_HOME_FILESYSTEM=$(df -T "$RUN_BASE" | tail -1)"
+echo "PRECHECK_HOME_FREE=$(df -h "$RUN_BASE" | tail -1)"
 RUN=$(mktemp -d "$RUN_BASE/MG1jet-smoke.XXXXXX")
 mkdir -p "$RUN/guard"
 
