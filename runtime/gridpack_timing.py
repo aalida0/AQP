@@ -220,5 +220,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run", type=Path)
     parser.add_argument("--output", type=Path, default=None)
+    parser.add_argument("--require-complete", action="store_true")
     args = parser.parse_args()
-    report(args.run.resolve(strict=True), args.output or args.run)
+    result = report(args.run.resolve(strict=True), args.output or args.run)
+    if args.require_complete and not result["worker_accounting_complete"]:
+        raise SystemExit(1)
