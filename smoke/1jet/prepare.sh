@@ -105,7 +105,7 @@ PY2
 
 
 # Write a self-contained launcher to avoid copying a huge LCG PYTHONPATH.
-# The launcher remains under /scratch and does not run during preflight.
+# The launcher remains under shared /home and does not run during preflight.
 {
   printf '#!/usr/bin/env bash\nset -euo pipefail\n'
   printf 'cd %q\n' "$RUN"
