@@ -129,7 +129,7 @@ def run(stages):
         os.environ["AQP_CONDOR_GUARD_DIR"] = str(guard)
         # Write a durable marker BEFORE submission; on an ambiguous reply,
         # do not rerun this process or discard the reservation.
-        (stage / "jobid").write_text("SUBMISSION_ATTEMPTED_NO_ACK\\n")
+        (stage / "jobid").write_text("SUBMISSION_ATTEMPTED_NO_ACK\n")
         try:
             job = controller.submit2(
                 str(cwd / "ajob1"), data["args"], cwd=str(cwd),
@@ -144,7 +144,7 @@ def run(stages):
             print("SUBMISSION_UNCERTAIN; inspect existing jobs/guards; DO NOT retry",
                   flush=True)
             raise
-        (stage / "jobid").write_text(job + ".0\\n")
+        (stage / "jobid").write_text(job + ".0\n")
         print("REAL_AJOB1_SUBMITTED", job, "STAGE", stage, flush=True)
     while controller.submitted_ids:
         try:
