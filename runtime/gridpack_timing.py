@@ -13,8 +13,9 @@ from datetime import datetime, timedelta
 STAGES = {"Setting up grids": "grid", "Computing upper envelope": "envelope",
           "Generating events": "generation", "Doing reweight": "reweight"}
 FIELDS = ("ClusterId", "ProcId", "Iwd", "Cmd", "Args", "QDate", "JobStartDate",
-          "CompletionDate", "RemoteUserCpu", "RemoteSysCpu", "RemoteWallClockTime",
-          "NumJobStarts", "JobStatus", "ExitCode", "RequestCpus")
+          "CompletionDate", "RemoteUserCpu", "RemoteSysCpu",
+          "CumulativeRemoteUserCpu", "CumulativeRemoteSysCpu",
+          "RemoteWallClockTime", "NumJobStarts", "JobStatus", "ExitCode", "RequestCpus")
 TIME = re.compile(r"\b(\d\d):(\d\d):(\d\d)\b")
 DONE = re.compile(r"Completed:\s*(\d+)")
 
@@ -90,7 +91,7 @@ def history(run, start_epoch):
         return [], str(exc)
     jobs = []
     for line in proc.stdout.splitlines():
-        cols = line.split("\t")
+        cols = line.strip("\t").split("\t")
         if len(cols) != len(FIELDS):
             return [], "Unexpected condor_history tabular format"
         ad = dict(zip(FIELDS, cols))
@@ -107,12 +108,17 @@ def history(run, start_epoch):
             stage = "reweight"
         else:
             stage = "other"
-        cpu1 = number(ad["RemoteUserCpu"])
-        cpu2 = number(ad["RemoteSysCpu"])
+        starts = number(ad["NumJobStarts"], int)
+        cpu1 = number(ad["CumulativeRemoteUserCpu"])
+        cpu2 = number(ad["CumulativeRemoteSysCpu"])
+        if cpu1 is None or cpu2 is None:
+            # Non-cumulative fields can omit evicted attempts.
+            cpu1 = number(ad["RemoteUserCpu"]) if starts == 1 else None
+            cpu2 = number(ad["RemoteSysCpu"]) if starts == 1 else None
         jobs.append({"job_id": ad["ClusterId"] + "." + ad["ProcId"], "stage": stage,
                      "cpu_seconds": cpu1 + cpu2 if cpu1 is not None and cpu2 is not None else None,
                      "remote_wall_seconds": number(ad["RemoteWallClockTime"]),
-                     "starts": number(ad["NumJobStarts"], int),
+                     "starts": starts,
                      "success": ad["JobStatus"] == "4" and ad["ExitCode"] == "0",
                      "iwd": ad["Iwd"]})
     return jobs, None
@@ -135,7 +141,7 @@ def report(run, out):
         observed = len(group)
         complete = bool(required and observed == required and
                         all(j["success"] and j["cpu_seconds"] is not None and
-                            j["starts"] == 1 for j in group))
+                            j["starts"] is not None for j in group))
         known_cpu = sum(j["cpu_seconds"] for j in group if j["cpu_seconds"] is not None)
         known_wall = sum(j["remote_wall_seconds"] for j in group if j["remote_wall_seconds"] is not None)
         starts = sum(max(0, j["starts"] - 1) for j in group if j["starts"] is not None)
@@ -163,9 +169,9 @@ def report(run, out):
         "remote_cpu_seconds": worker_cpu if worker_complete else None,
         "total_cpu_seconds": cpu + worker_cpu if cpu is not None and worker_complete else None,
         "stages": summary,
-        "notes": ["CPU values are reported by Condor ClassAds, not a sum of worker wall times.",
+        "notes": ["CumulativeRemote*Cpu is preferred to include evicted attempts.",
                   "Restart count is a lower bound from NumJobStarts; eviction timestamps are unavailable.",
-                  "Runs with worker restarts are marked incomplete without per-attempt CPU accounting.",
+                  "Restarted workers without cumulative CPU values are marked incomplete.",
                   "Null CPU totals mean incomplete worker accounting, not zero CPU use."]}
     out.mkdir(parents=True, exist_ok=True)
     (out / "timing_summary.json").write_text(json.dumps(result, indent=2) + "\n")
