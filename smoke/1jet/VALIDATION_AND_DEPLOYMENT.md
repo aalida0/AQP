@@ -1,6 +1,6 @@
 # AQP minimal Condor patch — validated scope and deployment gates
 
-**Status (2026-11-01): one and two real MINT0 workers PASS; full FxFx production NOT approved.**
+**Status (2026-11-01): full MINT0/MINT1/event-generation stage workers PASS, post-reweight finalization FAILED; full FxFx production NOT approved.**
 
 This document applies to the `aalida0/AQP` **experimental** smoke-test branch.
 The frozen, two-file patch and tests live separately in
@@ -18,14 +18,34 @@ Do not merge the smoke-test helpers or generated process files into `main`.
 | Successful job with missing output | HTCondor 4062221.0: rejected, guard retained |
 | Real FxFx 1-jet `ajob1` MINT0 | HTCondor 4062514.0 PASS; `GF1.0/log_MINT0.txt` and `GF1.0/results.dat` verified |
 | Two real MINT0 jobs through one controller | HTCondor 4062520.0 and 4062521.0 PASS; controller (2,0,0,0) TRACKED 2 -> (0,0,2,0) TRACKED 0; `TWO_REAL_AJOB1_PASS` |
-| Real MINT0->MINT1->MINT2 stage transitions | NOT TESTED |
-| Full FxFx NLO integration and event generation | NOT TESTED |
+| Real MINT0->MINT1->MINT2 stage transitions | 56+56+16 workers completed; transitions observed in 2026-11-01 end-to-end attempt |
+| Complete Gen_tf FxFx test including postprocessing | **FAILED**: reweight worker Condor history status=4 exit=0 and .rwgt files present, but Gen_tf exited 65, with no final LHE archive; underlying MadGraph exception not yet extracted |
 
 A separate 56-job attempt (4062447–4062502) was accepted by HTCondor but
 all jobs held with `HoldReasonCode=14, SubCode=2` because their `Initialdir`
 was under **node-local `login03:/scratch`**, inaccessible to scheduler
 `head04`. They were later removed with `condor_rm`; those holds do not
 demonstrate integration correctness.
+
+## End-to-end attempt (2026-11-01): finalization failure, root cause pending
+
+Isolated `/home/aalida/AQP/condor-smoke/MG1jet-smoke.sviBub` run:
+MINT0 56/56 (3m04s), upper envelope MINT1 56/56 (2m36s),
+MINT2 event generation 16/16 (49s). Total **128 integration/event
+workers**. MadGraph then printed `Doing reweight` and `Start waiting
+for update`. Condor history showed reweight jobs with `JobStatus=4`
+and `ExitCode=0`; inspected subprocesses contained `events.lhe.rwgt`.
+The queue was empty, submission guards numbered 0, but `Gen_tf.py`
+eventually exited **65** with `RuntimeError: Error detected in
+MadGraphControl process`. No `smoke_lhe_events.tar.gz` exists.
+
+**Do not infer the Condor patch is fully validated or that the reweight
+files are correct.** The shared log excerpt contained the *tail* of the
+MadGraph error diagnostics (mostly a run-card parameter dump), not
+the underlying exception. Extract the **first** MadGraph exception
+from `generation.log` or
+`PROCNLO_loop_sm-no_b_mass_0/run_01_tag_1_debug.log` before patching or
+rerunning. Do not erase the run or reuse its submission guards.
 
 ## Exact source and runtime contract
 
@@ -126,8 +146,9 @@ Use the saved job IDs and `condor_q`/`condor_history` to reconcile.
 
 ## Deployment decision
 
-The pilot verifies concurrent MINT0 handling, **not** a production-ready
-full FxFx run. MINT0->MINT1->event-generation stage transitions and production
-filesystem/quota handling remain unvalidated. Freeze source hashes and use
+The two-worker pilot establishes concurrent MINT0 handling. A separate full
+run subsequently demonstrated MINT0->MINT1->event-generation transitions,
+but **failed during post-generation finalization**. Final-stage failure diagnosis
+and production filesystem/quota handling remain open. Freeze source hashes and use
 a new isolated pilot process for any later full-workflow testing; never
 retrofit the candidate into existing integration/gridpack directories.
