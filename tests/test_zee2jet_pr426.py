@@ -68,11 +68,29 @@ class PR426Zee2JetTests(unittest.TestCase):
     def test_only_intentional_standard_vs_delta_differences(self):
         standard = JOS["standard111"].read_text()
         delta = JOS["delta111"].read_text()
-        normalized_delta = delta.replace(
+        # Only the matching mode, description and required Pythia8
+        # compile dependency may differ. The Sudakov calculation in
+        # MC@NLO-Delta needs Pythia8 even during noshower integration.
+        start = "# MC@NLO-Delta needs Pythia8 compiled into the MadGraph"
+        end = "modify_config_card(process_dir=process_dir, settings=config_settings)"
+        self.assertIn(start, delta)
+        delta_without_pythia_setup = delta[:delta.index(start)] + delta[
+            delta.index(end, delta.index(start)):
+        ]
+        normalized_delta = delta_without_pythia_setup.replace(
             "USE_DELTA = True", "USE_DELTA = False"
         ).replace("PR426 delta111 accuracy0p5 smoke",
                   "PR426 standard111 accuracy0p5 smoke")
         self.assertEqual(standard, normalized_delta)
+
+    def test_delta_requires_real_pythia8_static_library(self):
+        standard = JOS["standard111"].read_text()
+        delta = JOS["delta111"].read_text()
+        self.assertIn('pythia8_path = os.environ.get("PY8PATH")', delta)
+        self.assertIn('os.path.join(pythia8_path, "lib", "libpythia8.a")', delta)
+        self.assertIn('config_settings["pythia8_path"] = pythia8_path', delta)
+        self.assertIn('MCATNLO_DELTA_PYTHIA8_PATH', delta)
+        self.assertNotIn('config_settings["pythia8_path"]', standard)
 
     def test_patch_applied_before_integration(self):
         for config, jo in JOS.items():
