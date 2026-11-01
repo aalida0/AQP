@@ -1,6 +1,6 @@
 # AQP minimal Condor patch — validated scope and deployment gates
 
-**Status (2026-11-01): full MINT0/MINT1/event-generation stage workers PASS, post-reweight finalization FAILED; full FxFx production NOT approved.**
+**Status (2026-11-01): v3 Condor integration, generation, automatic reweighting and LHE collection PASS; 20-event PDF/scale systematics postprocessor FAILED with division by zero. Full Athena transform and production approval remain OPEN.**
 
 This document applies to the `aalida0/AQP` **experimental** smoke-test branch.
 The frozen, two-file patch and tests live separately in
@@ -19,7 +19,7 @@ Do not merge the smoke-test helpers or generated process files into `main`.
 | Real FxFx 1-jet `ajob1` MINT0 | HTCondor 4062514.0 PASS; `GF1.0/log_MINT0.txt` and `GF1.0/results.dat` verified |
 | Two real MINT0 jobs through one controller | HTCondor 4062520.0 and 4062521.0 PASS; controller (2,0,0,0) TRACKED 2 -> (0,0,2,0) TRACKED 0; `TWO_REAL_AJOB1_PASS` |
 | Real MINT0->MINT1->MINT2 stage transitions | 56+56+16 workers completed; transitions observed in 2026-11-01 end-to-end attempt |
-| Complete Gen_tf FxFx test including postprocessing | **FAILED**: reweight worker Condor history status=4 exit=0 and .rwgt files present, but Gen_tf exited 65, with no final LHE archive; underlying MadGraph exception not yet extracted |
+| Complete Gen_tf FxFx test including postprocessing | **NOT YET PASS**: v2 failed on zero-byte summary checks; v3 fixed live 16/16 reweight completion and produced 20-event LHE, but then failed in `systematics.py` on zero-weight-sum percent calculation. |
 
 A separate 56-job attempt (4062447–4062502) was accepted by HTCondor but
 all jobs held with `HoldReasonCode=14, SubCode=2` because their `Initialdir`
