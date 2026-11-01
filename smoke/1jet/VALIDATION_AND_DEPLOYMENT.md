@@ -325,6 +325,46 @@ omits PDF/scale systematic variations. The v3 reweighting completion
 logic was already validated separately with 16/16 real workers; this
 new no-reweight smoke checks integration, LHE arrangement and showering.
 
+
+## 2026-11-01: v3 no-reweight smoke — Condor and ATLAS LHE packaging PASS; Pythia segfault
+
+The live `MG1jet-v3norw.ndkEHd` workflow now completes **all 16/16
+Condor event-generation workers**, native `Collecting events`,
+20-event `Events/run_01/events.lhe.gz`, and ATLAS
+`arrange_output()` (explicit `Found all required weights!` and
+`All done with output arranging!` at 08:04:42). A standalone
+`smoke_lhe_events.tar.gz` containing `smoke_lhe_events.events` was
+created. The job-option's `MADGRAPH_PDFSETTING=None` reset, strictly
+after `generate()`, avoided expecting absent named systematic weights
+in this intentionally nominal-only test. No `Doing reweight` or
+`Running Systematics computation` worker stage occurred; the
+`reweight -from_cards` MadGraph command was printed but did not launch
+reweight workers.
+
+After LHE packaging, `Gen_tf.py` initialized Pythia8 8.315 with
+`JetMatchingMadgraph` and the FxFx hook. For LHE-only production,
+Athena subsequently launched **one dummy Pythia event**. During this
+event, Pythia8 crashed with **signal 11** in
+`Pythia8::MultipartonInteractions::pTnext`, called by
+`MultipartonInteractions::pTfirst`, `PartonLevel::next`, and
+`Pythia::next`. The transform reported exit **65** (after a
+signal-related 129 exit). This is downstream of Condor and LHE
+packaging; the C++ segfault cause is **not yet established**.
+The diagnostic also printed
+`PYTHIA Warning in Pythia::init: should not combine softQCD processes with hard ones`;
+do not equate this warning with proven segfault causation.
+
+**Conclusions:** v3 Condor integration/generation/LHE collection are
+validated in the live no-reweight test. Separate earlier live tests
+confirmed 16/16 v3 reweight-worker completion. The full Athena
+transform has NOT passed, and no actual production FxFx shower sample
+is established by the LHE-only dummy-event stage. Do not modify the
+Condor patch or rerun MINT to debug a Pythia-only failure. Verify
+`smoke_lhe_events.tar.gz` with `tar -tzf` and count LHE `<event>`
+entries; isolate the Pythia crash in a separate disposable shower test.
+This 20-event sample is backend-validation evidence, not production
+physics.
+
 ## Exact source and runtime contract
 
 - Use `asetup 23.6.63,AthGeneration` on AF (GCC14 / Python 3.12).
