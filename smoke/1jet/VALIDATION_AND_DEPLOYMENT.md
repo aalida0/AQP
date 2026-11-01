@@ -110,8 +110,7 @@ python3 smoke/1jet/replay_reweight_completion.py
 (`event_norm=average`) succeeded (exit 0). Collector reported
 `found 16 files` and `Final event file (with 20 events) is:
 allevents_0_001`; output size **133153 bytes**. Original process
-left unchanged. Independent LHE event/tag check and complete Athena
-transform/shower remain pending.
+left unchanged. Independent merged-LHE structure **PASS**: 133153 bytes; 20 opening and 20 closing `<event>` tags; valid `<LesHouchesEvents>`, `<init>`, and closing tag. `gzip -t` **PASS** on a separate 21 KB diagnostic `merged_events.lhe.gz`. The automatically executed Athena transform/shower remain **NOT VALIDATED**.
 
 
 **Observed PASS (2026-11-01):** `ZERO_BYTE_SCALE_PDF_SUMMARIES 16`,
