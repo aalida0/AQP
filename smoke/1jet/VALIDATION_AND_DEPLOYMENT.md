@@ -289,9 +289,7 @@ looking for a nominal *named systematic weight* that was intentionally
 not produced. This does not modify the physical central PDF recorded
 in the LHE or run card. This arrangement-only waiver is for the tiny
 nominal smoke test, not production; it retains the supported
-`arrange_output(..., saveProcDir=True)` signature. The preflight
-calls `get_pdf_and_systematic_settings` on the actual legacy fragment
-and asserts no store/reweight/systematics are enabled.
+`arrange_output(..., saveProcDir=True)` signature. The preflight previously imported `MadGraphSystematicsUtils` directly, which raised a circular-import `ImportError` before launch creation in AthGeneration 23.6.63. It now uses Python's standard-library `ast` to inspect the **complete experimental JO** for its pinned central-PDF/empty-variations fragment, output-arrangement reset, and no-reweight settings. This is a **static configuration check**, not a claim that the ATLAS systematics helper has executed. It prints `PRECHECK_NORW_STATIC_CONFIG_PASS 325100`.
 
 A clean no-reweight smoke attempt at `MG1jet-v3norw.r1opIU` did
 **not** enter integration: the intentional empty dictionary
