@@ -2,11 +2,12 @@
 set -euo pipefail
 
 # Run stage: executed by a dedicated tmux server that inherits asetup.
-if [[ "$1" == --run ]]; then
+if [[ "${1:-}" == --run ]]; then
     run=$2
     cd "$run"
     started=$(date +%s)
     printf 'start_epoch=%s\n' "$started" > timing.txt
+    sha256sum "$GP_JO"/mc.*.py > jo.sha256
 
     rc=0
     /usr/bin/time -v -o controller_cpu.txt \
@@ -37,7 +38,7 @@ if [[ "$1" == --run ]]; then
         dest="$GP_OUT/$(basename "$pack")"
         cp "$pack" "$dest.partial" && mv "$dest.partial" "$dest" && rm "$pack" || rc=1
     fi
-    for file in generation.log log.generate controller_cpu.txt timing.txt; do
+    for file in generation.log log.generate controller_cpu.txt timing.txt jo.sha256; do
         [[ ! -f "$file" ]] || cp "$file" "$GP_OUT/"
     done
     printf 'result_exit=%s\n' "$rc" | tee -a timing.txt
@@ -72,7 +73,7 @@ bootstrap="$patchroot/smoke/1jet/bootstrap_v3"
 [[ "$(sha256sum "$candidate" | cut -d' ' -f1)" == ab60358a273531522835cd64c0f76acaca91faed1d426374ae8c04796ca4ef3c ]] || {
     echo "Unexpected Condor candidate hash" >&2; exit 2;
 }
-[[ -n "$MADPATH" && -f "$MADPATH/madgraph/various/cluster.py" ]] || {
+[[ -n "${MADPATH:-}" && -f "$MADPATH/madgraph/various/cluster.py" ]] || {
     echo "Run setupATLAS && asetup 23.6.63,AthGeneration" >&2; exit 2;
 }
 [[ "$(sha256sum "$MADPATH/madgraph/various/cluster.py" | cut -d' ' -f1)" == feb07ff8af81eb5524ee810d6f4976502457fdf45106a9e2702d1ea46b7ef7fe ]] || {
@@ -93,6 +94,8 @@ dsid=$(basename "$jo")
 export GP_JO="$run/jo/$dsid"
 export GP_ECM="${2:-13000}" GP_EVENTS="${3:-2000}" GP_SEED="${4:-12345}"
 export GP_OUT="/data/$USER/gridpacks/$name/$(basename "$run")"
+mkdir -p "$GP_OUT"
+[[ -w "$GP_OUT" ]] || { echo "Cannot write output directory $GP_OUT" >&2; exit 2; }
 export DATAPATH="$GP_JO:${DATAPATH:-}"
 export AQP_CLUSTER_CANDIDATE="$candidate"
 export AQP_CONDOR_GUARD_DIR="$run/guard"
