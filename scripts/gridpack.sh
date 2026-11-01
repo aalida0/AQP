@@ -9,12 +9,13 @@ if [[ "${1:-}" == --run ]]; then
     printf 'start_epoch=%s\n' "$started" > timing.txt
     sha256sum "$GP_JO"/mc.*.py > jo.sha256
 
+    # Controller timing: Bash builtin, no external GNU time dependency.
+    TIMEFORMAT=$'controller_wall_seconds=%R\ncontroller_user_cpu_seconds=%U\ncontroller_system_cpu_seconds=%S'
     rc=0
-    /usr/bin/time -v -o controller_cpu.txt \
-        Gen_tf.py --ecmEnergy="$GP_ECM" --maxEvents="$GP_EVENTS" \
+    { time Gen_tf.py --ecmEnergy="$GP_ECM" --maxEvents="$GP_EVENTS" \
         --firstEvent=1 --randomSeed="$GP_SEED" \
         --outputTXTFile=events.tar.gz --jobConfig="$GP_JO" \
-        > generation.log 2>&1 || rc=$?
+        > generation.log 2>&1; } 2> controller_cpu.txt || rc=$?
 
     ended=$(date +%s)
     printf 'end_epoch=%s\nwall_seconds=%s\ntransform_exit=%s\n' \
@@ -59,7 +60,7 @@ jo=$(cd "$1" && pwd -P)
     echo "Expected a DSID directory under JOs/ or tests/" >&2; exit 2;
 }
 python3 "$repo/scripts/check_sample.py" "$jo" || exit 2
-for cmd in Gen_tf.py condor_submit tmux /usr/bin/time; do
+for cmd in Gen_tf.py condor_submit tmux; do
     command -v "$cmd" >/dev/null 2>&1 || {
         echo "PRECHECK_FAILED: missing $cmd (check AthGeneration setup and installed tools)" >&2
         exit 2
