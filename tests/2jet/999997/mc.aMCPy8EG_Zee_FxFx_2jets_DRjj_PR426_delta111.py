@@ -124,6 +124,26 @@ config_settings = (
     {"run_mode": 1, "cluster_type": "condor", "cluster_nb_retry": 0}
     if GRIDPACK_MODE else {"run_mode": 0, "nb_core": 1}
 )
+# MC@NLO-Delta needs Pythia8 compiled into the MadGraph integration
+# executables (for the Delta/Sudakov terms), even in noshower mode.
+# The standard FxFx job does not need this MG-internal Pythia8 link.
+# Follow the ATLAS Delta JO convention of configuring PY8PATH explicitly.
+if USE_DELTA:
+    pythia8_path = os.environ.get("PY8PATH")
+    if not pythia8_path:
+        raise RuntimeError(
+            "MC@NLO-Delta requires PY8PATH; set up the ATLAS Pythia8 "
+            "environment before launching gridpack integration"
+        )
+    pythia8_path = os.path.realpath(pythia8_path)
+    static_lib = os.path.join(pythia8_path, "lib", "libpythia8.a")
+    if not os.path.isfile(static_lib):
+        raise RuntimeError(
+            "MC@NLO-Delta requires the Pythia8 static library at "
+            + static_lib + "; check PY8PATH in your Athena environment"
+        )
+    config_settings["pythia8_path"] = pythia8_path
+    print("MCATNLO_DELTA_PYTHIA8_PATH", pythia8_path)
 modify_config_card(process_dir=process_dir, settings=config_settings)
 
 generate(process_dir=process_dir, runArgs=runArgs,
