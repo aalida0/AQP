@@ -21,6 +21,26 @@ command -v Gen_tf.py >/dev/null || {
   exit 2
 }
 
+# MGControl invokes $MADPATH/bin/mg5_aMC, not $AQP_MG_ROOT/bin/mg5_aMC.
+# Refuse to run unless the actual generator is the pinned source used by
+# the candidate. In particular, AthGeneration 23.6.68 currently selects
+# atlas15-c33bd, whereas this candidate was made from atlas13-dbd05.
+if [[ -z "${MADPATH:-}" || ! -f "$MADPATH/madgraph/various/cluster.py" ]]; then
+  echo "PRECHECK_BLOCKED: MADPATH is unset or invalid (MADPATH=${MADPATH:-unset})" >&2
+  exit 2
+fi
+ACTIVE_ROOT=$(readlink -f "$MADPATH")
+ACTIVE_SHA=$(sha256sum "$MADPATH/madgraph/various/cluster.py" | awk '{print $1}')
+PINNED_ROOT=$(readlink -f "$MG_ROOT")
+PINNED_SHA=feb07ff8af81eb5524ee810d6f4976502457fdf45106a9e2702d1ea46b7ef7fe
+echo "PRECHECK_MADPATH=$ACTIVE_ROOT"
+echo "PRECHECK_MADPATH_CLUSTER_SHA256=$ACTIVE_SHA"
+if [[ "$ACTIVE_ROOT" != "$PINNED_ROOT" || "$ACTIVE_SHA" != "$PINNED_SHA" ]]; then
+  echo "PRECHECK_BLOCKED: Athena MADPATH does not match the pinned patch source." >&2
+  echo "No jobs submitted. Use a compatible Athena setup or audit and pin the active source." >&2
+  exit 2
+fi
+
 RUN_BASE=${AQP_SMOKE_RUN_BASE:-"/data/$USER/AQP/condor-smoke"}
 mkdir -p "$RUN_BASE"
 RUN=$(mktemp -d "$RUN_BASE/MG1jet-smoke.XXXXXX")
