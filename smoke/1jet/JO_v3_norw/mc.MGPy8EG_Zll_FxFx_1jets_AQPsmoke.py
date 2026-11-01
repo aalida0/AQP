@@ -33,8 +33,10 @@ if not is_gen_from_gridpack():
 else:
     process_dir = str(MADGRAPH_GRIDPACK_LOCATION)
 
-# No ATLAS systematic-weight requests; avoids expecting absent MUR/MUF/PDF weights.
-MadGraphControl.MadGraphUtils.MADGRAPH_PDFSETTING = {}
+# No PDF base fragment: keep the nominal LHAPDF explicitly in the run card.
+# ATLAS 23.6.63 requires 'central_pdf' if this is a dictionary (even {}).
+# None avoids both the empty-dictionary error and expecting absent variation weights.
+MadGraphControl.MadGraphUtils.MADGRAPH_PDFSETTING = None
 
 settings = {
     'maxjetflavor': int(maxjetflavor),
