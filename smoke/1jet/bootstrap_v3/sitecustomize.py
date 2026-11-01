@@ -13,12 +13,16 @@ from importlib.machinery import PathFinder, SourceFileLoader
 # AthGeneration/LCG startup customization before adding our isolated hook;
 # otherwise LCG paths (including six) can disappear from the interpreter.
 _here = os.path.realpath(__file__)
+# Some AF shells already contain the v2 bootstrap in PYTHONPATH.
+# Skip it while locating the actual LCG sitecustomize; v2 refuses v3's hash.
+_legacy_bootstrap = os.path.realpath(os.path.join(
+    os.path.dirname(_here), '..', 'bootstrap', 'sitecustomize.py'))
 for _directory in tuple(sys.path):
     if not _directory:
         continue
     _original = PathFinder.find_spec('sitecustomize', [_directory])
     if (_original is None or _original.origin is None or
-            os.path.realpath(_original.origin) == _here):
+            os.path.realpath(_original.origin) in (_here, _legacy_bootstrap)):
         continue
     _original_module = importlib.util.module_from_spec(_original)
     _original.loader.exec_module(_original_module)
