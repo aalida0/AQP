@@ -167,6 +167,41 @@ missing `mgshowercard` must be determined from
 that the Condor v3 patch failed, as the run never submitted jobs.
 
 
+
+## Clean v3 restart (recommended instead of repairing run_02)
+
+The isolated `--reweightonly` test failed during MadGraph
+`ask_run_configuration` because that path adds only `run_card.dat`
+to the banner and still requests `mgshowercard` for `aMC@NLO`.
+The original JO and regular `Gen_tf.py` path should be used for a
+clean end-to-end validation rather than patching MadGraph's reweight-only
+initialization. The v3 Condor code remains unchanged.
+
+`smoke/1jet/prepare_v3.sh` is the original minimal smoke preflight
+adapted only to the SHA256-pinned v3 candidate, separate
+`bootstrap_v3`, and fresh `MG1jet-v3.XXXXXX` workspace.
+It checks the exact Athena/MG source and creates `launch.sh`
+without submitting any jobs. That launcher invokes the original
+10-event JO `Gen_tf.py`, performs an error-marker scan, and requires
+a valid `smoke_lhe_events.tar.gz` archive to print
+`AQP_V3_GEN_TF_ARCHIVE_PASS`. The legacy v2 preflight and validated
+candidate remain untouched.
+
+```bash
+setupATLAS
+asetup 23.6.63,AthGeneration
+cd ~/AQP/aqp-condor-minimal
+git pull --ff-only origin test/condor-fxfx-1jet-smoke
+bash -n smoke/1jet/prepare_v3.sh
+bash smoke/1jet/prepare_v3.sh  # no jobs submitted
+# Run only the 'bash /home/.../MG1jet-v3.XXXXXX/launch.sh' line printed
+```
+
+Stop on any failure; do not reuse the old `MG1jet-smoke.sviBub` or
+`collect.Dp3LBn` results, submission guards, or jobs. No production
+approval until the automatic end-to-end run succeeds.
+
+
 ## Exact source and runtime contract
 
 - Use `asetup 23.6.63,AthGeneration` on AF (GCC14 / Python 3.12).
