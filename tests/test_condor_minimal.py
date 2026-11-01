@@ -193,13 +193,13 @@ class Tests(unittest.TestCase):
     def test_condor_transferring_output_is_not_a_failure(self):
         self.submit()
         self.scheduler=lambda args,**kw:SimpleNamespace(
-            returncode=0,stderr='',stdout='910001 0 6\\n')
+            returncode=0,stderr='',stdout='910001 0 6\n')
         self.assertEqual(self.c.control('.'),(0,1,0,0))
         self.assertEqual(self.c.control_one_job('910001'),'R')
 
     def test_partial_queue_reply_rechecks_missing_job(self):
         self.submit()
-        self.responses.append((b'1 job(s) submitted to cluster 910002.\\n',0))
+        self.responses.append((b'1 job(s) submitted to cluster 910002.\n',0))
         self.c.submit(str(self.prog), ['2','F','0','1'], str(self.cwd),
                       required_output=['G1/results.dat'])
         queries=[]
@@ -208,9 +208,9 @@ class Tests(unittest.TestCase):
             if args[0]!='condor_q':
                 raise AssertionError('Unexpected history lookup')
             if args[1:3]==['910001','910002']:
-                return SimpleNamespace(returncode=0,stderr='',stdout='910001 0 2\\n')
+                return SimpleNamespace(returncode=0,stderr='',stdout='910001 0 2\n')
             if args[1]=='910002':
-                return SimpleNamespace(returncode=0,stderr='',stdout='910002 0 1\\n')
+                return SimpleNamespace(returncode=0,stderr='',stdout='910002 0 1\n')
             raise AssertionError('Unexpected condor_q query')
         self.scheduler=reply
         self.assertEqual(self.c.control('.'),(1,1,0,0))
@@ -223,7 +223,7 @@ class Tests(unittest.TestCase):
             queries.append(args)
             if args[0]!='condor_q':
                 raise AssertionError('History must not be reached')
-            output='' if len(queries)==1 else '910001 0 2\\n'
+            output='' if len(queries)==1 else '910001 0 2\n'
             return SimpleNamespace(returncode=0,stderr='',stdout=output)
         self.scheduler=reply
         self.assertEqual(self.c.control('.'),(0,1,0,0))
@@ -250,7 +250,7 @@ class Tests(unittest.TestCase):
     def test_unexpected_job_in_aggregate_reply_blocks(self):
         self.submit()
         self.scheduler=lambda args,**kw:SimpleNamespace(
-            returncode=0,stderr='',stdout='910999 0 2\\n')
+            returncode=0,stderr='',stdout='910999 0 2\n')
         with self.assertRaisesRegex(RuntimeError,'Malformed or unexpected'):
             self.c.control('.')
 
