@@ -1,4 +1,4 @@
-# Wenu/200003 — example layout, not a registered DSID
+# Wjets/Wenu/delta441/200003 — example layout, not a registered DSID
 
 Illustrative Wenu FxFx 0,1,2-jet configuration: MC@NLO-Delta with folding 441 and no HT2 bias. **Do not submit**. The source file is named `.py.template` until the configuration and its patches have been validated.
 

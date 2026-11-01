@@ -6,10 +6,20 @@
   "matrix_element": "p p > e+ ve [QCD], with 0,1,2 jets",
   "matching": "FxFx",
   "delta": true,
-  "folding": [4, 4, 1],
+  "folding": [
+    4,
+    4,
+    1
+  ],
   "ht2_bias": false,
-  "gridpack": {"backend": "condor", "pdf_scale_variations": false},
-  "events": {"backend": "grid", "pdf_scale_variations": true},
+  "gridpack": {
+    "backend": "condor",
+    "pdf_scale_variations": false
+  },
+  "events": {
+    "backend": "grid",
+    "pdf_scale_variations": true
+  },
   "patches": {
     "fxfx_pr426": "included_unvalidated_for_this_release",
     "delta_tolerance": "missing",
@@ -17,5 +27,6 @@
   },
   "integration_timing": "not_implemented",
   "event_timing": "not_implemented",
-  "rivet": "not_implemented"
+  "rivet": "not_implemented",
+  "structure": "Wjets/Wenu/delta441/200003"
 }

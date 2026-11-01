@@ -1,37 +1,55 @@
-# AQP
+# AQP — FxFx NLO sample production
 
-Reproducible ATLAS FxFx production layout. Every process/configuration receives **its own complete JobOption** and colocated auxiliary Fortran sources and patches, suitable for independent PMG review.
-
-## Layout
+ATLAS/PMG reviewable JobOptions, source patches, and auxiliary Fortran files
+are organized **by process, configuration, and DSID**, in the same style
+as the original Zee production layout. JOs are normal, complete `mc.*.py`
+files, not wrappers around a private runtime framework.
 
 ```text
-Wenu/
-  200003/                             # Example DSID; not registered/approved
-    mc.aMCPy8EG_Wenu_FxFx_2jets_D441.py.template
-    fxfx_exclusive_kt.patch           # MG5 PR #426 (source version must be verified)
-    PATCHES.md                        # Delta / Condor integration requirements
-    AUXILIARY.md                      # Optional per-process .f sources
-    sample.json
-    README.md
+Zjets/ZEE/standard111/100000/
+  mc.aMCPy8EG_Zee_FxFx_2jets_HT2bias_standard111.py
+  fxfx_exclusive_kt.patch
+  REQUIRED_FILES.md                    # Missing original Zee HT2 files
+Zjets/ZEE/event_generation/grid_submit_standard111/100000/
+  mc.aMCPy8EG_Zee_FxFx_2jets_HT2bias_standard111.py
+Wjets/Wenu/delta441/200003/
+  mc.aMCPy8EG_Wenu_FxFx_2jets_D441.py.template  # Unvalidated scaffold
+  fxfx_exclusive_kt.patch
+VVjets/{WW,WZ,ZZ}/
+ttbarjets/
+grid/{submit,download}/
+runtime/{parsers,reports}/
+rivet/{analyses,plots}/
 scripts/
-  check_sample.py                     # Static check only, no jobs
 ```
 
-The flat directory is intentional: files fetched by `get_files -data <filename>` are adjacent to their JO. The example carries a `.py.template` suffix to **prevent accidental grid submission** before validation and DSID approval.
+The sample IDs 100000 and 200003 are **examples**; do not assume an
+assigned ATLAS DSID. Zee files are adapted from user-provided historical
+JOs and **have not been revalidated** against the current patch stack.
+The sample's `REQUIRED_FILES.md` documents the two absent process-specific
+Fortran sources. Do not copy a generic `dummy_fct.f` as an HT2 bias function.
 
-## Same JO, separate execution stages
+**Gridpack stage:** Condor gridpack integration, central PDF, no PDF/scale
+variations, process-local Fortran patches applied to a fresh MadGraph process
+*before* compilation. Condor backend must be installed via a pinned,
+pre-import AF launcher (not by editing CVMFS from inside the JO).
 
-- **Build gridpack on the AF/Condor**: `is_gen_from_gridpack()` is false; generate the MG5 process, apply source patches in its new process directory *before compilation*, configure central PDF without PDF/scale reweighting, and call `generate(..., grid_pack=True)`. The source-pinned patched Condor backend is activated by the AF launcher **before Python imports MadGraph**, not installed as a late JO action.
-- **Generate events on the ATLAS Grid**: `is_gen_from_gridpack()` is true; use the existing gridpack, enable PMG-approved PDF and scale variations, then shower with Pythia8 FxFx. Do not submit Condor jobs from grid workers.
+**Event generation stage:** separate, readable JO for each process/config,
+ATLAS Grid using its gridpack; full PDF/scale reweighting is a **pending
+implementation/validation**. The Zee event JO records the actual legacy
+`MADGRAPH_PDFSETTING=None` configuration; this must change before claiming
+systematic-weight production. Showering requires a validated Pythia8 FxFx
+chain. The no-reweight Condor smoke completed the LHE workflow, but its
+Athena dummy Pythia event segfault is still unresolved.
 
-A gridpack and its event-generation JO must agree on model/process, merging scale, Delta, folding and bias. Each exact patch/source/version/hash and all results must be recorded. HT2 is **opt-in per process**, never global. The 2026-11-01 Condor/LHE smoke passed; the dummy-event Pythia8 segmentation fault is an independent unresolved issue, so this scaffold is **not production validated**.
+Proposed follow-on tooling lives in `grid/`, `runtime/`, and `rivet/`.
+These directories are planning scaffolds, **not working production scripts**.
+Each sample's exact software versions, patch checksums and run logs should
+be archived for PMG review.
 
-## Future workflow
-
-Planned stages: render/validate JO → Condor gridpack → grid submission → parse integration/generation timing and weight/FxFx efficiency logs → Rivet/YODA → PMG tables. This commit implements the directory **skeleton only**, not job submission, runtime extraction, or Rivet execution.
-
-Run static checks:
+Run static inspection with:
 
 ```bash
-python3 scripts/check_sample.py Wenu/200003
+python3 scripts/check_sample.py Zjets/ZEE/standard111/100000
+python3 scripts/check_sample.py Wjets/Wenu/delta441/200003
 ```
