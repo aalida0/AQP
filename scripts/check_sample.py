@@ -33,6 +33,22 @@ def main(path: Path):
         and isinstance(call.args[0], ast.Constant)
         and isinstance(call.args[0].value, str)
     })
+    # Also inspect literal (source, target) pairs used by concise JOs.
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.For) and isinstance(node.iter, (ast.Tuple, ast.List))
+                and isinstance(node.target, ast.Tuple)):
+            for pair in node.iter.elts:
+                if (isinstance(pair, (ast.Tuple, ast.List)) and pair.elts
+                        and isinstance(pair.elts[0], ast.Constant)
+                        and isinstance(pair.elts[0].value, str)
+                        and pair.elts[0].value.endswith((".f", ".patch"))):
+                    required.append(pair.elts[0].value)
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == "patch_name"
+                and isinstance(node.value, ast.Constant)):
+            required.append(node.value.value)
+    required = sorted(set(required))
     missing = [name for name in required if not (path / name).is_file()]
     print("PROCESS_LOCAL_FILES", ", ".join(required) if required else "(none)")
     if missing:
