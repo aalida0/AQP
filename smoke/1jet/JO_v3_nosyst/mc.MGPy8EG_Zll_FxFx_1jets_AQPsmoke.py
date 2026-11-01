@@ -66,8 +66,13 @@ modify_config_card(process_dir=process_dir, settings={
 })
 
 generate(process_dir=process_dir, runArgs=runArgs, grid_pack=gridpack_mode)
+# ATLAS normally checks for systematic weight names whenever PDF settings
+# include 'central_pdf' plus 'pdf_variations' (even an empty list).
+# This tiny nominal-only smoke intentionally runs systematics_program='none',
+# so there are no named scale/PDF weights to check. Disable only that
+# expectation during LHE arrangement; do not use this in production JOs.
 arrange_output(process_dir=process_dir, runArgs=runArgs, lhe_version=3,
-               saveProcDir=True)
+               saveProcDir=True, pdf_setting={})
 
 include("Pythia8_i/Pythia8_A14_NNPDF23LO_EvtGen_Common.py")
 include("Pythia8_i/Pythia8_aMcAtNlo.py")
