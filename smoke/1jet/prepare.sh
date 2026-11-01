@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Preflight only. This script does NOT launch integration or submit Condor jobs.
-# First run: asetup 23.6.68,AthGeneration (or the known-working AthGeneration release).
+# First run: asetup 23.6.63,AthGeneration (pinned atlas13/GCC14 source).
 
 BASE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 WORKTREE=$(cd "$BASE/../.." && pwd)
@@ -41,8 +41,17 @@ if [[ "$ACTIVE_ROOT" != "$PINNED_ROOT" || "$ACTIVE_SHA" != "$PINNED_SHA" ]]; the
   exit 2
 fi
 
-RUN_BASE=${AQP_SMOKE_RUN_BASE:-"/data/$USER/AQP/condor-smoke"}
+# Condor submission and process generation MUST run from /scratch, never /data.
+RUN_BASE=${AQP_SMOKE_RUN_BASE:-"/scratch/$USER/AQP/condor-smoke"}
+case "$RUN_BASE" in
+  /scratch|/scratch/*) ;;
+  *) echo "PRECHECK_BLOCKED: smoke run directory must be under /scratch: $RUN_BASE" >&2; exit 2 ;;
+esac
 mkdir -p "$RUN_BASE"
+RUN_BASE=$(readlink -f "$RUN_BASE")
+case "$RUN_BASE" in
+  /data|/data/*) echo "PRECHECK_BLOCKED: resolved smoke run directory is under /data" >&2; exit 2 ;;
+esac
 RUN=$(mktemp -d "$RUN_BASE/MG1jet-smoke.XXXXXX")
 mkdir -p "$RUN/guard"
 
