@@ -39,6 +39,24 @@ The queue was empty, submission guards numbered 0, but `Gen_tf.py`
 eventually exited **65** with `RuntimeError: Error detected in
 MadGraphControl process`. No `smoke_lhe_events.tar.gz` exists.
 
+**Root-cause candidate identified from MG 3.5.11 source:** the reweighting
+`submit2` contract includes `scale_pdf_dependence.dat`. With
+`reweight_scale=False` and `reweight_pdf=False`, that file may exist
+but have zero bytes; the v2 patch's unconditional nonempty check rejects
+the finished worker. Upstream `misc.multiple_try` contains a bare
+`raise` after retries, which masks the underlying failure with
+`RuntimeError: No active exception to reraise`. This is a source-based
+diagnosis, pending exact reproduction with the patched runner.
+
+An **experimental v3** change exists only on this smoke-test branch:
+it accepts an empty `scale_pdf_dependence.dat` **only** for reweight
+jobs with a readable unambiguous run card disabling both scale and PDF
+variations, still requires the file's existence, and always requires
+nonempty `.rwgt` and reweight logs. It also removes the masking retry
+decorators from the Condor monitoring overrides. Six new regression
+tests were added. **Tests have not yet been executed on AF**; neither
+`validated/condor-mint0-20261101` nor production `main` was changed.
+
 **Do not infer the Condor patch is fully validated or that the reweight
 files are correct.** The shared log excerpt contained the *tail* of the
 MadGraph error diagnostics (mostly a run-card parameter dump), not
