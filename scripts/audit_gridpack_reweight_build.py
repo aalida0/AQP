@@ -68,6 +68,13 @@ def main():
         print("FOCUS_MISSING", gf)
     else:
         print("GF", gf.relative_to(run))
+        for card in (gf / "run_card.dat", gf.parent / "run_card.dat",
+                     sub / "run_card.dat"):
+            print("WORKER_CARD", card.relative_to(run), "PRESENT", card.is_file())
+            if card.is_file():
+                show_lines(card, [
+                    re.compile(r"store_rwgt_info|reweight_scale|reweight_pdf",
+                               re.I)], 12)
         for p in sorted(gf.iterdir()):
             if p.is_file() and (p.name in (
                     "events.lhe", "reweight_xsec_events.output",
