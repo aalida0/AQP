@@ -82,7 +82,7 @@ def _aqp_output_contract(cwd, prog, required):
                     continue
                 if key in flags:
                     return required, []  # Ambiguous card: fail closed.
-                values = [v for v in re.split(r'[\\s,]+',
+                values = [v for v in re.split(r'[\s,]+',
                           value.strip().strip('[]').lower()) if v]
                 flags[key] = (bool(values) and all(v in
                               ('false', 'f', '.false.') for v in values))
