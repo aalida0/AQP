@@ -254,7 +254,7 @@ class Tests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,'Malformed or unexpected'):
             self.c.control('.')
 
-    def reweight_fixture(self, card='False = reweight_scale\\nFalse = reweight_pdf\\n'):
+    def reweight_fixture(self, card='False = reweight_scale\nFalse = reweight_pdf\n'):
         proc=self.base/'PROCNLO'
         card_dir=proc/'Cards'
         card_dir.mkdir(parents=True, exist_ok=True)
@@ -265,8 +265,8 @@ class Tests(unittest.TestCase):
         exe.touch()
         outputs=['events.lhe.rwgt','reweight_xsec_events.output',
                  'scale_pdf_dependence.dat']
-        (cwd/outputs[0]).write_text('<event>test</event>\\n')
-        (cwd/outputs[1]).write_text('completed\\n')
+        (cwd/outputs[0]).write_text('<event>test</event>\n')
+        (cwd/outputs[1]).write_text('completed\n')
         (cwd/outputs[2]).touch()
         self.c.submit2(str(exe), ['events.lhe','1'], str(cwd),
                        input_files=['worker-input'],
@@ -299,14 +299,14 @@ class Tests(unittest.TestCase):
             self.c.control('.')
 
     def test_pdf_reweight_empty_summary_still_fails(self):
-        cwd=self.reweight_fixture('False = reweight_scale\\nTrue = reweight_pdf\\n')
+        cwd=self.reweight_fixture('False = reweight_scale\nTrue = reweight_pdf\n')
         self.terminal()
         self.assertEqual(len(self.c.retry_args['910001']['required_output']),3)
         with self.assertRaisesRegex(RuntimeError,'Missing MadGraph output'):
             self.c.control('.')
 
     def test_missing_or_ambiguous_reweight_card_fail_closed(self):
-        cwd=self.reweight_fixture('False = reweight_scale\\n')
+        cwd=self.reweight_fixture('False = reweight_scale\n')
         self.terminal()
         with self.assertRaisesRegex(RuntimeError,'Missing MadGraph output'):
             self.c.control('.')
