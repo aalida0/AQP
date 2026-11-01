@@ -32,7 +32,9 @@ class ZeeSmokeJOTests(unittest.TestCase):
         self.assertEqual(settings["scale_variations"], [0.5, 1, 2])
         self.assertLess(source.index("MG.MADGRAPH_PDFSETTING ="),
                         source.index("mgc = MGControl("))
-        self.assertIn("MGControl(pdf_setting=MG.MADGRAPH_PDFSETTING)", source)
+        self.assertIn("MGC.MADGRAPH_PDFSETTING = MG.MADGRAPH_PDFSETTING", source)
+        self.assertIn("mgc = MGControl()", source)
+        self.assertNotIn("MGControl(pdf_setting=", source)
 
     def test_reuse_does_not_reintegrate(self):
         source = JO.read_text()
