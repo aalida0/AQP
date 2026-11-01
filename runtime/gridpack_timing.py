@@ -80,13 +80,14 @@ def stages_from_log(path, start_epoch, end_epoch=None):
 
 def history(run, start_epoch, end_epoch, intervals):
     owner = os.environ.get("USER") or run.owner()
-    # Restrict the server-side history scan to this unique workspace.
-    # Anchor the following slash: run-AB must never match run-ABCD.
+    # Match the literal run directory including its trailing slash.
+    # ClassAd substr avoids regex/ClassAd double-escaping pitfalls.
     root = str(run.resolve()) + os.sep
-    pattern = json.dumps("^" + re.escape(root))
+    prefix = json.dumps(root)
+    n = len(root)
     constraint = ("Owner == " + json.dumps(owner) +
-                  " && (regexp(" + pattern + ", Iwd) || regexp(" +
-                  pattern + ", Cmd))")
+                  f" && (substr(Iwd, 0, {n}) == {prefix}" +
+                  f" || substr(Cmd, 0, {n}) == {prefix})")
     if start_epoch:
         constraint += f" && QDate >= {start_epoch - 300}"
     if end_epoch:
@@ -153,6 +154,8 @@ def report(run, out):
     end = number(timing.get("end_epoch"), int)
     spans, pre_grid, intervals = stages_from_log(run / "log.generate", start, end)
     jobs, error, candidates = history(run, start, end, intervals)
+    if not jobs and not error and spans:
+        error = "No worker ClassAds matched this run; verify HTCondor Iwd/Cmd prefix query."
     expected = {x["stage"]: x["expected_workers"] for x in spans}
     summary = []
     for name in ("grid", "envelope", "generation", "reweight", "other"):

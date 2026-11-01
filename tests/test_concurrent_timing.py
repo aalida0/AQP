@@ -2,7 +2,6 @@
 """Offline regression: separate concurrently submitted HTCondor histories."""
 import json
 import os
-import re
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -30,10 +29,10 @@ class IndependentRuns(unittest.TestCase):
             ]
             def query(args, **_):
                 expr = args[args.index("-constraint") + 1]
-                self.assertIn("regexp(", expr)
-                self.assertIn(json.dumps("^" + re.escape(str(a) + os.sep)), expr)
-                self.assertIn("Iwd", expr)
-                self.assertIn("Cmd", expr)
+                prefix = str(a) + os.sep
+                self.assertIn(f'substr(Iwd, 0, {len(prefix)}) == {json.dumps(prefix)}', expr)
+                self.assertIn(f'substr(Cmd, 0, {len(prefix)}) == {json.dumps(prefix)}', expr)
+                self.assertNotIn("regexp(", expr)
                 self.assertIn("-json", args)
                 # Return both to exercise the independent post-query safety filter.
                 return SimpleNamespace(stdout=json.dumps(rows), returncode=0)
