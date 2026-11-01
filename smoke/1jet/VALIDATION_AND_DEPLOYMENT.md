@@ -202,6 +202,40 @@ Stop on any failure; do not reuse the old `MG1jet-smoke.sviBub` or
 approval until the automatic end-to-end run succeeds.
 
 
+
+## V3 clean end-to-end attempt: NLO generation/reweight/collection PASS; systematics fails (2026-11-01)
+
+In `/home/aalida/AQP/condor-smoke/MG1jet-v3.WjxA36`, the v3
+controller automatically finished MINT stages, 16 event-generation jobs
+(06:18:40), 16 reweight jobs (06:19:43), and native event collection
+(06:19:43). The MG5 summary reported **20 generated events** and
+`4.115e+03 +/- 2.0e+01 pb`; it wrote
+`PROCNLO_loop_sm-no_b_mass_0/Events/run_01/events.lhe.gz`
+at 06:19:46. **The original empty-summary Condor failure is now
+resolved in a real automatic workflow.**
+
+`Gen_tf.py` then failed with exit **65** in the *independent*
+`systematics` postprocessor. Its `print_cross_sections` divided by
+`all_cross[0] == 0` while reporting the relative scale uncertainty
+(`systematics.py:546`), raising `ZeroDivisionError`. The reason
+the central event-weight sum was zero in this 20-event run has not yet
+been directly verified; the generator-level cross-section summary is
+distinct from this small-sample event sum. This is NOT a
+Condor-completion issue and does NOT justify changing `cluster.py`.
+
+**Next smoke run uses a complete separate JO** at
+`smoke/1jet/JO_v3_nosyst/mc.MGPy8EG_Zll_FxFx_1jets_AQPsmoke.py`:
+central PDF 325100 unchanged, PDF/scale variation lists empty,
+`systematics_program='none'`, and **`store_rwgt_info=True`** to
+continue exercising the 16 nominal reweight workers. The original JO
+and production configs remain untouched. The experimental
+`smoke/1jet/prepare_v3.sh` uses the new JO and creates unique
+`MG1jet-v3nosyst.XXXXXX` workspaces. This is **backend smoke testing
+only**; full variation weights must be restored for production
+generation and for physics validation. Confirm the actual run card
+contains `none = systematics_program` before accepting the result.
+
+
 ## Exact source and runtime contract
 
 - Use `asetup 23.6.63,AthGeneration` on AF (GCC14 / Python 3.12).
