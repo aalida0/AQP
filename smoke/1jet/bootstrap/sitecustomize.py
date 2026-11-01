@@ -22,7 +22,7 @@ for _directory in tuple(sys.path):
         continue
     _original_module = importlib.util.module_from_spec(_original)
     _original.loader.exec_module(_original_module)
-    sys.stderr.write('AQP_CHAINED_SITECUSTOMIZE %s\\n' % _original.origin)
+    sys.stderr.write('AQP_CHAINED_SITECUSTOMIZE %s\n' % _original.origin)
     break
 
 _candidate = os.environ.get("AQP_CLUSTER_CANDIDATE")
