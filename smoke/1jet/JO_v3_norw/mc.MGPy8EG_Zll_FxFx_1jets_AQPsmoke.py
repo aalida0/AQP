@@ -33,10 +33,14 @@ if not is_gen_from_gridpack():
 else:
     process_dir = str(MADGRAPH_GRIDPACK_LOCATION)
 
-# No PDF base fragment: keep the nominal LHAPDF explicitly in the run card.
-# ATLAS 23.6.63 requires 'central_pdf' if this is a dictionary (even {}).
-# None avoids both the empty-dictionary error and expecting absent variation weights.
-MadGraphControl.MadGraphUtils.MADGRAPH_PDFSETTING = None
+# Match the older validated ATLAS JO during run-card construction.
+# Empty variation lists select the central PDF without PDF/scale variations.
+MadGraphControl.MadGraphUtils.MADGRAPH_PDFSETTING = {
+    'central_pdf': 325100,
+    'pdf_variations': [],
+    'alternative_pdfs': [],
+    'scale_variations': [],
+}
 
 settings = {
     'maxjetflavor': int(maxjetflavor),
@@ -68,7 +72,13 @@ modify_config_card(process_dir=process_dir, settings={
 })
 
 generate(process_dir=process_dir, runArgs=runArgs, grid_pack=gridpack_mode)
-# Keep the original ATLAS API: no unsupported pdf_setting keyword.
+
+# Nominal-only smoke: no systematic weights are requested or generated.
+# With empty variation lists, ATLAS 23.6.63 may still expect a *named*
+# central systematics weight at arrange_output(). Disable that expected-
+# weight check only after the physical LHE was generated, not before
+# modify_run_card(). Do not do this for production configurations.
+MadGraphControl.MadGraphUtils.MADGRAPH_PDFSETTING = None
 arrange_output(process_dir=process_dir, runArgs=runArgs, lhe_version=3,
                saveProcDir=True)
 
