@@ -73,10 +73,36 @@ The previously successful 20-event run can be summarized without rerunning:
 **pre-FxFx veto**. Weighted NWF uses the absolute nominal sums
 (S_negative_abs / (S_positive_abs + S_negative_abs)); raw NWF uses
 N_negative / N_total. Statistical dilution is 1/(1-2*f)^2.
-Post-FxFx weighted NWF needs accepted EVNT weights or verified Pythia8
-weight sums. FxFx efficiency needs Pythia8 tried/accepted counters;
+Post-FxFx weighted NWF is extracted from ATLAS MetaData:
+sumOfNegWeights / (sumOfPosWeights + sumOfNegWeights), with both
+metadata sums representing positive magnitudes. This measures signed
+nominal weights after showering, not the raw fraction of negative EVNT
+events. The no-filter metadata sums distinguish generator filtering
+from Pythia8 FxFx matching. FxFx efficiency needs Pythia8
+tried/accepted counters;
 do **not** estimate it using EVNT / all generated LHE events, since
 the shower can stop reading the input as soon as enough EVNT events
 have been accepted. Any unavailable counters are reported as unknown,
 not invented. Validate the full PDF/scale weight inventory and physics
 distributions before any production use.
+
+### First quantitative 1000-event smoke outcome (2026-11-01)
+
+Sample: Zee +0,1j NLO FxFx, standard MC@NLO matching, folding 111,
+no HT2 bias, 13 TeV, coarse test integration accuracy 0.1.
+From the retained summary (seed 34130):
+
+- 5000 LHE: nominal weighted NWF 20.82%, dilution 2.936.
+- 1000 EVNT: ATLAS nominal signed weight metadata
+  sumOfPosWeights=4.847110e6 and sumOfNegWeights=9.927816e5;
+  weighted NWF 17.00%, dilution 2.296.
+- Matching-efficiency denominator: unknown from this log.
+- LHE header: 163 weight IDs; central label MUR1.0_MUF1.0_PDF325100.
+  Inventory, event-level weights, and distributions still require a
+  dedicated systematic/physics validation.
+
+The change in weighted NWF across stages is a **shower/selection** effect
+in this sample, **not** evidence of MC@NLO-Delta improvement because
+Delta matching is disabled. The 20.82% and 17.00% values also have
+different event-selection populations; do not directly convert their
+ratio into matching acceptance.
