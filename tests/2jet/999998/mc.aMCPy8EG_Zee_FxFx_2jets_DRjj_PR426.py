@@ -113,10 +113,9 @@ modify_run_card(process_dir=process_dir, runArgs=runArgs, settings={
     "mll_sf": 40,
     "mcatnlo_delta": USE_DELTA,
     "folding": FOLDING,
-    # NLO PDF/scale variations require #aMCatNLO reweight metadata
-    # in each generated LHE event. This is controlled at event
-    # generation, not by changing the completed integration grids.
-    # Keep the archived gridpack integration smoke configuration intact.
+    # NLO PDF/scale variations require #aMCatNLO event metadata.
+    # Enable it in LHE generation; keep the new grid/envelope integration
+    # independent of this event-level reweighting setting.
     "store_rwgt_info": not GRIDPACK_MODE,
 })
 
