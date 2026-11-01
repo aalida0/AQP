@@ -62,7 +62,7 @@ else:
     process_dir = str(MADGRAPH_GRIDPACK_LOCATION)
     # On this AthGeneration release the gridpack config must be reloaded
     # before modify_run_card and generate from an existing NLO gridpack.
-    mgc = MGControl()
+    mgc = MGControl(pdf_setting=MG.MADGRAPH_PDFSETTING)
     mgc.get_config_cardloc()
     mgc.getConfigFromPath(mgc.config_path)
     mgc.getRunCardDict()
