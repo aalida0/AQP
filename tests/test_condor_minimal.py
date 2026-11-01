@@ -254,6 +254,66 @@ class Tests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,'Malformed or unexpected'):
             self.c.control('.')
 
+    def reweight_fixture(self, card='False = reweight_scale\\nFalse = reweight_pdf\\n'):
+        proc=self.base/'PROCNLO'
+        card_dir=proc/'Cards'
+        card_dir.mkdir(parents=True, exist_ok=True)
+        (card_dir/'run_card.dat').write_text(card)
+        cwd=proc/'SubProcesses'/'P1_dummy'/'GF3.0'
+        cwd.mkdir(parents=True, exist_ok=True)
+        exe=cwd/'reweight_xsec_events.local'
+        exe.touch()
+        outputs=['events.lhe.rwgt','reweight_xsec_events.output',
+                 'scale_pdf_dependence.dat']
+        (cwd/outputs[0]).write_text('<event>test</event>\\n')
+        (cwd/outputs[1]).write_text('completed\\n')
+        (cwd/outputs[2]).touch()
+        self.c.submit2(str(exe), ['events.lhe','1'], str(cwd),
+                       input_files=['worker-input'],
+                       output_files=outputs, required_output=outputs)
+        return cwd
+
+    def test_nominal_reweight_empty_scale_summary_is_valid(self):
+        cwd=self.reweight_fixture()
+        self.terminal()
+        self.assertEqual(self.c.retry_args['910001']['required_output'],
+                         ['events.lhe.rwgt','reweight_xsec_events.output'])
+        self.assertEqual(self.c.retry_args['910001']['_aqp_exists_only'],
+                         ['scale_pdf_dependence.dat'])
+        self.assertEqual(self.c.control('.'), (0,0,1,0))
+        self.assertFalse(self.c.submitted_ids)
+
+    def test_nominal_reweight_missing_scale_summary_fails(self):
+        cwd=self.reweight_fixture()
+        (cwd/'scale_pdf_dependence.dat').unlink()
+        self.terminal()
+        with self.assertRaisesRegex(RuntimeError,'Missing MadGraph output'):
+            self.c.control('.')
+        self.assertEqual(self.c.submitted_ids,['910001'])
+
+    def test_nominal_reweight_missing_lhe_fails(self):
+        cwd=self.reweight_fixture()
+        (cwd/'events.lhe.rwgt').unlink()
+        self.terminal()
+        with self.assertRaisesRegex(RuntimeError,'Missing MadGraph output'):
+            self.c.control('.')
+
+    def test_pdf_reweight_empty_summary_still_fails(self):
+        cwd=self.reweight_fixture('False = reweight_scale\\nTrue = reweight_pdf\\n')
+        self.terminal()
+        self.assertEqual(len(self.c.retry_args['910001']['required_output']),3)
+        with self.assertRaisesRegex(RuntimeError,'Missing MadGraph output'):
+            self.c.control('.')
+
+    def test_missing_or_ambiguous_reweight_card_fail_closed(self):
+        cwd=self.reweight_fixture('False = reweight_scale\\n')
+        self.terminal()
+        with self.assertRaisesRegex(RuntimeError,'Missing MadGraph output'):
+            self.c.control('.')
+
+    def test_monitoring_retry_decorators_removed(self):
+        self.assertNotIn('@multiple_try(', minimal.patch_source(SOURCE))
+
     def test_candidate_repatch_fails(self):
         with self.assertRaises(ValueError):minimal.patch_source(minimal.patch_source(SOURCE))
 
