@@ -6,7 +6,6 @@ import json
 import os
 from pathlib import Path
 import re
-import shlex
 import subprocess
 from datetime import datetime, timedelta
 
@@ -36,7 +35,7 @@ def read_kv(path):
 
 def stages_from_log(path, start_epoch, end_epoch=None):
     if not path.exists():
-        return [], None
+        return [], None, []
     stages, active = [], None
     day = datetime.fromtimestamp(start_epoch).date() if start_epoch else datetime.now().date()
     last_clock = None
@@ -73,63 +72,78 @@ def stages_from_log(path, start_epoch, end_epoch=None):
         row["span_count"] += 1
         row["wall_seconds"] += int((span["end"] - span["start"]).total_seconds()) if span["end"] else 0
         row["expected_workers"] += span["completed_workers"] or 0
-    return list(totals.values()), pre_grid
+    intervals = [{"stage": x["stage"], "start_epoch": int(x["start"].timestamp()),
+                  "end_epoch": int(x["end"].timestamp()) if x["end"] else None}
+                 for x in stages]
+    return list(totals.values()), pre_grid, intervals
 
 
-def history(run, start_epoch):
+def history(run, start_epoch, end_epoch, intervals):
     owner = os.environ.get("USER") or run.owner()
-    # The unique run path, not the username alone, identifies these workers.
-    prefix = re.escape(str(run.resolve()) + "/")
-    cond = (f'Owner == {json.dumps(owner)} && '
-            f'regexp({json.dumps("^" + prefix)}, Iwd)')
+    constraint = "Owner == " + json.dumps(owner)
     if start_epoch:
-        cond += f" && QDate >= {int(start_epoch) - 300}"
-    cmd = ["condor_history", "-match", "0", "-constraint", cond, "-af:t", *FIELDS]
+        constraint += f" && QDate >= {start_epoch - 300}"
+    if end_epoch:
+        constraint += f" && QDate <= {end_epoch + 300}"
+    # Never use -match 0: that is a zero-result limit on some HTCondor versions.
+    limit = 10000
+    cmd = ["condor_history", "-constraint", constraint, "-limit", str(limit),
+           "-json", "-attributes", ",".join(FIELDS)]
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=90, check=True)
-    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
-        return [], str(exc)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120, check=True)
+        ads = json.loads(proc.stdout)
+        if not isinstance(ads, list):
+            return [], "HTCondor history JSON is not an array", 0
+        if len(ads) == limit:
+            return [], "HTCondor history result limit reached; narrow the query", len(ads)
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired,
+            ValueError) as exc:
+        return [], f"HTCondor history query failed: {exc}", 0
+
     jobs = []
-    for line in proc.stdout.splitlines():
-        cols = line.strip("\t").split("\t")
-        if len(cols) != len(FIELDS):
-            return [], "Unexpected condor_history tabular format"
-        ad = dict(zip(FIELDS, cols))
-        if not ad["Iwd"].startswith(str(run.resolve()) + "/"):
+    root = str(run.resolve()) + os.sep
+    for ad in ads:
+        if not isinstance(ad, dict):
+            return [], "Unexpected HTCondor history JSON record", len(ads)
+        # Require exact run provenance. Never include unrelated users' jobs.
+        iwd = str(ad.get("Iwd") or "")
+        prog = str(ad.get("Cmd") or "")
+        if not iwd.startswith(root) and not prog.startswith(root):
             continue
-        try:
-            args = shlex.split(ad["Args"])
-        except ValueError:
-            args = []
-        prog = Path(ad["Cmd"]).name
-        if prog == "ajob1" and len(args) == 4 and args[-1] in ("0", "1", "2"):
-            stage = {"0": "grid", "1": "envelope", "2": "generation"}[args[-1]]
-        elif "reweight" in prog:
-            stage = "reweight"
-        else:
+        qdate = number(ad.get("QDate"), int)
+        if qdate is None:
             stage = "other"
-        starts = number(ad["NumJobStarts"], int)
-        cpu1 = number(ad["CumulativeRemoteUserCpu"])
-        cpu2 = number(ad["CumulativeRemoteSysCpu"])
+        else:
+            matching = [span["stage"] for span in intervals
+                        if (span["start_epoch"] - 5 <= qdate
+                            <= (span["end_epoch"] or end_epoch or qdate) + 5)]
+            stage = matching[0] if len(matching) == 1 else "other"
+        starts = number(ad.get("NumJobStarts"), int)
+        cpu1 = number(ad.get("CumulativeRemoteUserCpu"))
+        cpu2 = number(ad.get("CumulativeRemoteSysCpu"))
         if cpu1 is None or cpu2 is None:
-            # Non-cumulative fields can omit evicted attempts.
-            cpu1 = number(ad["RemoteUserCpu"]) if starts == 1 else None
-            cpu2 = number(ad["RemoteSysCpu"]) if starts == 1 else None
-        jobs.append({"job_id": ad["ClusterId"] + "." + ad["ProcId"], "stage": stage,
+            # Non-cumulative fields omit CPU lost to eviction.
+            cpu1 = number(ad.get("RemoteUserCpu")) if starts == 1 else None
+            cpu2 = number(ad.get("RemoteSysCpu")) if starts == 1 else None
+        status = number(ad.get("JobStatus"), int)
+        exit_code = number(ad.get("ExitCode"), int)
+        jobs.append({"job_id": f'{ad.get("ClusterId")}.{ad.get("ProcId")}',
+                     "stage": stage,
                      "cpu_seconds": cpu1 + cpu2 if cpu1 is not None and cpu2 is not None else None,
-                     "remote_wall_seconds": number(ad["RemoteWallClockTime"]),
+                     "remote_wall_seconds": number(ad.get("RemoteWallClockTime")),
                      "starts": starts,
-                     "success": ad["JobStatus"] == "4" and ad["ExitCode"] == "0",
-                     "iwd": ad["Iwd"]})
-    return jobs, None
+                     "success": status == 4 and exit_code == 0,
+                     "iwd": iwd})
+    return jobs, None, len(ads)
 
 
 def report(run, out):
     timing = read_kv(run / "timing.txt")
     controller = read_kv(run / "controller_cpu.txt")
     start = number(timing.get("start_epoch"), int)
-    spans, pre_grid = stages_from_log(run / "log.generate", start, number(timing.get("end_epoch"), int))
-    jobs, error = history(run, start)
+    end = number(timing.get("end_epoch"), int)
+    spans, pre_grid, intervals = stages_from_log(run / "log.generate", start, end)
+    jobs, error, candidates = history(run, start, end, intervals)
     expected = {x["stage"]: x["expected_workers"] for x in spans}
     summary = []
     for name in ("grid", "envelope", "generation", "reweight", "other"):
@@ -165,7 +179,8 @@ def report(run, out):
         "transform_wall_seconds": number(timing.get("wall_seconds")),
         "pre_grid_stage_seconds": pre_grid,
         "controller_cpu_seconds": cpu, "worker_history_query_error": error,
-        "history_worker_count": len(jobs), "worker_accounting_complete": worker_complete,
+        "history_worker_count": len(jobs), "history_candidates_in_time_window": candidates,
+        "worker_accounting_complete": worker_complete,
         "remote_cpu_seconds": worker_cpu if worker_complete else None,
         "total_cpu_seconds": cpu + worker_cpu if cpu is not None and worker_complete else None,
         "stages": summary,
