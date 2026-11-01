@@ -101,6 +101,9 @@ python3 -m py_compile smoke/1jet/replay_reweight_completion.py
 python3 smoke/1jet/replay_reweight_completion.py
 ```
 
+**Regression tests (2026-11-01):** 27/27 PASS on AF (reported by user).
+**LHE integrity (2026-11-01):** all 16 `events.lhe.rwgt` files ended with `</LesHouchesEvents>`; `SubProcesses/collect_events` executable absent, consistent with the premature exit before `misc.compile(['collect_events'])`.
+
 **Observed PASS (2026-11-01):** `ZERO_BYTE_SCALE_PDF_SUMMARIES 16`,
 `V3_CONTROL_STATE (0, 0, 16, 0)`, and `REWEIGHT_REPLAY_PASS 16 workers`.
 This validates source-pinned v3 reweight completion bookkeeping for all
