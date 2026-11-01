@@ -65,9 +65,9 @@ command -v tmux >/dev/null
 command -v /usr/bin/time >/dev/null
 
 # The existing, source-pinned v3 candidate is still experimental.
-patchroot="$HOME/AQP/aqp-condor-minimal"
-candidate="$patchroot/.aqp_staged/minimal_v3/cluster.py"
-bootstrap="$patchroot/smoke/1jet/bootstrap_v3"
+patchroot="${GP_PATCH_ROOT:-$repo/.condor}"
+candidate="$patchroot/cluster.py"
+bootstrap="$patchroot/bootstrap_v3"
 [[ -f "$candidate" && -f "$bootstrap/sitecustomize.py" ]] || {
     echo "Missing source-pinned Condor v3 patch/bootstrap in $patchroot" >&2; exit 2;
 }
