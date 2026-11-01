@@ -66,7 +66,7 @@ else:
     mgc.getRunCardDict()
     MG.my_MGC_instance = mgc
 
-beam_energy = runArgs.ecmEnergy / 2.0
+beam_energy = float(runArgs.ecmEnergy) / 2.0
 nevents = 5 * (runArgs.maxEvents if runArgs.maxEvents > 0
                else evgenConfig.nEventsPerJob)
 
