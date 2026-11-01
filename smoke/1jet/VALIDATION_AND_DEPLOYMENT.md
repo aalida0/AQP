@@ -270,9 +270,22 @@ production JOs where PDF/scale variations must be generated and checked.
 
 The next minimal gate is a **no-Condor, no-integration** invocation of
 `arrange_output` on a copied, isolated 20-event LHE from
-`MG1jet-v3nosyst.LTC55Y`, with `pdf_setting={}`. If packaging passes,
-the remaining independent full-transform check is straightforward but
-does not add evidence to Condor's already-passed completion logic.
+`MG1jet-v3nosyst.LTC55Y`, with `pdf_setting={}`. The disposable
+`smoke/1jet/recover_v3_nosyst_lhe.py` implements that gate, creates a
+unique temporary process containing only a **copy** of the LHE file,
+and validates the resulting 20-event ATLAS tarball:
+
+```bash
+asetup 23.6.63,AthGeneration
+cd ~/AQP/aqp-condor-minimal
+git pull --ff-only origin test/condor-fxfx-1jet-smoke
+python3 smoke/1jet/recover_v3_nosyst_lhe.py
+```
+
+Require `V3_NOMINAL_ONLY_ARRANGE_PASS 20 events`. This verifies the
+ATLAS packaging API and archive structure, but does not retrospectively
+make `Gen_tf.py` exit zero or demonstrate Pythia8 FxFx showering.
+
 
 ## Exact source and runtime contract
 
