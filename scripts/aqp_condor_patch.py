@@ -33,7 +33,7 @@ def _aqp_claim(cwd, prog, arguments):
     root = os.environ.get('AQP_CONDOR_GUARD_DIR')
     if not root or not os.path.isabs(root) or not os.path.isdir(root):
         raise ClusterManagmentError('Set existing AQP_CONDOR_GUARD_DIR before submission')
-    if len(arguments) != 4 or str(arguments[3]) not in ('0', '1'):
+    if len(arguments) != 4 or str(arguments[3]) not in ('0', '1', '2'):
         raise ClusterManagmentError('Unexpected ajob1 arguments')
     value = [os.path.realpath(cwd), os.path.realpath(prog), list(map(str, arguments))]
     key = _aqp_hashlib.sha256(_aqp_json.dumps(value, sort_keys=True).encode()).hexdigest()
@@ -75,7 +75,7 @@ def _aqp_states(ids):
         found = {}
         for row in rows:
             if (len(row) != 3 or row[0] not in expected or row[1] != '0'
-                    or row[2] not in ('0', '1', '2', '4', '7')
+                    or row[2] not in ('0', '1', '2', '4', '6', '7')
                     or row[0] in found):
                 raise ClusterManagmentError('Malformed or unexpected condor_q response')
             found[row[0]] = row[2]
@@ -108,7 +108,7 @@ CONTROL = '''    def control(self, me_dir):
         for jid, state in states.items():
             if state in ('0', '1'):
                 idle += 1
-            elif state in ('2', '4', '7'):
+            elif state in ('2', '4', '6', '7'):
                 run += 1  # Queue-visible completed jobs still count as outstanding.
             elif state == 'DONE':
                 record = self.retry_args.get(jid)
@@ -134,7 +134,7 @@ CONTROL = '''    def control(self, me_dir):
 '''
 ONE = '''    def control_one_job(self, id):
         state = _aqp_states([id])[str(id)]
-        return '' if state == 'DONE' else ('R' if state in ('4', '7') else self.jobstatus[state])
+        return '' if state == 'DONE' else ('R' if state in ('4', '6', '7') else self.jobstatus[state])
 '''
 
 
