@@ -3,14 +3,25 @@
 # and shower it through the ATLAS Pythia8/A14 FxFx configuration.
 set -euo pipefail
 
-if (( $# < 1 || $# > 3 )); then
-    echo "Usage: bash scripts/validate_zee1jet_gridpack.sh GRIDPACK [maxEvents=100] [seed=34124]" >&2
+if (( $# < 1 || $# > 4 )); then
+    echo "Usage: bash scripts/validate_zee1jet_gridpack.sh GRIDPACK [maxEvents=100] [seed=34124] [--recompile]" >&2
+    exit 2
+fi
+
+if (( $# == 4 )) && [[ "$4" != "--recompile" ]]; then
+    echo "The fourth argument, if supplied, must be --recompile" >&2
     exit 2
 fi
 
 archive=$(realpath -e "$1")
 max_events="${2:-100}"
 seed="${3:-34124}"
+# Leave the standard no-recompile pathway unchanged unless explicitly requested.
+# MadGraphControl will recompile only the unpacked copy in this new run dir.
+export GRIDPACK_RECOMPILE=0
+if (( $# == 4 )); then
+    export GRIDPACK_RECOMPILE=1
+fi
 [[ -f "$archive" && "$archive" == *GRID.tar.gz ]] || {
     echo "Expected a readable MadGraph GRID.tar.gz archive" >&2; exit 2;
 }
@@ -34,6 +45,7 @@ cp -- "$archive" "$staged"
 echo "RUN=$run"
 echo "SOURCE_GRIDPACK=$archive"
 echo "STAGED_GRIDPACK=$staged"
+echo "GRIDPACK_RECOMPILE=$GRIDPACK_RECOMPILE"
 
 # If the archive is accompanied by a cleanup manifest, require its
 # recorded content hash and archive name to match the staged copy.
@@ -64,8 +76,8 @@ PY
 export DATAPATH="$jo:${DATAPATH:-}"
 export ATHENA_CORE_NUMBER=1
 cd "$run"
-printf 'ecmEnergy=13000\nmaxEvents=%s\nrandomSeed=%s\nJO=%s\nsourceGridpack=%s\n' \
-    "$max_events" "$seed" "$jo" "$archive" > validation_parameters.txt
+printf 'ecmEnergy=13000\nmaxEvents=%s\nrandomSeed=%s\nJO=%s\nsourceGridpack=%s\nrecompile=%s\n' \
+    "$max_events" "$seed" "$jo" "$archive" "$GRIDPACK_RECOMPILE" > validation_parameters.txt
 
 set +e
 Gen_tf.py --ecmEnergy=13000 --maxEvents="$max_events" \
