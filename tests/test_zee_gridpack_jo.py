@@ -73,6 +73,25 @@ class ZeeSmokeJOTests(unittest.TestCase):
         self.assertIsInstance(value.operand, ast.Name)
         self.assertEqual(value.operand.id, "GRIDPACK_MODE")
 
+    def test_recompile_is_opt_in_and_only_for_gridpack_consumption(self):
+        source = JO.read_text()
+        tree = ast.parse(source, filename=str(JO))
+        self.assertIn('os.environ.get("GRIDPACK_RECOMPILE", "0")', source)
+        self.assertIn('RECOMPILE_GRIDPACK = (recompile_setting == "1") and not GRIDPACK_MODE',
+                      source)
+        generate_calls = [
+            node for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "generate"
+        ]
+        self.assertEqual(len(generate_calls), 1)
+        parameters = {keyword.arg: keyword.value
+                      for keyword in generate_calls[0].keywords}
+        self.assertIn("gridpack_compile", parameters)
+        self.assertIsInstance(parameters["gridpack_compile"], ast.Name)
+        self.assertEqual(parameters["gridpack_compile"].id, "RECOMPILE_GRIDPACK")
+
     def test_reuse_does_not_reintegrate(self):
         source = JO.read_text()
         self.assertIn("GRIDPACK_MODE = not is_gen_from_gridpack()", source)
