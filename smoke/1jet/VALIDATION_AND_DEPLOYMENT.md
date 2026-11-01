@@ -103,6 +103,16 @@ python3 smoke/1jet/replay_reweight_completion.py
 
 **Regression tests (2026-11-01):** 27/27 PASS on AF (reported by user).
 **LHE integrity (2026-11-01):** all 16 `events.lhe.rwgt` files ended with `</LesHouchesEvents>`; `SubProcesses/collect_events` executable absent, consistent with the premature exit before `misc.compile(['collect_events'])`.
+**Native collector recovery (2026-11-01):** in an isolated copy at
+`~/AQP/condor-collect/collect.Dp3LBn/PROCNLO`, updated
+`SubProcesses/nevents_unweighted` to reference all 16 `.rwgt` files;
+`make collect_events` succeeded (exit 0), and collector mode `2`
+(`event_norm=average`) succeeded (exit 0). Collector reported
+`found 16 files` and `Final event file (with 20 events) is:
+allevents_0_001`; output size **133153 bytes**. Original process
+left unchanged. Independent LHE event/tag check and complete Athena
+transform/shower remain pending.
+
 
 **Observed PASS (2026-11-01):** `ZERO_BYTE_SCALE_PDF_SUMMARIES 16`,
 `V3_CONTROL_STATE (0, 0, 16, 0)`, and `REWEIGHT_REPLAY_PASS 16 workers`.
