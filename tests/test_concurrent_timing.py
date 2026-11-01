@@ -2,6 +2,7 @@
 """Offline regression: separate concurrently submitted HTCondor histories."""
 import json
 import os
+import re
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -30,7 +31,7 @@ class IndependentRuns(unittest.TestCase):
             def query(args, **_):
                 expr = args[args.index("-constraint") + 1]
                 self.assertIn("regexp(", expr)
-                self.assertIn(str(a) + os.sep, expr)
+                self.assertIn(json.dumps("^" + re.escape(str(a) + os.sep)), expr)
                 self.assertIn("Iwd", expr)
                 self.assertIn("Cmd", expr)
                 self.assertIn("-json", args)
