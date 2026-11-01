@@ -6,7 +6,8 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from scripts.summarize_zee1jet_validation import (
-    find_lhe, inspect_lhe, parse_shower_counters, summarize,
+    find_lhe, inspect_lhe, parse_evnt_weight_metadata,
+    parse_shower_counters, summarize,
 )
 
 
@@ -65,6 +66,32 @@ class SummaryTests(unittest.TestCase):
             "Pythia8 INFO events accepted: 1000\n")
         self.assertAlmostEqual(
             explicit["fxfx_matching_efficiency_from_explicit_counters"], 1/3)
+
+    def test_evnt_metadata_weighted_nwf_and_dilution(self):
+        report = parse_evnt_weight_metadata(
+            "generate MetaData: sumOfPosWeights = 4.847110e+06\n"
+            "generate MetaData: sumOfNegWeights = 9.927816e+05\n"
+            "generate MetaData: sumOfPosWeightsNoFilter = 4.847110e+06\n"
+            "generate MetaData: sumOfNegWeightsNoFilter = 9.927816e+05\n"
+        )
+        self.assertAlmostEqual(
+            report["weighted_post_fxfx_negative_fraction"], 0.17)
+        self.assertAlmostEqual(
+            report["weighted_post_fxfx_dilution"], 1 / 0.66**2)
+        self.assertTrue(report["generator_filter_weight_sums_equal"])
+
+    def test_evnt_metadata_missing_is_unknown(self):
+        report = parse_evnt_weight_metadata("Pythia8 FxFx\n")
+        self.assertIsNone(report["weighted_post_fxfx_negative_fraction"])
+        self.assertIsNone(report["generator_filter_weight_sums_equal"])
+
+    def test_evnt_metadata_duplicate_fields_fail_safe(self):
+        report = parse_evnt_weight_metadata(
+            "MetaData: sumOfPosWeights = 10\n"
+            "MetaData: sumOfPosWeights = 12\n"
+            "MetaData: sumOfNegWeights = 2\n"
+        )
+        self.assertIsNone(report["weighted_post_fxfx_negative_fraction"])
 
     def test_separates_pre_and_post_fxfx_weight_fractions(self):
         with TemporaryDirectory() as root:
