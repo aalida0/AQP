@@ -22,7 +22,6 @@ for _directory in tuple(sys.path):
         continue
     _original_module = importlib.util.module_from_spec(_original)
     _original.loader.exec_module(_original_module)
-    sys.stderr.write('AQP_CHAINED_SITECUSTOMIZE %s\n' % _original.origin)
     break
 
 _candidate = os.environ.get("AQP_CLUSTER_CANDIDATE")
@@ -50,9 +49,14 @@ if _candidate:
             spec = PathFinder.find_spec(fullname, path, target)
             if spec is None or not spec.origin:
                 raise ImportError("Cannot locate MadGraph cluster module: " + fullname)
+            # Source pin is essential: the candidate was generated from
+            # atlas13-dbd05, not an arbitrary MadGraph 3.5.11 build.
+            with open(spec.origin, 'rb') as _fh:
+                actual_sha = hashlib.sha256(_fh.read()).hexdigest()
+            if actual_sha != 'feb07ff8af81eb5524ee810d6f4976502457fdf45106a9e2702d1ea46b7ef7fe':
+                raise ImportError('AQP Condor source mismatch for %s: SHA256=%s' %
+                                  (spec.origin, actual_sha))
             spec.loader = _AQPClusterLoader(fullname, spec.origin)
-            sys.stderr.write("AQP_CONDOR_PATCH_LOADED %s (original=%s)\n" %
-                             (fullname, spec.origin))
             return spec
 
     sys.meta_path.insert(0, _AQPClusterFinder())
