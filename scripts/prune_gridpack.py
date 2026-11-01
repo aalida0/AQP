@@ -38,6 +38,18 @@ def active_jobs(run, user, runner=subprocess.run):
     p = runner(['condor_q', '-constraint', constraint, '-json',
                 '-attributes', 'ClusterId,ProcId,Iwd,Cmd'],
                capture_output=True, text=True, check=True, timeout=60)
+    require(not p.stderr.strip(), f'condor_q JSON query emitted stderr: {p.stderr.strip()}')
+    if not p.stdout.strip():
+        # HTCondor can emit no stdout (rather than "[]") for zero matches.
+        # Fail closed unless an independent ID-format query also finds no jobs.
+        check = runner(['condor_q', '-constraint', constraint,
+                        '-af', 'ClusterId', 'ProcId'],
+                       capture_output=True, text=True, check=True, timeout=60)
+        require(not check.stderr.strip(),
+                f'condor_q ID query emitted stderr: {check.stderr.strip()}')
+        require(not check.stdout.strip(),
+                'Matching Condor jobs found by ID query; preserve workdir')
+        return []
     jobs = json.loads(p.stdout)
     require(isinstance(jobs, list), 'Unexpected condor_q response')
     return jobs
