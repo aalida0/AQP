@@ -1,71 +1,114 @@
-"""Static guards for PR426 2-jet FxFx production-gridpack smoke workflow."""
+"""Static regression gates for PR426 FxFx Zee 0,1,2j standard111 and delta111."""
 import ast
 from pathlib import Path
 import unittest
 
 
 REPO = Path(__file__).resolve().parents[1]
-DIR = REPO / "tests" / "2jet" / "999998"
-JO = DIR / "mc.aMCPy8EG_Zee_FxFx_2jets_DRjj_PR426.py"
-PATCH = DIR / "fxfx_exclusive_kt.patch"
-SMOKE = REPO / "scripts" / "validate_zee2jet_pr426_gridpack.sh"
-OLD_PATCH = REPO / "tests" / "1jet" / "999999" / "fxfx_exclusive_kt.patch"
+STDSID = REPO / "tests" / "2jet" / "999998"
+DELTASID = REPO / "tests" / "2jet" / "999997"
+JOS = {
+    "standard111": STDSID / "mc.aMCPy8EG_Zee_FxFx_2jets_DRjj_PR426.py",
+    "delta111": DELTASID / "mc.aMCPy8EG_Zee_FxFx_2jets_DRjj_PR426_delta111.py",
+}
+PATCHES = {cfg: directory / "fxfx_exclusive_kt.patch"
+           for cfg, directory in (("standard111", STDSID),
+                                  ("delta111", DELTASID))}
+ORIGINAL_PATCH = (
+    REPO / "tests" / "1jet" / "999999" / "fxfx_exclusive_kt.patch"
+)
+RUNNERS = {
+    "standard111": REPO / "scripts" / "validate_zee2jet_pr426_gridpack.sh",
+    "delta111": REPO / "scripts" / "validate_zee2jet_pr426_delta111_gridpack.sh",
+}
+
+
+def assignment_values(source):
+    tree = ast.parse(source)
+    assignments = {}
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and isinstance(node.value, ast.Constant)):
+            assignments[node.targets[0].id] = node.value.value
+    return assignments
 
 
 class PR426Zee2JetTests(unittest.TestCase):
-    def test_local_patch_is_exact_existing_upstream_pr426(self):
-        self.assertEqual(PATCH.read_bytes(), OLD_PATCH.read_bytes())
-        patch = PATCH.read_text()
-        self.assertIn("+         call amcatnlo_fastjetppgenkt_timed(", patch)
-        self.assertIn("+         if (amcatnlo_fastjetdmergemax(nQCD-2).lt.ptj**2) then", patch)
-        self.assertIn("-      call amcatnlo_fastjetppgenkt_etamax_timed(", patch)
-        self.assertIn("--- a/SubProcesses/cuts.f", patch)
-        self.assertIn("+++ b/SubProcesses/cuts.f", patch)
+    def test_patches_identical_to_previously_verified_upstream_pr426(self):
+        original = ORIGINAL_PATCH.read_bytes()
+        for config, patch in PATCHES.items():
+            with self.subTest(config=config):
+                self.assertEqual(patch.read_bytes(), original)
+        text = original.decode()
+        self.assertIn("+         call amcatnlo_fastjetppgenkt_timed(", text)
+        self.assertIn("+         if (amcatnlo_fastjetdmergemax(nQCD-2).lt.ptj**2) then", text)
+        self.assertIn("-      call amcatnlo_fastjetppgenkt_etamax_timed(", text)
 
-    def test_integrated_at_nlo_up_to_two_jets(self):
-        text = JO.read_text()
-        tree = ast.parse(text, filename=str(JO))
-        self.assertNotIn("AQP", text)
-        self.assertIn("generate p p > e+ e- [QCD] @0", text)
-        self.assertIn("add process p p > e+ e- j [QCD] @1", text)
-        self.assertIn("add process p p > e+ e- j j [QCD] @2", text)
-        assignments = {node.targets[0].id: node.value.value
-                       for node in ast.walk(tree)
-                       if isinstance(node, ast.Assign)
-                       and len(node.targets) == 1
-                       and isinstance(node.targets[0], ast.Name)
-                       and isinstance(node.value, ast.Constant)}
-        self.assertEqual(assignments["REQUIRED_ACCURACY"], 1e-4)
-        self.assertEqual(assignments["FOLDING"], "1, 1, 1")
-        self.assertFalse(assignments["USE_DELTA"])
-        self.assertIn('    PYTHIA8_nJetMax = 2', text)
-        self.assertIn('    PYTHIA8_qCut = 20.0', text)
-        self.assertIn('"ickkw": 3', text)
+    def test_both_integrate_same_nlo_0_1_2_jet_process(self):
+        for config, jo in JOS.items():
+            with self.subTest(config=config):
+                text = jo.read_text()
+                assignments = assignment_values(text)
+                self.assertNotIn("AQP", text)
+                self.assertIn("generate p p > e+ e- [QCD] @0", text)
+                self.assertIn("add process p p > e+ e- j [QCD] @1", text)
+                self.assertIn("add process p p > e+ e- j j [QCD] @2", text)
+                self.assertEqual(assignments["REQUIRED_ACCURACY"], 0.5)
+                self.assertEqual(assignments["FOLDING"], "1, 1, 1")
+                self.assertEqual(assignments["USE_DELTA"], config == "delta111")
+                self.assertIn('PYTHIA8_nJetMax = 2', text)
+                self.assertIn('PYTHIA8_qCut = 20.0', text)
+                self.assertIn('"ickkw": 3', text)
+                self.assertIn('"mcatnlo_delta": USE_DELTA', text)
+                self.assertIn('"folding": FOLDING', text)
+                self.assertIn('"req_acc": REQUIRED_ACCURACY', text)
+                self.assertIn('required_accuracy=REQUIRED_ACCURACY', text)
 
-    def test_pr426_applied_before_integration(self):
-        text = JO.read_text()
-        self.assertLess(
-            text.index('    subprocess.check_call(command)'),
-            text.index('generate(process_dir=process_dir, runArgs=runArgs,'))
-        self.assertIn('command + ["--dry-run"]', text)
-        self.assertIn('FXFX_PR426_EXCLUSIVE_KT_VERIFIED', text)
-        self.assertIn('process_dir = str(MADGRAPH_GRIDPACK_LOCATION)', text)
-        self.assertIn('grid_pack=GRIDPACK_MODE', text)
+    def test_only_intentional_standard_vs_delta_differences(self):
+        standard = JOS["standard111"].read_text()
+        delta = JOS["delta111"].read_text()
+        normalized_delta = delta.replace(
+            "USE_DELTA = True", "USE_DELTA = False"
+        ).replace("PR426 delta111 accuracy0p5 smoke",
+                  "PR426 standard111 accuracy0p5 smoke")
+        self.assertEqual(standard, normalized_delta)
 
-    def test_pmg_variations_not_dropped(self):
-        text = JO.read_text()
-        self.assertIn('MG.MADGRAPH_PDFSETTING = {', text)
-        self.assertIn('"central_pdf": 325100', text)
-        self.assertIn('"pdf_variations": [325100, 93300]', text)
-        self.assertIn('MGC.MADGRAPH_PDFSETTING = MG.MADGRAPH_PDFSETTING', text)
-        self.assertIn('"store_rwgt_info": not GRIDPACK_MODE', text)
+    def test_patch_applied_before_integration(self):
+        for config, jo in JOS.items():
+            with self.subTest(config=config):
+                text = jo.read_text()
+                self.assertLess(
+                    text.index('subprocess.check_call(command)'),
+                    text.index('generate(process_dir=process_dir, runArgs=runArgs,')
+                )
+                self.assertIn('command + ["--dry-run"]', text)
+                self.assertIn("FXFX_PR426_EXCLUSIVE_KT_VERIFIED", text)
+                self.assertIn("grid_pack=GRIDPACK_MODE", text)
+                self.assertIn("gridpack_compile=RECOMPILE_GRIDPACK", text)
 
-    def test_2jet_smoke_uses_own_jo_and_recompile(self):
-        script = SMOKE.read_text()
-        self.assertIn('jo="$repo/tests/2jet/999998"', script)
-        self.assertIn('export GRIDPACK_RECOMPILE=1', script)
-        self.assertIn('zee2jet.EVNT.pool.root', script)
-        self.assertIn('evnt_count_verified.txt', script)
+    def test_pmg_pdf_scale_recipe_preserved_but_not_the_focus(self):
+        for config, jo in JOS.items():
+            with self.subTest(config=config):
+                text = jo.read_text()
+                self.assertIn('MG.MADGRAPH_PDFSETTING = {', text)
+                self.assertIn('"central_pdf": 325100', text)
+                self.assertIn('"pdf_variations": [325100, 93300]', text)
+                self.assertIn('"store_rwgt_info": not GRIDPACK_MODE', text)
+
+    def test_shower_runner_isolated_for_each_configuration(self):
+        for config, runner in RUNNERS.items():
+            with self.subTest(config=config):
+                text = runner.read_text()
+                dsid = "999998" if config == "standard111" else "999997"
+                self.assertIn(f'jo="$repo/tests/2jet/{dsid}"', text)
+                self.assertIn('export GRIDPACK_RECOMPILE=1', text)
+                self.assertIn("evnt_count_verified.txt", text)
+                self.assertIn("EVNT_EVENT_COUNT_PASS", text)
+                self.assertIn("GRIDPACK_LHE_PYTHIA8_SMOKE_PASS", text)
+        self.assertIn('zee2jet.EVNT.pool.root', RUNNERS["standard111"].read_text())
+        self.assertIn('zee2jet_delta111.EVNT.pool.root',
+                      RUNNERS["delta111"].read_text())
 
 
 if __name__ == "__main__":
