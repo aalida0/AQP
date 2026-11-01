@@ -1,38 +1,53 @@
 #!/usr/bin/env python3
-"""Static review of one process/configuration/DSID directory (no Athena)."""
+"""Static review of one process/configuration/DSID directory; never runs Athena."""
 import argparse
 import ast
 from pathlib import Path
+
 
 def main(path: Path):
     path = path.resolve(strict=True)
     if not path.is_dir() or not path.name.isdigit():
         raise SystemExit("Expected a process/configuration/<DSID> directory")
-    jo_files = sorted(path.glob("mc.*.py")) + sorted(path.glob("mc.*.py.template"))
-    if len(jo_files) != 1:
-        raise SystemExit("Expected one complete JO or one illustrative JO template")
-    jo = jo_files[0]
-    src = jo.read_text()
-    ast.parse(src, filename=str(jo))
+
+    joboptions = sorted(path.glob("mc.*.py")) + sorted(path.glob("mc.*.py.template"))
+    if len(joboptions) != 1:
+        raise SystemExit("Expected exactly one JO or illustrative JO template")
+    jo = joboptions[0]
+    source = jo.read_text()
+    tree = ast.parse(source, filename=str(jo))
+    if "AQP" in source:
+        raise SystemExit("Do not put the project name in the JO")
     print("JO_SYNTAX_PASS", jo)
-    if "AQP" in src:
-        raise SystemExit("JO must not reference the project name")
-    if jo.suffix == ".template":
-        print("SCAFFOLD_ONLY: template cannot be submitted")
-    references = []
-    import re
-    for f in re.findall(r'get_files",\s*"-data",\s*(["\x27])([^"\x27]+)\1', src):
-        references.append(f[1])
-    missing = [name for name in references if not (path / name).is_file()]
+
+    # Check explicit process-local source requests, not their get_files wrapper
+    # implementation: install_file("x.f", ...), install_patch("x.patch", ...).
+    names = {"install_file", "install_patch", "apply_source_patch"}
+    required = sorted({
+        call.args[0].value
+        for call in ast.walk(tree)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id in names
+        and call.args
+        and isinstance(call.args[0], ast.Constant)
+        and isinstance(call.args[0].value, str)
+    })
+    missing = [name for name in required if not (path / name).is_file()]
+    print("PROCESS_LOCAL_FILES", ", ".join(required) if required else "(none)")
     if missing:
-        print("MISSING_LOCAL_AUXILIARIES:", ", ".join(sorted(set(missing))))
+        print("MISSING_LOCAL_AUXILIARIES", ", ".join(missing))
+
+    if jo.suffix == ".template" or missing:
         print("NOT_READY_FOR_SUBMISSION")
         return 2
-    print("STATIC_LOCAL_AUXILIARIES_PASS", len(references))
-    print("NOTE: syntax/auxiliary checks do NOT verify physics or Grid readiness")
+
+    print("STATIC_CHECK_PASS")
+    print("Not a production or physics validation; verify version pins and Grid weights.")
     return 0
 
+
 if __name__ == "__main__":
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("sample", type=Path)
-    raise SystemExit(main(p.parse_args().sample))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("sample", type=Path)
+    raise SystemExit(main(parser.parse_args().sample))
