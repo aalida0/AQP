@@ -45,7 +45,7 @@ case "$GEN_SHEBANG" in
 esac
 printf 'PRECHECK_GEN_TF_SHEBANG=%s\n' "$GEN_SHEBANG" | tee -a preflight.log
 printf 'PRECHECK_PYTHON=%s\n' "$(command -v "$PRECHECK_PYTHON")" | tee -a preflight.log
-if ! "$PRECHECK_PYTHON" -c 'import six; print("SIX_AVAILABLE", six.__file__)' >> preflight.log 2>&1; then
+if ! "$PRECHECK_PYTHON" -c 'import six; print("SIX_AVAILABLE", six.__file__)' 2>&1 | tee -a preflight.log; then
   echo "PRECHECK_BLOCKED: six is unavailable to the Python used by Gen_tf.py." | tee -a preflight.log
   echo "Inspect: command -v python python3 Gen_tf.py; python -c 'import six'; python3 -c 'import six'" | tee -a preflight.log
   echo "No Condor jobs or integration launched." | tee -a preflight.log
