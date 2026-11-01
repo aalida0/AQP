@@ -9,7 +9,7 @@ from unittest.mock import patch
 from types import SimpleNamespace
 
 from runtime import gridpack_timing as timing
-from tests.check_concurrent_gridpacks import check
+from check_concurrent_gridpacks import check
 
 
 class IndependentRuns(unittest.TestCase):
