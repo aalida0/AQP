@@ -236,6 +236,44 @@ generation and for physics validation. Confirm the actual run card
 contains `none = systematics_program` before accepting the result.
 
 
+
+## V3 nominal-only: automatic Condor PASS; ATLAS expected-weights validation mismatch
+
+The isolated `MG1jet-v3nosyst.LTC55Y` run automatically completed
+16/16 event-generation workers, 16/16 reweight workers, and collected
+20 NLO events (`4115 +/- 20 pb`). MadGraph's `reweight -from_cards`
+and `decay_events -from_cards` steps returned without error. The run
+failed after that in the ATLAS `arrange_output` step:
+
+```
+The following 0 weights have been written to the LHE file:
+Checking whether the following expected weights are in LHE file: MUR1.0_MUF1.0_PDF325100
+RuntimeError: Did not find expected weight MUR1.0_MUF1.0_PDF325100
+```
+
+This is a **configuration mismatch** in the deliberately nominal-only
+smoke: `systematics_program=none` produces no named systematic weights,
+but the ATLAS output helper still requests the central systematic weight
+when `pdf_variations` exists as an empty list in the explicit
+`MADGRAPH_PDFSETTING`. Confirmed by inspecting public ATLAS
+`MadGraphUtils.py:get_expected_systematic_names`: the function
+appends that central weight for *any* list-type `pdf_variations`, even
+an empty one.
+
+The experimental **complete** JO
+`smoke/1jet/JO_v3_nosyst/mc.MGPy8EG_Zll_FxFx_1jets_AQPsmoke.py`
+now invokes `arrange_output(..., pdf_setting={})` to disable **only**
+the nonexistent systematic-weight name requirement in this nominal-only
+smoke. MadGraph's event generation and PDF setting, and the v3 Condor
+patch, are unchanged. This waiver is expressly forbidden in actual
+production JOs where PDF/scale variations must be generated and checked.
+
+The next minimal gate is a **no-Condor, no-integration** invocation of
+`arrange_output` on a copied, isolated 20-event LHE from
+`MG1jet-v3nosyst.LTC55Y`, with `pdf_setting={}`. If packaging passes,
+the remaining independent full-transform check is straightforward but
+does not add evidence to Condor's already-passed completion logic.
+
 ## Exact source and runtime contract
 
 - Use `asetup 23.6.63,AthGeneration` on AF (GCC14 / Python 3.12).
