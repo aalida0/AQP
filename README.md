@@ -1,34 +1,34 @@
 # FxFx production
 
-One complete `mc.*.py` per configuration/DSID, with `.f` and
-`.patch` files adjacent in `JOs/`. The same JO builds a gridpack on
-Condor and consumes it for event generation on the ATLAS Grid.
+Full JOs and auxiliary patches are under `JOs/`. Build a gridpack on
+UChicago AF using the source-pinned Condor backend, then move the archive
+to `/data/$USER/gridpacks/`.
 
-## Gridpack (UChicago AF; experimental pinned Condor backend)
+## Small integration smoke test
+
+This test is **Z(ee)+0,1 jets**, standard111, `req_acc=0.1`,
+no HT2 bias, no PDF/scale variations. It exercises the Condor
+gridpack launcher and the FxFx exclusive-kT patch; it is
+**not a physics/production sample**. The example ID 999999 is
+not an approved DSID.
 
 ```bash
+cd ~/AQP
+git switch main
+git pull --ff-only origin main
 setupATLAS
 asetup 23.6.63,AthGeneration
-bash scripts/gridpack.sh 'JOs/V+jets/Z+jets/Z(ee)/standard111/100000'
+bash -n scripts/gridpack.sh
+python3 scripts/check_sample.py tests/1jet/999999
+bash scripts/gridpack.sh tests/1jet/999999 13000 10 34123
 ```
 
-Optional positional arguments: `ecm_GeV` (13000), `maxEvents` (2000),
-`seed` (12345). The launcher uses a **separate tmux socket**,
-stages the entire DSID JO directory under shared
-`~/gridpack-work/`, then runs `Gen_tf.py`. On success it verifies
-exactly one `mc_*GRID.tar.gz` archive, checks the tar, and **moves**
-it to `/data/$USER/gridpacks/` alongside `generation.log`,
-`timing.txt` and `controller_cpu.txt`. On failure the whole
-workspace remains in `/home` for diagnosis.
+The launcher starts a dedicated `tmux` server, uses a fresh shared
+`~/gridpack-work` directory, and records wall time, controller CPU,
+logs, and JO SHA256. It verifies exactly one gridpack tar before
+copying it to `/data/$USER/gridpacks`. It refuses a mismatched MadGraph
+source or Condor patch, which must already be staged under
+`~/AQP/aqp-condor-minimal` from the previously validated smoke setup.
 
-Preflight requires the pinned v3 Condor patch/bootstrap already tested
-at `~/AQP/aqp-condor-minimal/` and exact matching MadGraph
-`cluster.py`; no untested patch is silently applied. The launcher
-only records **overall elapsed wall time** and controller-process CPU
-time, *not* Condor worker core-hours. Per-worker integration timing,
-Grid generation, and Rivet are subsequent stages.
-
-**Status:** launcher is syntactically reviewed, not AF-run.
-The unified Zee JO's new FxFx source patch and the PDF/scale variations
-still require end-to-end validation; these example DSIDs are not
-approved production IDs.
+The original production JOs remain untouched. Grid submissions, detailed
+Condor worker core-hours, and Rivet follow after this smoke test passes.

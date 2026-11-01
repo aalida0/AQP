@@ -54,8 +54,9 @@ fi
 
 repo=$(cd "$(dirname "$0")/.." && pwd -P)
 jo=$(cd "$1" && pwd -P)
-[[ "$jo" == "$repo"/JOs/* && "$(basename "$jo")" =~ ^[0-9]+$ ]] || {
-    echo "Expected a DSID directory under $repo/JOs" >&2; exit 2;
+[[ ( "$jo" == "$repo"/JOs/* || "$jo" == "$repo"/tests/* ) \
+    && "$(basename "$jo")" =~ ^[0-9]+$ ]] || {
+    echo "Expected a DSID directory under JOs/ or tests/" >&2; exit 2;
 }
 python3 "$repo/scripts/check_sample.py" "$jo" || exit 2
 command -v Gen_tf.py >/dev/null
