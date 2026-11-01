@@ -46,6 +46,33 @@ class ZeeSmokeJOTests(unittest.TestCase):
         self.assertEqual(constructors[0].args, [])
         self.assertEqual(constructors[0].keywords, [])
 
+    def test_nlo_gridpack_generation_keeps_reweight_metadata(self):
+        source = JO.read_text()
+        tree = ast.parse(source, filename=str(JO))
+        modify_calls = [
+            node for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "modify_run_card"
+        ]
+        self.assertEqual(len(modify_calls), 1)
+        settings = next(
+            kw.value for kw in modify_calls[0].keywords
+            if kw.arg == "settings"
+        )
+        self.assertIsInstance(settings, ast.Dict)
+        values = {
+            key.value: value
+            for key, value in zip(settings.keys, settings.values)
+            if isinstance(key, ast.Constant) and isinstance(key.value, str)
+        }
+        self.assertIn("store_rwgt_info", values)
+        value = values["store_rwgt_info"]
+        self.assertIsInstance(value, ast.UnaryOp)
+        self.assertIsInstance(value.op, ast.Not)
+        self.assertIsInstance(value.operand, ast.Name)
+        self.assertEqual(value.operand.id, "GRIDPACK_MODE")
+
     def test_reuse_does_not_reintegrate(self):
         source = JO.read_text()
         self.assertIn("GRIDPACK_MODE = not is_gen_from_gridpack()", source)
