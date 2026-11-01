@@ -103,14 +103,19 @@ assert original == expected, 'Wrong MadGraph installation imported'
 assert all(hasattr(cluster, n) for n in ('_aqp_claim','_aqp_states','_aqp_output_contract')), 'V3 patched backend not loaded'
 print('PRECHECK_PATCH_ACTIVE PASS')
 
-# Validate the 23.6.63 PDF setup against the installed ATLAS helper before
-# running expensive MINT jobs. Using {} here fails: missing central_pdf.
-from MadGraphControl.MadGraphUtils import setup_pdf_and_systematic_weights
-_pdf = dict(pdlabel='lhapdf', lhaid=325100, reweight_scale=False,
-            reweight_pdf=False, store_rwgt_info=False,
-            systematics_program='none')
-setup_pdf_and_systematic_weights(None, _pdf, True)
-print('PRECHECK_NORW_PDF_SETUP_PASS')
+# Match the previously working central-PDF fragment and verify no
+# reweighting/systematics will be enabled by the installed ATLAS helper.
+from MadGraphControl.MadGraphSystematicsUtils import get_pdf_and_systematic_settings
+_pdf = dict(central_pdf=325100, pdf_variations=[],
+            alternative_pdfs=[], scale_variations=[])
+expected = get_pdf_and_systematic_settings(_pdf, True)
+assert str(expected['lhaid']) == '325100', expected
+assert expected['pdlabel'] == 'lhapdf', expected
+assert expected['systematics_program'] == 'none', expected
+assert str(expected['reweight_PDF']).lower() == 'false', expected
+assert str(expected['reweight_scale']).lower() == 'false', expected
+assert str(expected.get('store_rwgt_info', 'False')).lower() == 'false', expected
+print('PRECHECK_NORW_PDF_SETUP_PASS', expected['lhaid'])
 PY2
 
 
