@@ -28,6 +28,8 @@ def main():
     parser.add_argument("run", type=Path, help="Failed validation directory")
     parser.add_argument("--max-logs", type=int, default=8)
     parser.add_argument("--tail", type=int, default=50)
+    parser.add_argument("--focus", default="P1_gd_demep/GF4.0",
+                        help="Prioritize this subprocess/GF directory from the error")
     args = parser.parse_args()
     if args.max_logs < 1 or args.tail < 1:
         parser.error("--max-logs and --tail must be positive")
@@ -49,7 +51,9 @@ def main():
     # count is not evidence that the reweighting binary succeeded.
     candidates = []
     seen = set()
-    for p in missing + exceptions + logs:
+    focused = [p for p in logs if args.focus in str(p.parent)]
+    print("FOCUSED_REWEIGHT_LOGS", len(focused), "TARGET", args.focus)
+    for p in focused + missing + exceptions + logs:
         if p not in seen:
             candidates.append(p)
             seen.add(p)
