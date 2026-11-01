@@ -106,3 +106,16 @@ in this sample, **not** evidence of MC@NLO-Delta improvement because
 Delta matching is disabled. The 20.82% and 17.00% values also have
 different event-selection populations; do not directly convert their
 ratio into matching acceptance.
+
+### Systematic-weight inventory caveat (2026-11-01)
+
+The first 60 lines of the Zee 1000-EVNT run's
+`pmg_weight_inventory.txt` show `<initrwgt>` scale weights including
+`MUR0.5_MUF2.0_PDF325100` and `MUR2.0_MUF0.5_PDF325100`.
+These two anti-correlated scale combinations are named in the
+`--remove_wgts` filter stored in the run-card systematics arguments.
+Therefore **163 LHE header weights is an inventory count, not yet
+proof that the requested scale-weight exclusion is applied.**
+Check full header groups, event-level weights and final EVNT weight
+names before PMG approval. No changes to the physics JO have been
+made based on this observation.
