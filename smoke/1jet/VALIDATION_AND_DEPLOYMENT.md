@@ -276,9 +276,22 @@ This sets `MADGRAPH_PDFSETTING={}`; retains the nominal LHAPDF
 `systematics_program=none`. It restores the **original four-argument**
 `arrange_output` call supported by Athena 23.6.63.
 
+A clean no-reweight smoke attempt at `MG1jet-v3norw.r1opIU` did
+**not** enter integration: the intentional empty dictionary
+`MADGRAPH_PDFSETTING={}` caused
+`RuntimeError: No "central_pdf" configured in base fragment` from
+`modify_run_card`. The **fix** is
+`MadGraphControl.MadGraphUtils.MADGRAPH_PDFSETTING = None`, not
+`{}`: the 23.6.63 helper accepts the absence of a PDF base fragment
+when `pdlabel='lhapdf'` and `lhaid=325100` are explicitly provided.
+No systematic weights or extra reweight jobs are requested.
+
 The separate `prepare_v3.sh` pins the unchanged v3 Condor patch,
 points to the new `JO_v3_norw`, and generates a fresh
-`MG1jet-v3norw.XXXXXX` directory and launch script. It also checks
+`MG1jet-v3norw.XXXXXX` directory and launch script. The preflight now executes the **installed**
+`setup_pdf_and_systematic_weights(None, {...}, True)` on an isolated
+configuration dictionary and requires
+`PRECHECK_NORW_PDF_SETUP_PASS` before launch creation. It also checks
 that the generation log contains neither `Doing reweight` nor
 `Running Systematics computation`.
 
