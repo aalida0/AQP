@@ -54,6 +54,45 @@ def _aqp_claim(cwd, prog, arguments):
     return path
 
 
+def _aqp_output_contract(cwd, prog, required):
+    """Preserve strict outputs except legitimate blank reweight summary.
+
+    When MG explicitly disables BOTH reweight_scale and reweight_pdf,
+    scale_pdf_dependence.dat is generated but may contain zero bytes.
+    Require its existence; still require nonempty LHE and reweight logs.
+    Otherwise keep the complete original nonempty-output contract.
+    """
+    required = list(required)
+    name = 'scale_pdf_dependence.dat'
+    if (os.path.basename(str(prog)) != 'reweight_xsec_events.local'
+            or name not in required or not cwd):
+        return required, []
+    card = os.path.join(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.realpath(cwd)))), 'Cards', 'run_card.dat')
+    flags = {}
+    try:
+        with open(card) as handle:
+            for line in handle:
+                row = line.split('#', 1)[0].split('!', 1)[0]
+                if '=' not in row:
+                    continue
+                value, key = row.split('=', 1)
+                key = key.strip().lower()
+                if key not in ('reweight_scale', 'reweight_pdf'):
+                    continue
+                if key in flags:
+                    return required, []  # Ambiguous card: fail closed.
+                values = [v for v in re.split(r'[\\s,]+',
+                          value.strip().strip('[]').lower()) if v]
+                flags[key] = (bool(values) and all(v in
+                              ('false', 'f', '.false.') for v in values))
+    except OSError:
+        return required, []  # Unreadable card: fail closed.
+    if all(flags.get(key, False) for key in ('reweight_scale', 'reweight_pdf')):
+        return [item for item in required if item != name], [name]
+    return required, []
+
+
 def _aqp_query(args):
     try:
         result = subprocess.run(args, capture_output=True, text=True, timeout=45)
@@ -118,6 +157,10 @@ CONTROL = '''    def control(self, me_dir):
                     path = os.path.join(record['cwd'], name) if record['cwd'] else name
                     if not os.path.exists(path) or not os.stat(path).st_size:
                         raise ClusterManagmentError('Missing MadGraph output: ' + path)
+                for name in record.get('_aqp_exists_only', []):
+                    path = os.path.join(record['cwd'], name) if record['cwd'] else name
+                    if not os.path.isfile(path):
+                        raise ClusterManagmentError('Missing MadGraph output: ' + path)
                 outcome = self.check_termination(jid)  # Original MG output handling.
                 if outcome == 'wait':
                     run += 1
@@ -180,13 +223,23 @@ def patch_source(source):
             (call, [ind + '_aqp_path = _aqp_claim(cwd, prog, _aqp_args)\n']),
             (communicate + 1, [ind + 'if a.returncode != 0:\n',
                                ind + "    raise ClusterManagmentError('condor_submit nonzero exit: %s' % a.returncode)\n"]),
-            (tracked, [ind + 'self.retry_args.setdefault(id, dict(cwd=cwd,\n',
-                       ind + '    required_output=list(required_output), nb_submit=nb_submit))\n',
+            (tracked, [ind + '_aqp_required, _aqp_exists = _aqp_output_contract(cwd, prog, required_output)\n',
+                       ind + 'self.retry_args.setdefault(id, dict(cwd=cwd,\n',
+                       ind + '    required_output=_aqp_required, nb_submit=nb_submit,\n',
+                       ind + '    _aqp_exists_only=_aqp_exists))\n',
                        ind + 'if _aqp_path is not None:\n',
                        ind + '    self.__dict__.setdefault("_aqp_paths", {})[id] = _aqp_path\n']),
         ])
     for name, body in (('control', CONTROL), ('control_one_job', ONE)):
         f = funcs[name]
+        # Retry decorators conceal failures: MG misc.py has a bare 'raise'
+        # after retry exhaustion. This interface must fail immediately.
+        decos = [d for d in f.decorator_list if isinstance(d, ast.Call) and
+                 isinstance(d.func, ast.Name) and d.func.id == 'multiple_try']
+        if (len(decos) != 1 or
+                not lines[decos[0].lineno - 1].strip().startswith('@multiple_try(')):
+            raise ValueError(name + ': missing retry decorator')
+        edits.append((decos[0].lineno - 1, [], 1))
         edits.append((f.lineno - 1, body.splitlines(keepends=True),
                       f.end_lineno - (f.lineno - 1)))
     # Reverse order so earlier AST coordinates stay correct.
