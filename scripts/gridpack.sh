@@ -15,7 +15,7 @@ if [[ "${1:-}" == --run ]]; then
     { time Gen_tf.py --ecmEnergy="$GP_ECM" --maxEvents="$GP_EVENTS" \
         --firstEvent=1 --randomSeed="$GP_SEED" \
         --outputTXTFile=events.tar.gz --jobConfig="$GP_JO" \
-        > generation.log 2>&1; } 2> controller_cpu.txt || rc=$?
+        2>&1 | tee generation.log; } 2>controller_cpu.txt || rc=$?
 
     ended=$(date +%s)
     printf 'end_epoch=%s\nwall_seconds=%s\ntransform_exit=%s\n' \
@@ -44,6 +44,8 @@ if [[ "${1:-}" == --run ]]; then
     done
     printf 'result_exit=%s\n' "$rc" | tee -a timing.txt
     cp timing.txt "$GP_OUT/timing.txt"
+    python3 "$GP_REPO/runtime/gridpack_timing.py" "$run" --output "$GP_OUT" || \
+        echo "WARNING: timing report failed; original logs preserved" >&2
     exit "$rc"
 fi
 
@@ -96,6 +98,7 @@ mkdir -p "$run/jo" "$run/guard"
 cp -a "$jo" "$run/jo/"
 dsid=$(basename "$jo")
 export GP_JO="$run/jo/$dsid"
+export GP_REPO="$repo"
 export GP_ECM="${2:-13000}" GP_EVENTS="${3:-2000}" GP_SEED="${4:-12345}"
 export GP_OUT="/data/$USER/gridpacks/$name/$(basename "$run")"
 mkdir -p "$GP_OUT"
@@ -111,5 +114,6 @@ python -c 'import madgraph.various.cluster as c; assert hasattr(c, "_aqp_states"
 socket="gp-$(basename "$run")"
 printf -v cmd '%q ' bash "$repo/scripts/gridpack.sh" --run "$run"
 tmux -L "$socket" new-session -d -s gridpack -c "$run" "$cmd"
+tmux -L "$socket" set-window-option -t gridpack remain-on-exit on
 printf 'RUN=%s\nOUTPUT=%s\nATTACH=tmux -L %q attach -t gridpack\n' \
     "$run" "$GP_OUT" "$socket"
