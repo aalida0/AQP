@@ -35,7 +35,24 @@ cd "$RUN"
 echo "AQP_RUN=$RUN" | tee preflight.log
 echo "AQP_CLUSTER_CANDIDATE=$AQP_CLUSTER_CANDIDATE" | tee -a preflight.log
 
-python3 - <<'PY2' 2>&1 | tee -a preflight.log
+# Gen_tf.py may use `python`, while shell `python3` points to a different
+# interpreter. Match its shebang and check MadGraph's required dependency first.
+GEN_SHEBANG=$(head -n 1 "$(command -v Gen_tf.py)")
+case "$GEN_SHEBANG" in
+  *python3*) PRECHECK_PYTHON=python3 ;;
+  *python*) PRECHECK_PYTHON=python ;;
+  *) PRECHECK_PYTHON=python3 ;;
+esac
+printf 'PRECHECK_GEN_TF_SHEBANG=%s\\n' "$GEN_SHEBANG" | tee -a preflight.log
+printf 'PRECHECK_PYTHON=%s\\n' "$(command -v "$PRECHECK_PYTHON")" | tee -a preflight.log
+if ! "$PRECHECK_PYTHON" -c 'import six; print("SIX_AVAILABLE", six.__file__)' >> preflight.log 2>&1; then
+  echo "PRECHECK_BLOCKED: six is unavailable to the Python used by Gen_tf.py." | tee -a preflight.log
+  echo "Inspect: command -v python python3 Gen_tf.py; python -c 'import six'; python3 -c 'import six'" | tee -a preflight.log
+  echo "No Condor jobs or integration launched." | tee -a preflight.log
+  exit 2
+fi
+
+"$PRECHECK_PYTHON" - <<'PY2' 2>&1 | tee -a preflight.log
 import os
 import madgraph.various.cluster as cluster
 original=os.path.realpath(cluster.__file__)
