@@ -43,8 +43,8 @@ case "$GEN_SHEBANG" in
   *python*) PRECHECK_PYTHON=python ;;
   *) PRECHECK_PYTHON=python3 ;;
 esac
-printf 'PRECHECK_GEN_TF_SHEBANG=%s\\n' "$GEN_SHEBANG" | tee -a preflight.log
-printf 'PRECHECK_PYTHON=%s\\n' "$(command -v "$PRECHECK_PYTHON")" | tee -a preflight.log
+printf 'PRECHECK_GEN_TF_SHEBANG=%s\n' "$GEN_SHEBANG" | tee -a preflight.log
+printf 'PRECHECK_PYTHON=%s\n' "$(command -v "$PRECHECK_PYTHON")" | tee -a preflight.log
 if ! "$PRECHECK_PYTHON" -c 'import six; print("SIX_AVAILABLE", six.__file__)' >> preflight.log 2>&1; then
   echo "PRECHECK_BLOCKED: six is unavailable to the Python used by Gen_tf.py." | tee -a preflight.log
   echo "Inspect: command -v python python3 Gen_tf.py; python -c 'import six'; python3 -c 'import six'" | tee -a preflight.log
