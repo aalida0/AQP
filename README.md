@@ -1,34 +1,37 @@
 # FxFx production
 
-Full JOs and auxiliary patches are under `JOs/`. Build a gridpack on
-UChicago AF using the source-pinned Condor backend, then move the archive
-to `/data/$USER/gridpacks/`.
+One PMG-reviewable JobOption per configuration/DSID under `JOs/`, with its
+Fortran sources and patches alongside it. The same JO builds a Condor
+gridpack or consumes a gridpack for ATLAS Grid event generation.
 
-## Small integration smoke test
+## Gridpack smoke test (0,1 jets; accuracy 0.1)
 
-This test is **Z(ee)+0,1 jets**, standard111, `req_acc=0.1`,
-no HT2 bias, no PDF/scale variations. It exercises the Condor
-gridpack launcher and the FxFx exclusive-kT patch; it is
-**not a physics/production sample**. The example ID 999999 is
-not an approved DSID.
+Run on the UChicago Analysis Facility, from a fresh home checkout
+(`~/NWR` is supported; the GitHub repository is still `aalida0/AQP`):
 
 ```bash
-cd ~/AQP
-git switch main
-git pull --ff-only origin main
+cd ~/NWR
 setupATLAS
 asetup 23.6.63,AthGeneration
-bash -n scripts/gridpack.sh
 python3 scripts/check_sample.py tests/1jet/999999
+bash -n scripts/gridpack.sh
 bash scripts/gridpack.sh tests/1jet/999999 13000 10 34123
 ```
 
-The launcher starts a dedicated `tmux` server, uses a fresh shared
-`~/gridpack-work` directory, and records wall time, controller CPU,
-logs, and JO SHA256. It verifies exactly one gridpack tar before
-copying it to `/data/$USER/gridpacks`. It refuses a mismatched MadGraph
-source or Condor patch, which must already be staged under
-`~/AQP/aqp-condor-minimal` from the previously validated smoke setup.
+The launcher checks a source-pinned Condor bootstrap at
+`<checkout>/.condor/cluster.py` and
+`<checkout>/.condor/bootstrap_v3/sitecustomize.py` before starting
+anything. These are **local, ignored test assets**, not production
+dependencies: copy the exact validated files from the old AF test
+checkout, without changing them. You may override the folder using
+`GP_PATCH_ROOT=/absolute/path`.
 
-The original production JOs remain untouched. Grid submissions, detailed
-Condor worker core-hours, and Rivet follow after this smoke test passes.
+The tmux-launched run uses a unique shared `~/gridpack-work/` directory.
+On success, the gridpack, logs, and elapsed/controller timing are saved to
+`/data/$USER/gridpacks/`. It does not count remote Condor CPU-hours yet.
+The test uses standard matching/folding 111 with no HT2 bias and applies
+the FxFx exclusive-kT source patch before compilation. It is a **smoke
+test only**, not a validated physics sample.
+
+Production JOs, Grid submission automation and Rivet validation remain
+separate stages. Do not move a live Condor work directory during a job.
