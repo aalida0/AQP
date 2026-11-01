@@ -86,62 +86,86 @@ def prepare(jobid):
     print("TO_RUN: python3 smoke/1jet/one_real_worker.py run", stage)
 
 
-def run(stage):
+def run(stages):
     import madgraph.various.cluster as cluster
     if not (hasattr(cluster, "_aqp_claim") and hasattr(cluster, "_aqp_states")):
         raise RuntimeError("AQP pinned cluster patch was NOT loaded")
     if not os.environ.get("AQP_CLUSTER_CANDIDATE"):
         raise RuntimeError("AQP_CLUSTER_CANDIDATE is unset")
-    stage = stage.resolve(strict=True)
+    if not 1 <= len(stages) <= 2:
+        raise RuntimeError("Only one or two disposable workers may be submitted")
+    stages = [p.resolve(strict=True) for p in stages]
+    if len(set(stages)) != len(stages):
+        raise RuntimeError("Duplicate stage paths are forbidden")
     home = (Path.home() / "AQP" / "condor-one-worker").resolve()
-    if not stage.is_relative_to(home):
-        raise RuntimeError("Worker stage must be under " + str(home))
-    data = json.loads((stage / "worker.json").read_text())
-    cwd = Path(data["cwd"])
-    if not cwd.is_dir() or not (cwd / "ajob1").exists():
-        raise RuntimeError("Missing staged worker")
-    if (stage / "jobid").exists():
-        raise RuntimeError("Submission already attempted: " + str(stage / "jobid"))
-    guard = stage / "guard"
-    if list(guard.glob("*.intent")):
-        raise RuntimeError("Existing submission guard; do not duplicate")
-    os.environ["AQP_CONDOR_GUARD_DIR"] = str(guard)
+    jobs = []
+    # Validate BOTH stages before submitting EITHER worker.
+    for stage in stages:
+        if not stage.is_relative_to(home):
+            raise RuntimeError("Worker stage must be under " + str(home))
+        data = json.loads((stage / "worker.json").read_text())
+        cwd = Path(data["cwd"])
+        if not cwd.is_dir() or not (cwd / "ajob1").exists():
+            raise RuntimeError("Missing staged worker: " + str(cwd))
+        if not cwd.resolve().is_relative_to(stage):
+            raise RuntimeError("Worker cwd escapes staged area: " + str(cwd))
+        if (stage / "jobid").exists():
+            raise RuntimeError("Submission already attempted: " + str(stage / "jobid"))
+        guard = stage / "guard"
+        if not guard.is_dir() or list(guard.glob("*.intent")):
+            raise RuntimeError("Missing or occupied submission guard: " + str(guard))
+        for source in data["input_files"]:
+            if not Path(source).exists():
+                raise RuntimeError("Missing staged worker input: " + source)
+        if data["args"] != ["1.0", "F", "0", "0"]:
+            raise RuntimeError("Only the archived real MINT0 worker is supported")
+        jobs.append((stage, cwd, guard, data))
     controller = cluster.CondorCluster(
         cluster_queue="None", cluster_nb_retry=0,
         cluster_retry_wait=120, cluster_status_update=(30, 5),
     )
-    # Create a durable marker before submitting; a lost acknowledgement
-    # must never cause a second submission from this command.
-    (stage / "jobid").write_text("SUBMISSION_ATTEMPTED_NO_ACK\n")
-    job = controller.submit2(
-        str(cwd / "ajob1"), data["args"], cwd=str(cwd),
-        stdout=str(stage / "worker.out"),
-        stderr=str(stage / "worker.err"),
-        log=str(stage / "worker.log"),
-        input_files=data["input_files"],
-        output_files=data["output_files"],
-        required_output=data["required_output"],
-    )
-    (stage / "jobid").write_text(job + ".0\n")
-    print("ONE_REAL_AJOB1_SUBMITTED", job, flush=True)
-    print("STAGE", stage, flush=True)
-    while True:
+    # Both submissions go through ONE controller, testing aggregate condor_q.
+    for stage, cwd, guard, data in jobs:
+        os.environ["AQP_CONDOR_GUARD_DIR"] = str(guard)
+        # Write a durable marker BEFORE submission; on an ambiguous reply,
+        # do not rerun this process or discard the reservation.
+        (stage / "jobid").write_text("SUBMISSION_ATTEMPTED_NO_ACK\\n")
+        try:
+            job = controller.submit2(
+                str(cwd / "ajob1"), data["args"], cwd=str(cwd),
+                stdout=str(stage / "worker.out"),
+                stderr=str(stage / "worker.err"),
+                log=str(stage / "worker.log"),
+                input_files=data["input_files"],
+                output_files=data["output_files"],
+                required_output=data["required_output"],
+            )
+        except Exception:
+            print("SUBMISSION_UNCERTAIN; inspect existing jobs/guards; DO NOT retry",
+                  flush=True)
+            raise
+        (stage / "jobid").write_text(job + ".0\\n")
+        print("REAL_AJOB1_SUBMITTED", job, "STAGE", stage, flush=True)
+    while controller.submitted_ids:
         try:
             status = controller.control(None)
         except Exception:
-            print("WORKER_CONTROL_FAILED; inspect job and guard, do not resubmit", flush=True)
+            print("WORKER_CONTROL_FAILED; inspect jobs/guards; DO NOT resubmit",
+                  flush=True)
             raise
-        print("ONE_REAL_AJOB1_STATUS", status, flush=True)
-        if not controller.submitted_ids:
-            for output in data["required_output"]:
-                p = cwd / output
-                if not p.is_file() or p.stat().st_size == 0:
-                    raise RuntimeError("Required output missing after completion: " + str(p))
-            if list(guard.glob("*.intent")):
-                raise RuntimeError("Submission guard remained after success")
-            print("ONE_REAL_AJOB1_PASS", flush=True)
-            return
-        time.sleep(10)
+        print("REAL_AJOB1_STATUS", status,
+              "TRACKED", len(controller.submitted_ids), flush=True)
+        if controller.submitted_ids:
+            time.sleep(10)
+    for stage, cwd, guard, data in jobs:
+        for output in data["required_output"]:
+            p = cwd / output
+            if not p.is_file() or p.stat().st_size == 0:
+                raise RuntimeError("Required output missing after completion: " + str(p))
+        if list(guard.glob("*.intent")):
+            raise RuntimeError("Submission guard remained after success: " + str(guard))
+    print("ONE_REAL_AJOB1_PASS" if len(jobs) == 1 else "TWO_REAL_AJOB1_PASS",
+          flush=True)
 
 
 if __name__ == "__main__":
@@ -150,9 +174,10 @@ if __name__ == "__main__":
     prep = sub.add_parser("prepare")
     prep.add_argument("--source-job", default="4062447.0")
     launch = sub.add_parser("run")
-    launch.add_argument("stage", type=Path)
+    launch.add_argument("stages", nargs="+", type=Path,
+                        help="one or two independent staged worker directories")
     args = parser.parse_args()
     if args.command == "prepare":
         prepare(args.source_job)
     else:
-        run(args.stage)
+        run(args.stages)
