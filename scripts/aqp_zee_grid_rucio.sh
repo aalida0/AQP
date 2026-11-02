@@ -25,6 +25,7 @@ Optional:
   AQP_JO_DIR=/path/to/matching/JO  # mandatory for standard111 submit
   AQP_EXPECT_EVENT_NORM=average|bias  # checks event_norm in event-mode JO
   AQP_GRID_STAGE_DIR=$HOME/aqp-grid-stage  # outside the repository checkout
+  AQP_OUTPUT_TAG=delta111_norecompile_gridfix_v3  # new PanDA output tag; reuses input TAG
 
 Use a unique TAG for each attempt. No real upload/submission in plan mode.
 For a 13 TeV gridpack, its Rucio LFN MUST retain the mc_13TeV* basename.
@@ -52,8 +53,9 @@ ACCOUNT=${AQP_RUCIO_USER:-${RUCIO_ACCOUNT:-${USER:-}}}
 RSE=${AQP_RSE:-CERN-PROD_SCRATCHDISK}
 EVENTS=${AQP_EVENTS:-20}
 RECOMPILE=${AQP_GRIDPACK_RECOMPILE:-0}
-[[ "$ACCOUNT" =~ ^[A-Za-z0-9_]+$ && "$EVENTS" =~ ^[1-9][0-9]*$ && "$RECOMPILE" =~ ^[01]$ ]] || {
-    echo "Invalid AQP_RUCIO_USER, AQP_EVENTS or AQP_GRIDPACK_RECOMPILE" >&2; exit 2;
+OUTPUT_TAG=${AQP_OUTPUT_TAG:-$TAG}
+[[ "$ACCOUNT" =~ ^[A-Za-z0-9_]+$ && "$EVENTS" =~ ^[1-9][0-9]*$ && "$RECOMPILE" =~ ^[01]$ && "$OUTPUT_TAG" =~ ^[A-Za-z0-9_]+$ ]] || {
+    echo "Invalid AQP_RUCIO_USER, AQP_EVENTS, AQP_GRIDPACK_RECOMPILE or AQP_OUTPUT_TAG" >&2; exit 2;
 }
 
 JO_DIR=${AQP_JO_DIR:-$REPO/tests/2jet/$DSID}
@@ -96,7 +98,7 @@ FILE_NAME=$(basename -- "$GRIDPACK")
 }
 DATASET="${SCOPE}.AQP.Zee2jet.PR426.${CONFIG}.GRID.${TAG}"
 DID="$SCOPE:$DATASET"
-OUTDS="${SCOPE}.AQP.Zee2jet.PR426.${CONFIG}.EVNT${EVENTS}.${TAG}"
+OUTDS="${SCOPE}.AQP.Zee2jet.PR426.${CONFIG}.EVNT${EVENTS}.${OUTPUT_TAG}"
 
 # Stage the JO at the root of an otherwise empty sandbox outside the Git
 # checkout for pathena. Gen_tf's 23.6 skeleton checks the first directory in
