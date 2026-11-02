@@ -96,6 +96,7 @@ class TestZeeGridRucioPlan(unittest.TestCase):
                 AQP_RUCIO_USER="aalida",
                 AQP_JO_DIR=str(jo_dir),
                 AQP_GRID_STAGE_DIR=str(stage_parent),
+                AQP_OUTPUT_TAG="norecompile_v3",
                 PATH=str(mock_bin) + os.pathsep + os.environ.get("PATH", ""),
             )
             p = subprocess.run(
@@ -115,6 +116,8 @@ class TestZeeGridRucioPlan(unittest.TestCase):
             self.assertIn("MOCK_PANDA_JO_LIST=./mc.aMCPy8EG_Zee_delta111.py", p.stdout)
             self.assertIn("GRIDPACK_RECOMPILE=0 Gen_tf.py", p.stdout)
             self.assertIn("--jobConfig=./", p.stdout)
+            self.assertIn("OUT_DS=user.aalida.AQP.Zee2jet.PR426.delta111.EVNT20.norecompile_v3", p.stdout)
+            self.assertIn("IN_DID=user.aalida:user.aalida.AQP.Zee2jet.PR426.delta111.GRID.delta111_norecompile_gridfix_v3", p.stdout)
             stages = list(stage_parent.iterdir())
             self.assertEqual(len(stages), 1)
             self.assertEqual([f.name for f in stages[0].iterdir()], [jo.name])
