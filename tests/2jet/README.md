@@ -101,3 +101,45 @@ All current integrations use req_acc=0.5, deliberately too loose
 for physical cross-section, negative-weight or differential DeltaRjj
 validation. They serve to verify compilation, Condor integration,
 gridpack packing, LHE generation and Pythia8 EVNT showering.
+
+## Grid pilot: Rucio LFN must preserve `mc_13TeV` (2026-11-02)
+
+A first one-job PanDA submission confirmed that the 2.80-GB Delta111
+archive was staged and the intended JO was transferred to the worker.
+It failed **before Athena started** in `Gen_tf.py` preExecute:
+
+```text
+Gridpack should start from mc_13TeV
+ERROR No *GRID* config files, for requested energy = '13'
+```
+
+The earlier grid upload script had renamed the physical input to an
+`AQP.Zee2jet.*.GRID.tar.gz` Rucio logical filename, which is not accepted
+by AthGeneration's 13 TeV gridpack discovery. The upload helper now
+**retains the exact original basename**, e.g.
+`mc_13TeV.aMCPy8EG_Zee_FxFx_2jets_DRjj_PR426_delta111.MG3511.GRID.tar.gz`,
+and refuses any filename not matching `mc_13TeV*.GRID.tar.gz`.
+The Rucio dataset TAG remains unique for each attempt.
+
+Do **not** reuse the old failed Rucio dataset
+`user.aalida:user.aalida.AQP.Zee2jet.PR426.delta111.GRID.delta111_test_20261102`.
+Its input LFN cannot be repaired by modifying the JO alone. For a new
+pilot with the same existing gridpack, use a new TAG such as
+`delta111_test_20261102_v2`:
+
+```bash
+cd ~/NWR
+git switch test/fxfx-pr426-zee2jets
+git pull --ff-only
+python3 -m unittest discover -s tests -p 'test_zee2jet_grid_rucio.py' -v
+GP=/data/aalida/NWR/gridpacks/tests-2jet-999997/tests-2jet-999997.sCJ7BF/mc_13TeV.aMCPy8EG_Zee_FxFx_2jets_DRjj_PR426_delta111.MG3511.GRID.tar.gz
+TAG=delta111_test_20261102_v2
+bash scripts/aqp_zee_grid_rucio.sh plan delta111 "$GP" "$TAG"
+bash scripts/aqp_zee_grid_rucio.sh upload delta111 "$GP" "$TAG"
+bash scripts/aqp_zee_grid_rucio.sh verify delta111 "$GP" "$TAG"
+bash scripts/aqp_zee_grid_rucio.sh submit delta111 "$GP" "$TAG"
+```
+
+The first job's worker stage-in and Athena release setup succeeded;
+that is not an event-generation PASS. The new Grid event-mode smoke
+must still produce 20 accepted EVNT events and exit 0.
