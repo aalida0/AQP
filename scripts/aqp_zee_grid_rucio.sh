@@ -26,6 +26,8 @@ Optional:
   AQP_EXPECT_EVENT_NORM=average|bias  # checks event_norm in event-mode JO
 
 Use a unique TAG for each attempt. No real upload/submission in plan mode.
+For a 13 TeV gridpack, its Rucio LFN MUST retain the mc_13TeV* basename.
+Gen_tf.py rejects a renamed GRID.tar.gz before running the JO.
 This is a small workflow test, not a physics-quality production submission.
 HELP
 }
@@ -79,7 +81,18 @@ fi
 
 SHA256=$(sha256sum -- "$GRIDPACK" | awk '{print $1}')
 SCOPE="user.$ACCOUNT"
-FILE_NAME="AQP.Zee2jet.${CONFIG}.${TAG}.${SHA256:0:16}.GRID.tar.gz"
+
+# ATLAS Gen_tf.py checks the gridpack filename *before* executing the JO.
+# It requires an mc_13TeV*.GRID.tar.gz file for --ecmEnergy=13000.
+# Never replace the basename with a dataset tag or checksum-based LFN:
+# PanDA stages the Rucio LFN verbatim, and the resulting transform fails
+# before Athena starts if the staged name is not recognized.
+FILE_NAME=$(basename -- "$GRIDPACK")
+[[ "$FILE_NAME" == mc_13TeV*.GRID.tar.gz ]] || {
+    echo "Invalid ATLAS 13 TeV gridpack filename: $FILE_NAME" >&2
+    echo "Expected mc_13TeV*.GRID.tar.gz; retain the original gridpack basename." >&2
+    exit 2
+}
 DATASET="${SCOPE}.AQP.Zee2jet.PR426.${CONFIG}.GRID.${TAG}"
 DID="$SCOPE:$DATASET"
 OUTDS="${SCOPE}.AQP.Zee2jet.PR426.${CONFIG}.EVNT${EVENTS}.${TAG}"
@@ -133,8 +146,9 @@ if [[ "$MODE" == upload ]]; then
     rucio list-rses | grep -Fxq -- "$RSE" || {
         echo "RSE not advertised: $RSE (confirm write permission)" >&2; exit 2;
     }
-    # --name gives a checksum-derived logical filename while preserving
-    # the gridpack's original local filename. DID denotes the dataset.
+    # --name preserves the ATLAS mc_13TeV* filename in the Rucio LFN.
+    # The dataset TAG provides separation between test submissions.
+    # Never rename the staged generator archive to AQP.*.GRID.tar.gz.
     rucio upload --rse "$RSE" --scope "$SCOPE" --name "$FILE_NAME" "$DID" "$GRIDPACK"
     verify_dataset
     exit 0
