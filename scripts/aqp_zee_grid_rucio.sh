@@ -21,9 +21,10 @@ Optional:
   AQP_RUCIO_USER=aalida             # your Rucio account (default: RUCIO_ACCOUNT / USER)
   AQP_RSE=CERN-PROD_SCRATCHDISK    # writable Rucio storage element
   AQP_EVENTS=20                     # output events in the single pilot job
-  AQP_GRIDPACK_RECOMPILE=1         # export this in remote Gen_tf.py environment
+  AQP_GRIDPACK_RECOMPILE=0         # reuse compiled gridpack (optional 1 to rebuild)
   AQP_JO_DIR=/path/to/matching/JO  # mandatory for standard111 submit
   AQP_EXPECT_EVENT_NORM=average|bias  # checks event_norm in event-mode JO
+  AQP_GRID_STAGE_DIR=$HOME/aqp-grid-stage  # outside the repository checkout
 
 Use a unique TAG for each attempt. No real upload/submission in plan mode.
 For a 13 TeV gridpack, its Rucio LFN MUST retain the mc_13TeV* basename.
@@ -50,7 +51,7 @@ REPO=${AQP_REPO:-$HOME/NWR}
 ACCOUNT=${AQP_RUCIO_USER:-${RUCIO_ACCOUNT:-${USER:-}}}
 RSE=${AQP_RSE:-CERN-PROD_SCRATCHDISK}
 EVENTS=${AQP_EVENTS:-20}
-RECOMPILE=${AQP_GRIDPACK_RECOMPILE:-1}
+RECOMPILE=${AQP_GRIDPACK_RECOMPILE:-0}
 [[ "$ACCOUNT" =~ ^[A-Za-z0-9_]+$ && "$EVENTS" =~ ^[1-9][0-9]*$ && "$RECOMPILE" =~ ^[01]$ ]] || {
     echo "Invalid AQP_RUCIO_USER, AQP_EVENTS or AQP_GRIDPACK_RECOMPILE" >&2; exit 2;
 }
@@ -97,6 +98,16 @@ DATASET="${SCOPE}.AQP.Zee2jet.PR426.${CONFIG}.GRID.${TAG}"
 DID="$SCOPE:$DATASET"
 OUTDS="${SCOPE}.AQP.Zee2jet.PR426.${CONFIG}.EVNT${EVENTS}.${TAG}"
 
+# Stage the JO at the root of an otherwise empty sandbox outside the Git
+# checkout for pathena. Gen_tf's 23.6 skeleton checks the first directory in
+# JOBOPTSEARCHPATH (./ on the worker) for EXACTLY ONE mc*.py file.
+# Submitting from the repo packages multiple JOs nested under tests/ and JOs/,
+# causing "You must supply one and only one jobOption file in DSID directory".
+#
+# Do not pass --jobConfig=tests/2jet/999997: pathena controls the worker
+# layout. Instead copy a single JO into the submission sandbox root and pass
+# --jobConfig=./, which refers to that root on the worker.
+#
 # pathena expands %IN to the Rucio-staged gridpack filename.
 # 'env VAR=VALUE Gen_tf.py' sets the worker environment; passing
 # '--env' *inside* Gen_tf.py arguments would be incorrect.
@@ -109,7 +120,10 @@ if [[ "$MODE" == plan ]]; then
     printf '\nUpload command:\n'
     printf 'rucio upload --rse %q --scope %q --name %q %q %q\n' \
         "$RSE" "$SCOPE" "$FILE_NAME" "$DID" "$GRIDPACK"
-    printf '\nSubmission command (from %q):\n' "$JO_DIR"
+    printf '\nSubmission (JO staged as the only mc*.py at a fresh root outside Git):\n'
+    printf 'SOURCE_JO=%q\n' "$JO"
+    printf 'STAGING_PARENT=%q\n' "${AQP_GRID_STAGE_DIR:-$HOME/aqp-grid-stage}"
+    printf 'TRF=%s\n' "$TRF"
     printf 'pathena --trf %q --inDS %q --outDS %q --nFilesPerJob=1 --nCore=1 --noBuild\n' \
         "$TRF" "$DATASET" "$OUTDS"
     exit 0
@@ -157,8 +171,26 @@ fi
 verify_dataset
 [[ "$MODE" == verify ]] && exit 0
 command -v pathena >/dev/null || { echo "Missing pathena; run lsetup panda" >&2; exit 2; }
+# Keep the pathena work area independent of the Git worktree: otherwise the
+# client may bundle the whole repository, rather than the single Grid JO.
+STAGING_PARENT=${AQP_GRID_STAGE_DIR:-$HOME/aqp-grid-stage}
+mkdir -p -- "$STAGING_PARENT"
+STAGING_PARENT=$(realpath -e -- "$STAGING_PARENT")
+REPO_ABS=$(realpath -e -- "$REPO")
+case "$STAGING_PARENT/" in
+    "$REPO_ABS/"*) echo "Staging must be OUTSIDE the AQP checkout: $STAGING_PARENT" >&2; exit 2 ;;
+esac
+STAGE=$(mktemp -d "$STAGING_PARENT/${CONFIG}.${TAG}.XXXXXX")
+cp -- "$JO" "$STAGE/$(basename -- "$JO")"
+mapfile -t STAGED_JOS < <(find "$STAGE" -maxdepth 1 -type f -name 'mc*.py' -print)
+[[ ${#STAGED_JOS[@]} -eq 1 ]] || { echo "Need exactly one top-level Grid JO in $STAGE" >&2; exit 2; }
+[[ $(find "$STAGE" -mindepth 1 -maxdepth 1 -type f | wc -l) -eq 1 ]] || {
+    echo "Unexpected files in isolated staging directory: $STAGE" >&2; exit 2;
+}
+printf 'ISOLATED_STAGE=%s\nSTAGED_JO=%s\n' "$STAGE" "${STAGED_JOS[0]}"
+printf 'JOB_CONFIG=./ (first JOBOPTSEARCHPATH directory: ./)\n'
 read -r -p "Submit ONE $CONFIG PanDA job producing $EVENTS events? Type SUBMIT: " answer
-[[ "$answer" == SUBMIT ]] || { echo "Cancelled."; exit 2; }
-cd "$JO_DIR"
+[[ "$answer" == SUBMIT ]] || { echo "Cancelled; stage retained: $STAGE"; exit 2; }
+cd "$STAGE"
 pathena --trf "$TRF" --inDS "$DATASET" --outDS "$OUTDS" \
     --nFilesPerJob=1 --nCore=1 --noBuild
