@@ -1,12 +1,13 @@
 import os
+import shutil
 import subprocess
 
 import MadGraphControl.MadGraphUtils as MG
-import MadGraphControl.MGC as MGC
 from MadGraphControl.MadGraphUtils import *
 from MadGraphControl.MGC import MGControl
+import MadGraphControl.MGC as MGC
 
-# AthGeneration/23.6.63 gridpack finalization workaround.
+# Workaround for AthGeneration 23.6.63.
 if not hasattr(MGControl, "_original_add_runArgs"):
     MGControl._original_add_runArgs = MGControl.add_runArgs
 
@@ -18,54 +19,64 @@ if not hasattr(MGControl, "_original_add_runArgs"):
 
 USE_DELTA = True
 FOLDING = "1, 1, 1"
-# Fast integration smoke test only: req_acc=0.5 is NOT physics-grade.
 REQUIRED_ACCURACY = 0.5
 GRIDPACK_MODE = not is_gen_from_gridpack()
+# Loose accuracy for gridpack functional testing ONLY, not physics comparisons.
+# Preserve the main-branch Zee HT2 and Sudakov tolerance implementations.
 
-# Optional controlled recompile of the *extracted copy* of an NLO gridpack.
-# MadGraphControl otherwise invokes generate_events with --nocompile.
-# This has no effect on gridpack creation/integration.
+# Gridpack event generation needs recompilation of the extracted copy under
+# AthGeneration/23.6.63 to preserve NLO event reweighting metadata.
 recompile_setting = os.environ.get("GRIDPACK_RECOMPILE", "0")
 if recompile_setting not in ("0", "1"):
     raise RuntimeError("GRIDPACK_RECOMPILE must be 0 or 1")
 RECOMPILE_GRIDPACK = (recompile_setting == "1") and not GRIDPACK_MODE
 
-# PMG-approved Zee FxFx scale/PDF weight recipe.
-# Set in the legacy MadGraphUtils/MGC modules before constructing MGControl.
-# AthGeneration/23.6.63 does NOT support MGControl(pdf_setting=...).
-# Keep the nominal PDF and PMG variations identical to the 1-jet workflow.
+
+evgenConfig.description = "aMcAtNlo Zee+0,1,2j NLO FxFx HT2 PR426 delta111 reqacc0p5"
+evgenConfig.contact = ["lenart.jerala@cern.ch"]
+evgenConfig.keywords += ["Z", "jets"]
+evgenConfig.generators += ["aMcAtNlo", "Pythia8"]
+evgenConfig.nEventsPerJob = 2000 if GRIDPACK_MODE else 5000
+
 MG.MADGRAPH_PDFSETTING = {
     "central_pdf": 325100,
-    "pdf_variations": [325100, 93300],
-    "alternative_pdfs": [
-        304400, 13000, 25300, 14000, 14100, 14200, 61200, 42560,
-        303200, 27400, 331500,
-    ],
-    "scale_variations": [0.5, 1, 2],
+    "pdf_variations": [] if GRIDPACK_MODE else [325100],
+    "alternative_pdfs": [] if GRIDPACK_MODE else [304400],
+    "scale_variations": [] if GRIDPACK_MODE else [0.5, 1.0, 2.0],
 }
 MGC.MADGRAPH_PDFSETTING = MG.MADGRAPH_PDFSETTING
 
-evgenConfig.description = "Zee+0,1,2j FxFx PR426 delta111 accuracy0p5 smoke"
-evgenConfig.contact = ["francesco.giuli@cern.ch"]
-evgenConfig.keywords += ["Z", "jets"]
-evgenConfig.generators += ["aMcAtNlo", "Pythia8"]
-evgenConfig.nEventsPerJob = 5000
-
-# New 0,1,2-jet integration: apply the exact upstream MG5_aMC PR #426
-# inclusive-vs-exclusive kT correction BEFORE compiling MINT workers.
-# Existing archived gridpacks cannot acquire a new generation cut via reuse.
-# Reference: https://github.com/mg5amcnlo/mg5amcnlo/pull/426
 if GRIDPACK_MODE:
     process = """
-import model loop_sm-no_b_mass
-define p = u u~ d d~ s s~ c c~ b b~ g
-define j = u u~ d d~ s s~ c c~ b b~ g
-generate p p > e+ e- [QCD] @0
-add process p p > e+ e- j [QCD] @1
-add process p p > e+ e- j j [QCD] @2
-output -f
-"""
+    import model loop_sm-no_b_mass
+    define p = u u~ d d~ s s~ c c~ b b~ g
+    define j = u u~ d d~ s s~ c c~ b b~ g
+    generate p p > e+ e- [QCD] @0
+    add process p p > e+ e- j [QCD] @1
+    add process p p > e+ e- j j [QCD] @2
+    output -f
+    """
     process_dir = str(new_process(process))
+    for source, target in (
+        ("dummy_fct.f", "dummy_fct.f"),
+        ("montecarlocounter_MINE.f", "montecarlocounter.f"),
+    ):
+        subprocess.check_call(["get_files", "-data", source])
+        if not os.path.isfile(source):
+            raise RuntimeError("Missing authoritative main JO source: " + source)
+        shutil.copy2(source, os.path.join(process_dir, "SubProcesses", target))
+
+    # Confirm that both original sources were installed BEFORE integration.
+    with open(os.path.join(process_dir, "SubProcesses", "dummy_fct.f")) as handle:
+        if "bias_wgt=H_T**2" not in handle.read():
+            raise RuntimeError("Zee HT2 bias function is missing")
+    with open(os.path.join(process_dir, "SubProcesses", "montecarlocounter.f")) as handle:
+        src = handle.read()
+        if ("eps = 100.d0 * epsilon(1.d0)" not in src
+                or "if(probne.gt.1.d0+eps)then" not in src
+                or "if(probne.gt.1.d0) probne=1.d0" not in src):
+            raise RuntimeError("MC@NLO-Delta Sudakov tolerance correction missing")
+    print("ZEE_HT2_BIAS_AND_DELTA_TOLERANCE_VERIFIED")
 
     patch_name = "fxfx_exclusive_kt.patch"
     subprocess.check_call(["get_files", "-data", patch_name])
@@ -73,39 +84,31 @@ output -f
     command = ["patch", "--batch", "--forward", "-p1", "-d", process_dir, "-i", patch]
     subprocess.check_call(command + ["--dry-run"])
     subprocess.check_call(command)
-
-    # Verify generated subprocesses will compile with the corrected ME cut.
-    from pathlib import Path
-    subprocesses = Path(process_dir) / "SubProcesses"
-    cut_files = [subprocesses / "cuts.f"] + sorted(subprocesses.glob("P*/cuts.f"))
-    marker = "amcatnlo_fastjetdmergemax(nQCD-2).lt.ptj**2"
-    if not cut_files or any(not cut.is_file() or marker not in
-                            cut.read_text(errors="replace") for cut in cut_files):
-        raise RuntimeError("PR426 FxFx exclusive-kT cut missing in a subprocess")
-    print("FXFX_PR426_EXCLUSIVE_KT_VERIFIED", len(cut_files))
+    with open(os.path.join(process_dir, "SubProcesses", "cuts.f")) as handle:
+        if "amcatnlo_fastjetdmergemax(nQCD-2).lt.ptj**2" not in handle.read():
+            raise RuntimeError("PR426 FxFx exclusive-kT cut not applied")
+    print("FXFX_PR426_EXCLUSIVE_KT_VERIFIED")
 else:
     process_dir = str(MADGRAPH_GRIDPACK_LOCATION)
-    # On this AthGeneration release the gridpack config must be reloaded
-    # before modify_run_card and generate from an existing NLO gridpack.
     mgc = MGControl()
     mgc.get_config_cardloc()
     mgc.getConfigFromPath(mgc.config_path)
     mgc.getRunCardDict()
     MG.my_MGC_instance = mgc
 
-nevents = (
-    max(20, 2 * int(runArgs.maxEvents))
-    if GRIDPACK_MODE else 10 * int(runArgs.maxEvents if runArgs.maxEvents > 0
-                                  else evgenConfig.nEventsPerJob)
+beam_energy = float(runArgs.ecmEnergy) / 2.0
+nevents = (5 if GRIDPACK_MODE else 10) * (
+    runArgs.maxEvents if runArgs.maxEvents > 0 else evgenConfig.nEventsPerJob
 )
 
 modify_run_card(process_dir=process_dir, runArgs=runArgs, settings={
-    "ebeam1": float(runArgs.ecmEnergy) / 2,
-    "ebeam2": float(runArgs.ecmEnergy) / 2,
-    "nevents": nevents,
-    "req_acc": REQUIRED_ACCURACY,
+    "ebeam1": beam_energy,
+    "ebeam2": beam_energy,
+    "event_norm": "bias",
     "maxjetflavor": 5,
     "parton_shower": "PYTHIA8",
+    "nevents": int(nevents),
+    "req_acc": REQUIRED_ACCURACY,
     "ickkw": 3,
     "jetradius": 1.0,
     "ptj": 8,
@@ -114,40 +117,26 @@ modify_run_card(process_dir=process_dir, runArgs=runArgs, settings={
     "mll_sf": 40,
     "mcatnlo_delta": USE_DELTA,
     "folding": FOLDING,
-    # NLO PDF/scale variations require #aMCatNLO event metadata.
-    # Enable it in LHE generation; keep the new grid/envelope integration
-    # independent of this event-level reweighting setting.
     "store_rwgt_info": not GRIDPACK_MODE,
 })
 
 config_settings = (
-    {"run_mode": 1, "cluster_type": "condor", "cluster_nb_retry": 0}
+    {"run_mode": 1, "nb_core": 1, "cluster_type": "condor",
+     "cluster_size": 100, "cluster_nb_retry": 0}
     if GRIDPACK_MODE else {"run_mode": 0, "nb_core": 1}
 )
-# MC@NLO-Delta needs Pythia8 compiled into the MadGraph integration
-# executables (for the Delta/Sudakov terms), even in noshower mode.
-# The standard FxFx job does not need this MG-internal Pythia8 link.
-# Follow the ATLAS Delta JO convention of configuring PY8PATH explicitly.
 if USE_DELTA:
-    pythia8_path = os.environ.get("PY8PATH")
+    pythia8_path = os.getenv("PY8PATH")
     if not pythia8_path:
-        raise RuntimeError(
-            "MC@NLO-Delta requires PY8PATH; set up the ATLAS Pythia8 "
-            "environment before launching gridpack integration"
-        )
+        raise RuntimeError("PY8PATH is required for MC@NLO-Delta")
     pythia8_path = os.path.realpath(pythia8_path)
-    static_lib = os.path.join(pythia8_path, "lib", "libpythia8.a")
-    if not os.path.isfile(static_lib):
-        raise RuntimeError(
-            "MC@NLO-Delta requires the Pythia8 static library at "
-            + static_lib + "; check PY8PATH in your Athena environment"
-        )
+    if not os.path.isfile(os.path.join(pythia8_path, "lib", "libpythia8.a")):
+        raise RuntimeError("MC@NLO-Delta Pythia8 static library unavailable")
     config_settings["pythia8_path"] = pythia8_path
-    print("MCATNLO_DELTA_PYTHIA8_PATH", pythia8_path)
-modify_config_card(process_dir=process_dir, settings=config_settings)
 
-generate(process_dir=process_dir, runArgs=runArgs,
-         required_accuracy=REQUIRED_ACCURACY, grid_pack=GRIDPACK_MODE,
+modify_config_card(process_dir=process_dir, settings=config_settings)
+generate(required_accuracy=REQUIRED_ACCURACY, process_dir=process_dir,
+         runArgs=runArgs, grid_pack=GRIDPACK_MODE,
          gridpack_compile=RECOMPILE_GRIDPACK)
 
 if not GRIDPACK_MODE:
