@@ -143,3 +143,48 @@ bash scripts/aqp_zee_grid_rucio.sh submit delta111 "$GP" "$TAG"
 The first job's worker stage-in and Athena release setup succeeded;
 that is not an event-generation PASS. The new Grid event-mode smoke
 must still produce 20 accepted EVNT events and exit 0.
+
+## PanDA JobOption discovery fix (2026-11-02)
+
+A no-recompile attempt (PanDA task 53433363, job 7398690571)
+staged and extracted the corrected 13 TeV gridpack, but failed
+with `Py:Gen_tf ERROR You must supply one and only one jobOption file in DSID directory`.
+The prior `pathena` payload had bundled the whole Git checkout
+(including the `JOs/` and `tests/` directories), while
+`--jobConfig=./` caused the generator to inspect the first
+`JOBOPTSEARCHPATH` directory at the worker root, which did not contain
+the single required `mc*.py` file. This failed before MadGraph ran,
+and is independent of whether `GRIDPACK_RECOMPILE` is 0 or 1.
+
+`scripts/aqp_zee_grid_rucio.sh` now stages the one selected JO at the
+root of a **fresh directory outside Git**, executes `pathena` from
+that directory, and keeps `--jobConfig=./`. The Rucio dataset input
+is reused; the script defaults to `GRIDPACK_RECOMPILE=0` for these
+compiled-gridpack workflow tests.
+
+Use a **distinct PanDA output tag** (without creating another input
+dataset) for the next attempt:
+
+```bash
+cd ~/NWR
+git switch test/fxfx-pr426-zee2jets
+git pull --ff-only
+bash -n scripts/aqp_zee_grid_rucio.sh
+python3 -m unittest discover -s tests -p test_zee2jet_grid_rucio.py -v
+
+GP=/data/aalida/NWR/gridpacks/tests-2jet-999997/tests-2jet-999997.sCJ7BF/mc_13TeV.aMCPy8EG_Zee_FxFx_2jets_DRjj_PR426_delta111.MG3511.GRID.tar.gz
+TAG=delta111_test_20261102_v2
+export AQP_GRIDPACK_RECOMPILE=0
+export AQP_OUTPUT_TAG=delta111_norecompile_gridfix_v3
+
+bash scripts/aqp_zee_grid_rucio.sh plan delta111 "$GP" "$TAG"
+bash scripts/aqp_zee_grid_rucio.sh verify delta111 "$GP" "$TAG"
+bash scripts/aqp_zee_grid_rucio.sh submit delta111 "$GP" "$TAG"
+```
+
+No new Rucio upload is required, because `TAG` still identifies
+the existing correctly named gridpack input dataset. `AQP_OUTPUT_TAG`
+changes only the Grid output dataset to avoid reuse of an existing
+failed task name. Confirm the single-JO stage printed by the script
+and a Grid job exit code 0 plus exactly 20 EVNT events before claiming
+success. This is a technical smoke test, not a physics-quality sample.
