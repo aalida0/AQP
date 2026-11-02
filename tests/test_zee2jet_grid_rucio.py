@@ -15,7 +15,7 @@ SCRIPT = REPO / "scripts" / "aqp_zee_grid_rucio.sh"
 
 
 class TestZeeGridRucioPlan(unittest.TestCase):
-    def invoke(self, filename, tag="delta111_test_20261102_v2"):
+    def invoke(self, filename, tag="delta111_test_20261102_v2", recompile="0"):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / filename
             path.write_bytes(b"synthetic stand-in, not a gridpack")
@@ -24,6 +24,7 @@ class TestZeeGridRucioPlan(unittest.TestCase):
                 AQP_REPO=str(REPO),
                 AQP_RUCIO_USER="aalida",
                 AQP_RSE="CERN-PROD_SCRATCHDISK",
+                AQP_GRIDPACK_RECOMPILE=recompile,
             )
             return subprocess.run(
                 ["bash", str(SCRIPT), "plan", "delta111", str(path), tag],
@@ -40,9 +41,15 @@ class TestZeeGridRucioPlan(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertIn("GRIDPACK_LFN=user.aalida:" + name, completed.stdout)
         self.assertIn("--inputGeneratorFile=%IN", completed.stdout)
-        self.assertIn("GRIDPACK_RECOMPILE=1", completed.stdout)
+        self.assertIn("GRIDPACK_RECOMPILE=0", completed.stdout)
         self.assertIn("RSE=CERN-PROD_SCRATCHDISK", completed.stdout)
         self.assertIn("delta111_test_20261102_v2", completed.stdout)
+
+    def test_explicit_gridpack_recompile_override(self):
+        name = "mc_13TeV.aMCPy8EG_Zee_FxFx_2jets_DRjj_PR426_delta111.MG3511.GRID.tar.gz"
+        completed = self.invoke(name, recompile="1")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("GRIDPACK_RECOMPILE=1 Gen_tf.py", completed.stdout)
 
     def test_renamed_gridpack_rejected_before_upload(self):
         completed = self.invoke(
