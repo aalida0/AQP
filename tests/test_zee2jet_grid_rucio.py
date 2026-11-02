@@ -85,7 +85,7 @@ class TestZeeGridRucioPlan(unittest.TestCase):
             pathena.write_text(
                 "#!/bin/bash\n"
                 'echo "MOCK_PANDA_STAGE=$PWD"\n'
-                'echo "MOCK_PANDA_JO_LIST=$(find . -maxdepth 1 -name '\''mc*.py'\'' -type f)"\n'
+                "echo \"MOCK_PANDA_JO_LIST=$(find . -maxdepth 1 -name 'mc*.py' -type f)\"\n"
                 'printf "MOCK_PANDA_ARGS=%s\\n" "$*"\n'
             )
             for binary in (rucio, proxy, pathena):
