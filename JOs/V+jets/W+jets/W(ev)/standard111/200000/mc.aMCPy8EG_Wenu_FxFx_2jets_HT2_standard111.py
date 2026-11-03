@@ -4,9 +4,10 @@ import subprocess
 
 import MadGraphControl.MadGraphUtils as MG
 from MadGraphControl.MadGraphUtils import *
+import MadGraphControl.MGC as MGC
 from MadGraphControl.MGC import MGControl
 
-# Workaround for AthGeneration 23.6.63.
+# Required by MadGraphControl in AthGeneration/23.6.63.
 if not hasattr(MGControl, "_original_add_runArgs"):
     MGControl._original_add_runArgs = MGControl.add_runArgs
 
@@ -18,30 +19,35 @@ if not hasattr(MGControl, "_original_add_runArgs"):
 
 USE_DELTA = False
 FOLDING = "1, 1, 1"
-REQUIRED_ACCURACY = 1e-4
+REQUIRED_ACCURACY = 1e-4  # Full-multiplicity gridpack; physics validation pending
 GRIDPACK_MODE = not is_gen_from_gridpack()
 
-evgenConfig.description = "aMcAtNlo Zee+0,1,2j NLO FxFx HT2-biased Py8"
-evgenConfig.contact = ["lenart.jerala@cern.ch"]
-evgenConfig.keywords += ["Z", "jets"]
+evgenConfig.description = "aMcAtNlo Wenu+0,1,2j HT2 NLO FxFx PR426 std111"
+evgenConfig.contact = ["francesco.giuli@cern.ch"]
+evgenConfig.keywords += ["W", "jets"]
 evgenConfig.generators += ["aMcAtNlo", "Pythia8"]
 evgenConfig.nEventsPerJob = 2000 if GRIDPACK_MODE else 5000
 
+# PMG full PDF/scale weights in event mode; central PDF only for gridpack integration.
 MG.MADGRAPH_PDFSETTING = {
     "central_pdf": 325100,
-    "pdf_variations": [] if GRIDPACK_MODE else [325100],
-    "alternative_pdfs": [] if GRIDPACK_MODE else [304400],
-    "scale_variations": [] if GRIDPACK_MODE else [0.5, 1.0, 2.0],
+    "pdf_variations": [] if GRIDPACK_MODE else [325100, 93300],
+    "alternative_pdfs": [] if GRIDPACK_MODE else [
+        304400, 13000, 25300, 14000, 14100, 14200, 61200, 42560,
+        303200, 27400, 331500,
+    ],
+    "scale_variations": [] if GRIDPACK_MODE else [0.5, 1, 2],
 }
+MGC.MADGRAPH_PDFSETTING = MG.MADGRAPH_PDFSETTING
 
 if GRIDPACK_MODE:
     process = """
     import model loop_sm-no_b_mass
     define p = u u~ d d~ s s~ c c~ b b~ g
     define j = u u~ d d~ s s~ c c~ b b~ g
-    generate p p > e+ e- [QCD] @0
-    add process p p > e+ e- j [QCD] @1
-    add process p p > e+ e- j j [QCD] @2
+    generate p p > e+ ve [QCD] @0
+    add process p p > e+ ve j [QCD] @1
+    add process p p > e+ ve j j [QCD] @2
     output -f
     """
     process_dir = str(new_process(process))
@@ -51,7 +57,6 @@ if GRIDPACK_MODE:
     ):
         subprocess.check_call(["get_files", "-data", source])
         shutil.copy2(source, os.path.join(process_dir, "SubProcesses", target))
-
     patch_name = "fxfx_exclusive_kt.patch"
     subprocess.check_call(["get_files", "-data", patch_name])
     patch = os.path.abspath(patch_name)
@@ -67,9 +72,9 @@ else:
     MG.my_MGC_instance = mgc
 
 beam_energy = float(runArgs.ecmEnergy) / 2.0
-nevents = 5 * (runArgs.maxEvents if runArgs.maxEvents > 0
-               else evgenConfig.nEventsPerJob)
-
+nevents = (5 if GRIDPACK_MODE else 10) * (
+    runArgs.maxEvents if runArgs.maxEvents > 0 else evgenConfig.nEventsPerJob
+)
 modify_run_card(process_dir=process_dir, runArgs=runArgs, settings={
     "ebeam1": beam_energy,
     "ebeam2": beam_energy,
@@ -82,10 +87,9 @@ modify_run_card(process_dir=process_dir, runArgs=runArgs, settings={
     "jetradius": 1.0,
     "ptj": 8,
     "etaj": 10,
-    "mll": 40,
-    "mll_sf": 40,
     "mcatnlo_delta": USE_DELTA,
     "folding": FOLDING,
+    "store_rwgt_info": True,  # Must also be True when building the gridpack
 })
 
 config_settings = (
@@ -97,11 +101,14 @@ if USE_DELTA:
     pythia8_path = os.getenv("PY8PATH")
     if not pythia8_path:
         raise RuntimeError("PY8PATH is required for MC@NLO-Delta")
+    pythia8_path = os.path.realpath(pythia8_path)
+    if not os.path.isfile(os.path.join(pythia8_path, "lib", "libpythia8.a")):
+        raise RuntimeError("MC@NLO-Delta Pythia8 static library unavailable")
     config_settings["pythia8_path"] = pythia8_path
-
 modify_config_card(process_dir=process_dir, settings=config_settings)
+
 generate(required_accuracy=REQUIRED_ACCURACY, process_dir=process_dir,
-         runArgs=runArgs, grid_pack=GRIDPACK_MODE)
+         runArgs=runArgs, grid_pack=GRIDPACK_MODE, gridpack_compile=False)
 
 if not GRIDPACK_MODE:
     arrange_output(process_dir=process_dir, runArgs=runArgs,
