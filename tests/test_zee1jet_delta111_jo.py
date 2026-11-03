@@ -25,6 +25,31 @@ class OneJetDeltaJOTests(unittest.TestCase):
         self.assertEqual(list(DIR.glob("mc.*.py")), [JO])
         self.assertNotIn("AQP", self.source)
 
+    def test_new_jo_is_minimal_derivation_of_successful_two_jet_jo(self):
+        """No functional changes besides dropping @2 and adapting Py8 nJetMax."""
+        twojet_jo = TWOJET / "mc.aMCPy8EG_Zee_FxFx_2jets_DRjj_PR426_delta111.py"
+
+        def semantic_lines(source):
+            return [
+                line.strip()
+                for line in source.splitlines()
+                if line.strip()
+                and not line.lstrip().startswith("#")
+                and not line.lstrip().startswith("evgenConfig.description")
+            ]
+
+        original = semantic_lines(twojet_jo.read_text())
+        expected = [
+            "PYTHIA8_nJetMax = 1" if line == "PYTHIA8_nJetMax = 2" else line
+            for line in original
+            if line != "add process p p > e+ e- j j [QCD] @2"
+        ]
+        self.assertEqual(
+            semantic_lines(self.source), expected,
+            "New 1j JO diverges from the two-jet Delta111 reference "
+            "in additional executable configuration; review changes.",
+        )
+
     def test_new_one_jet_fxfx_process_without_two_jet_multiplicity(self):
         self.assertIn("generate p p > e+ e- [QCD] @0", self.source)
         self.assertIn("add process p p > e+ e- j [QCD] @1", self.source)
