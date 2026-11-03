@@ -61,13 +61,45 @@ class MinimalOneJetTests(unittest.TestCase):
                 self.assertTrue(equivalent(assignment(self.a, name),
                                            assignment(self.b, name)), name)
 
-    def test_same_madgraph_process_and_pdf_settings(self):
-        for name in ("process", "MG.MADGRAPH_PDFSETTING",
-                     "MGC.MADGRAPH_PDFSETTING", "beam_energy", "nevents",
-                     "config_settings"):
+    def test_same_madgraph_process_and_other_settings(self):
+        for name in ("process", "MGC.MADGRAPH_PDFSETTING",
+                     "beam_energy", "nevents", "config_settings"):
             with self.subTest(name=name):
                 self.assertTrue(equivalent(assignment(self.a, name),
                                            assignment(self.b, name)), name)
+
+    def test_full_pmg_pdf_recipe_in_event_generation(self):
+        # The existing 999999 one-jet JO defines the full PMG recipe.
+        official = (ROOT / "tests/1jet/999999/mc.aMCPy8EG_Zee_FxFx_1jet_smoke.py")
+        official_tree = ast.parse(official.read_text())
+        full_pmg = ast.literal_eval(
+            assignment(official_tree, "MG.MADGRAPH_PDFSETTING")
+        )
+        minimal_dict = assignment(self.b, "MG.MADGRAPH_PDFSETTING")
+        self.assertIsInstance(minimal_dict, ast.Dict)
+
+        def mode_settings(gridpack_mode):
+            result = {}
+            for key, val in zip(minimal_dict.keys, minimal_dict.values):
+                if isinstance(val, ast.IfExp):
+                    self.assertEqual(ast.unparse(val.test), "GRIDPACK_MODE")
+                    val = val.body if gridpack_mode else val.orelse
+                result[ast.literal_eval(key)] = ast.literal_eval(val)
+            return result
+
+        self.assertEqual(mode_settings(False), full_pmg)
+        self.assertEqual(full_pmg["pdf_variations"], [325100, 93300])
+        self.assertEqual(full_pmg["alternative_pdfs"], [
+            304400, 13000, 25300, 14000, 14100, 14200, 61200,
+            42560, 303200, 27400, 331500,
+        ])
+        self.assertEqual(full_pmg["scale_variations"], [0.5, 1, 2])
+        self.assertEqual(mode_settings(True), {
+            "central_pdf": 325100,
+            "pdf_variations": [],
+            "alternative_pdfs": [],
+            "scale_variations": [],
+        })
 
     def test_identical_run_card_and_generation_arguments(self):
         for name in ("modify_run_card", "modify_config_card", "arrange_output"):
