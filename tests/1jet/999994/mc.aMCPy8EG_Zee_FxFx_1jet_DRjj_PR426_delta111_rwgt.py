@@ -28,11 +28,15 @@ evgenConfig.keywords += ["Z", "jets"]
 evgenConfig.generators += ["aMcAtNlo", "Pythia8"]
 evgenConfig.nEventsPerJob = 2000 if GRIDPACK_MODE else 5000
 
+# PMG full PDF/scale weights in event mode; central PDF only for gridpack integration.
 MG.MADGRAPH_PDFSETTING = {
     "central_pdf": 325100,
-    "pdf_variations": [] if GRIDPACK_MODE else [325100],
-    "alternative_pdfs": [] if GRIDPACK_MODE else [304400],
-    "scale_variations": [] if GRIDPACK_MODE else [0.5, 1.0, 2.0],
+    "pdf_variations": [] if GRIDPACK_MODE else [325100, 93300],
+    "alternative_pdfs": [] if GRIDPACK_MODE else [
+        304400, 13000, 25300, 14000, 14100, 14200, 61200, 42560,
+        303200, 27400, 331500,
+    ],
+    "scale_variations": [] if GRIDPACK_MODE else [0.5, 1, 2],
 }
 MGC.MADGRAPH_PDFSETTING = MG.MADGRAPH_PDFSETTING
 
