@@ -45,9 +45,11 @@ if GRIDPACK_MODE:
     import model loop_sm-no_b_mass
     define p = u u~ d d~ s s~ c c~ b b~ g
     define j = u u~ d d~ s s~ c c~ b b~ g
-    generate p p > e+ ve [QCD] @0
-    add process p p > e+ ve j [QCD] @1
-    add process p p > e+ ve j j [QCD] @2
+    define e = e+ e-
+    define nu = ve ve~
+    generate p p > e nu [QCD] @0
+    add process p p > e nu j [QCD] @1
+    add process p p > e nu j j [QCD] @2
     output -f
     """
     process_dir = str(new_process(process))
@@ -86,7 +88,7 @@ modify_run_card(process_dir=process_dir, runArgs=runArgs, settings={
     "ickkw": 3,
     "jetradius": 1.0,
     "ptj": 8,
-    "etaj": 10,
+    "etaj": -1.0,
     "mcatnlo_delta": USE_DELTA,
     "folding": FOLDING,
     "store_rwgt_info": True,  # Must also be True when building the gridpack
