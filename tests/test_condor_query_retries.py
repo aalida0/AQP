@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import hashlib
+import tempfile
 from pathlib import Path
 import subprocess
 import unittest
@@ -91,6 +93,56 @@ class QueryPatchTests(unittest.TestCase):
         self.assertEqual(len(ast.parse(updated).body), 2)
         with self.assertRaisesRegex(ValueError, "already present"):
             installer.patch_source(updated)
+
+    def test_isolated_install_leaves_original_backend_and_launcher_unchanged(self):
+        source = (
+            "import subprocess\n"
+            "def _aqp_query(args):\n"
+            "    try:\n"
+            "        result = subprocess.run(args, capture_output=True, text=True, timeout=45)\n"
+            "    except (OSError, subprocess.TimeoutExpired) as exc:\n"
+            "        raise ClusterManagmentError('Condor query failed: %s' % exc)\n"
+            "    if result.returncode != 0 or result.stderr.strip():\n"
+            "        raise ClusterManagmentError('Condor query error: %s %s' %\n"
+            "                                   (result.returncode, result.stderr.strip()))\n"
+            "    return [line.split() for line in result.stdout.splitlines() if line.strip()]\n"
+            "\n\n"
+            "def _aqp_states(ids):\n"
+            "    return {}\n"
+        )
+        sha = hashlib.sha256(source.encode()).hexdigest()
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            original_dir = repo / ".condor"
+            scripts = repo / "scripts"
+            (original_dir / "bootstrap_v3").mkdir(parents=True)
+            scripts.mkdir()
+            (original_dir / "bootstrap_v3/sitecustomize.py").write_text("# original\n")
+            candidate = original_dir / "cluster.py"
+            candidate.write_text(source)
+            launcher = scripts / "gridpack.sh"
+            old_launcher = (
+                '#!/usr/bin/env bash\n'
+                'repo=$(pwd)\n'
+                'patchroot="${GP_PATCH_ROOT:-$repo/.condor}"\n'
+                'candidate="$patchroot/cluster.py"\n'
+                'PIN=' + sha + '\n'
+            )
+            launcher.write_text(old_launcher)
+            with mock.patch.object(installer, "ORIGINAL_SHA", sha):
+                prepared = installer.prepare(repo)
+                installer.install_staged(prepared)
+            self.assertEqual(candidate.read_text(), source)
+            self.assertEqual(launcher.read_text(), old_launcher)
+            self.assertEqual(
+                hashlib.sha256((original_dir / "retry_v4/cluster.py").read_bytes()).hexdigest(),
+                prepared[-1],
+            )
+            staged = (scripts / "gridpack_retry_v4.sh").read_text()
+            self.assertIn(".condor/retry_v4", staged)
+            self.assertIn(prepared[-1], staged)
+            self.assertIn("AQP_CONDOR_QUERY_RETRY_V4",
+                          (original_dir / "retry_v4/cluster.py").read_text())
 
 
 if __name__ == "__main__":
