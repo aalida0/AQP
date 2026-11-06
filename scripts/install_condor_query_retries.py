@@ -71,6 +71,15 @@ def digest(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
+def update_bootstrap_hash(source: str, new_sha: str) -> str:
+    """Retarget exactly one site-local bootstrap pin; reject unknown versions."""
+    if source.count(ORIGINAL_SHA) != 1:
+        raise ValueError("Unexpected AQP sitecustomize candidate SHA pin; inspect before modifying")
+    updated = source.replace(ORIGINAL_SHA, new_sha)
+    ast.parse(updated)
+    return updated
+
+
 def patch_source(original: str) -> str:
     if MARKER in original:
         raise ValueError("Retry patch already present")
@@ -131,6 +140,11 @@ def install_staged(prepared):
     stage_dir.mkdir(parents=True, exist_ok=False)
     try:
         shutil.copytree(original_bootstrap, stage_dir / "bootstrap_v3")
+        bootstrap_file = stage_dir / "bootstrap_v3" / "sitecustomize.py"
+        bootstrap_file.write_text(
+            update_bootstrap_hash(bootstrap_file.read_text(encoding="utf-8"), new_sha),
+            encoding="utf-8",
+        )
         (stage_dir / "cluster.py").write_bytes(patched)
         alternate_path.write_text(launcher_text, encoding="utf-8")
         alternate_path.chmod(original_launcher.stat().st_mode & 0o777)

@@ -117,7 +117,7 @@ class QueryPatchTests(unittest.TestCase):
             scripts = repo / "scripts"
             (original_dir / "bootstrap_v3").mkdir(parents=True)
             scripts.mkdir()
-            (original_dir / "bootstrap_v3/sitecustomize.py").write_text("# original\n")
+            (original_dir / "bootstrap_v3/sitecustomize.py").write_text("EXPECTED_SHA = \'" + sha + "\\n")
             candidate = original_dir / "cluster.py"
             candidate.write_text(source)
             launcher = scripts / "gridpack.sh"
@@ -143,6 +143,26 @@ class QueryPatchTests(unittest.TestCase):
             self.assertIn(prepared[-1], staged)
             self.assertIn("AQP_CONDOR_QUERY_RETRY_V4",
                           (original_dir / "retry_v4/cluster.py").read_text())
+            self.assertIn(
+                prepared[-1],
+                (original_dir / "retry_v4/bootstrap_v3/sitecustomize.py").read_text(),
+            )
+            self.assertIn(
+                sha,
+                (original_dir / "bootstrap_v3/sitecustomize.py").read_text(),
+            )
+
+    def test_bootstrap_pin_update_is_guarded(self):
+        old = installer.ORIGINAL_SHA
+        new = "a" * 64
+        self.assertEqual(
+            installer.update_bootstrap_hash("candidate = '" + old + "'\\n", new),
+            "candidate = '" + new + "'\\n",
+        )
+        with self.assertRaisesRegex(ValueError, "Unexpected AQP sitecustomize"):
+            installer.update_bootstrap_hash("# missing pin\\n", new)
+        with self.assertRaisesRegex(ValueError, "Unexpected AQP sitecustomize"):
+            installer.update_bootstrap_hash(old + "\\n" + old + "\\n", new)
 
 
 if __name__ == "__main__":

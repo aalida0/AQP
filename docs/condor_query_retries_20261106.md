@@ -7,7 +7,7 @@ Safe resume from intermediate results remains unverified.
 
 ## Isolation and rollback
 
-The installer does not modify the original `.condor/cluster.py` or
+The installer updates the SHA pin inside its isolated `bootstrap_v3/sitecustomize.py` so it agrees with the retry candidate. It does not modify the original `.condor/cluster.py` or
 `scripts/gridpack.sh`. It creates `.condor/retry_v4/cluster.py`,
 copies its `bootstrap_v3`, and writes a separate launcher
 `scripts/gridpack_retry_v4.sh` with its own SHA256 pin.
@@ -54,3 +54,18 @@ bash scripts/gridpack_retry_v4.sh 'JOs/V+jets/W+jets/W(ev)/standard111/200000' 1
 Do not delete or relaunch in the failed working directory.
 To roll back for future launches use the original `scripts/gridpack.sh`.
 Offline unit tests are not proof of production reliability.
+
+## Repair an already staged bootstrap from before this fix
+
+If installation previously succeeded but gridpack launch reported
+`Unexpected AQP cluster candidate SHA256`, update this branch and run:
+
+```bash
+python3 scripts/repair_condor_retry_bootstrap.py
+python3 -m py_compile .condor/retry_v4/bootstrap_v3/sitecustomize.py
+python3 -m py_compile .condor/retry_v4/cluster.py
+```
+
+This repair validates SHA pins and leaves the production backend unchanged.
+Retry the alternate gridpack launcher after the repair. Do **not** delete
+or overwrite active gridpack directories.
