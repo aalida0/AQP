@@ -117,7 +117,7 @@ class QueryPatchTests(unittest.TestCase):
             scripts = repo / "scripts"
             (original_dir / "bootstrap_v3").mkdir(parents=True)
             scripts.mkdir()
-            (original_dir / "bootstrap_v3/sitecustomize.py").write_text("EXPECTED_SHA = \'" + sha + "\\n")
+            (original_dir / "bootstrap_v3/sitecustomize.py").write_text("EXPECTED_SHA = '" + sha + "'\n")
             candidate = original_dir / "cluster.py"
             candidate.write_text(source)
             launcher = scripts / "gridpack.sh"
@@ -156,13 +156,13 @@ class QueryPatchTests(unittest.TestCase):
         old = installer.ORIGINAL_SHA
         new = "a" * 64
         self.assertEqual(
-            installer.update_bootstrap_hash("candidate = '" + old + "'\\n", new),
-            "candidate = '" + new + "'\\n",
+            installer.update_bootstrap_hash("candidate = '" + old + "'\n", new),
+            "candidate = '" + new + "'\n",
         )
         with self.assertRaisesRegex(ValueError, "Unexpected AQP sitecustomize"):
-            installer.update_bootstrap_hash("# missing pin\\n", new)
+            installer.update_bootstrap_hash("# missing pin\n", new)
         with self.assertRaisesRegex(ValueError, "Unexpected AQP sitecustomize"):
-            installer.update_bootstrap_hash(old + "\\n" + old + "\\n", new)
+            installer.update_bootstrap_hash(old + "\n" + old + "\n", new)
 
 
 if __name__ == "__main__":
