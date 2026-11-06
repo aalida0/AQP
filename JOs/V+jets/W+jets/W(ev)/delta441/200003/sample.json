@@ -1,5 +1,5 @@
 {
-  "status": "scaffold_only_not_for_production",
+  "status": "JO_source_complete_runtime_and_physics_validation_pending",
   "dsid": "200003",
   "dsid_registered": false,
   "process": "Wenu",
@@ -11,7 +11,7 @@
     4,
     1
   ],
-  "ht2_bias": false,
+  "ht2_bias": true,
   "gridpack": {
     "backend": "condor",
     "pdf_scale_variations": false
@@ -21,12 +21,13 @@
     "pdf_scale_variations": true
   },
   "patches": {
-    "fxfx_pr426": "included_unvalidated_for_this_release",
-    "delta_tolerance": "missing",
-    "condor_bootstrap": "pending_validation"
+    "fxfx_pr426": "included_as_fxfx_exclusive_kt.patch; integration-specific dry-run required",
+    "delta_tolerance": "included_in_montecarlocounter_MINE.f",
+    "condor_bootstrap": "source-pinned launcher dependency; local verified bootstrap required"
   },
-  "integration_timing": "not_implemented",
-  "event_timing": "not_implemented",
-  "rivet": "not_implemented",
-  "structure": "JOs/V+jets/W+jets/W(ev)/delta441/200003"
+  "integration_timing": "runtime/gridpack_timing.py; timing.txt + timing_summary.json + timing_summary.csv",
+  "event_timing": "separate Gen_tf.py event-generation timing; not part of gridpack runtime",
+  "rivet": "pending",
+  "structure": "JOs/V+jets/W+jets/W(ev)/delta441/200003",
+  "req_acc": 0.001
 }

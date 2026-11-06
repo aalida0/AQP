@@ -19,7 +19,7 @@ if not hasattr(MGControl, "_original_add_runArgs"):
 
 USE_DELTA = False
 FOLDING = "1, 1, 1"
-REQUIRED_ACCURACY = 1e-4  # Full-multiplicity gridpack; physics validation pending
+REQUIRED_ACCURACY = 1e-3  # Requested 2-jet integration target; physics validation pending
 GRIDPACK_MODE = not is_gen_from_gridpack()
 
 evgenConfig.description = "aMcAtNlo Zee+0,1,2j HT2 NLO FxFx PR426 std111"

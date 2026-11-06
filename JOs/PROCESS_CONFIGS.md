@@ -33,3 +33,27 @@ integration. The Condor backend remains external; use the existing
 PR426 applicability, MadSpin syntax/decays, gridpack integration, direct
 no-recompile event generation, complete PMG weight names, negative-weight
 and FxFx bookkeeping. Do not equate a 20-event smoke with physics approval.
+
+## Zee/Wenu 0,1,2j integration benchmark (2026-11)
+
+All eight full-multiplicity Zee and Wenu JOs explicitly request
+`REQUIRED_ACCURACY=1e-3`. The existing 1j tests use `0.5` and do NOT
+establish physics validity of the 2j gridpacks. The source SHA of the
+`dummy_fct.f`, `montecarlocounter_MINE.f`, and
+`fxfx_exclusive_kt.patch` is identical across all eight DSIDs.
+
+Timings: the supported `scripts/gridpack.sh` launcher records exact
+start/end epochs and overall Gen_tf wall time in `timing.txt`, Bash's
+controller CPU in `controller_cpu.txt`, and MadGraph stage times plus
+per-job HTCondor CPU in `timing_summary.json` and `.csv`.
+The stage wall times are extracted from timestamped logs (lower
+resolution than the overall epochs). The per-worker CPU total is
+reported as definitive ONLY when `worker_accounting_complete=true`.
+For restarts, HTCondor cumulative CPU is preferred and missing
+history is recorded as incomplete, NOT counted as zero.
+
+Do not infer a runtime or CPU-hour prediction from the number of
+completed integration channels. Very expensive subprocesses may be last.
+Pilot validations must verify that scale/PDF weights are present in
+both the LHE and EVNT metadata and that the packed gridpack can be
+consumed without recompiling.
