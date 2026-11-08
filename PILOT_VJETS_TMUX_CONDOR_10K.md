@@ -61,7 +61,7 @@ The `--start` command launches all eight controllers without waiting for each on
 Expected main paths:
 - Shared Condor workdir: `$HOME/aqp-vjets-tmux-condor/10k/{Zee,Wenu}/{config}/`
 - Archive directory: `/data/$USER/AQP_Vjets_tmx_condor_10k/{Zee,Wenu}/{config}/`
-- Logs: `run.log`, `exit_code.txt`, `timing.txt`; retained LHE `tmp_LHE_events.tar.gz` and EVNT after success.
+- Logs: `run.log`, `exit_code.txt`, `timing.txt`; retained LHE `tmp_LHE_events.tar.gz` and EVNT after success. `gridpack.path` and `gridpack.stat` record the selected archive without reading its entire contents to compute SHA256 during pre-launch.
 - Example: `tmux -L aqp-vjets-condor10k attach -t aqp-zee-standard111-10k`.
 - Example: `tail -f "$HOME/aqp-vjets-tmux-condor/10k/Wenu/delta111/run.log"`.
 
@@ -74,3 +74,9 @@ For each configuration record real EVNT event count, MadGraph LHE event count, u
 ## Duplicate gridpack candidates
 
 The AF gridpack directory can contain original, `clean_v2`, and older `HT2bias` archives. The launcher matches only the current exact `_HT2_<config>` filename, intentionally excluding the differently named legacy `HT2bias` archive. If both original and `clean_v2` exist, choose only after checking file integrity, archived run/proc cards, and unwanted debug artifacts; never select one automatically merely because of its directory name. `--select` records the chosen absolute path for each configuration. `--check`, `--smoke` and `--start` verify the chosen paths still exist among the matching candidates. Delete or move no gridpacks.
+
+## Recovery from the 2026-11-08 pre-tmux SHA256 stall
+
+The original launcher computed `sha256sum "$pack"` **synchronously before launching tmux**. On slow shared `/data` filesystems, a large archive could block this step for a long time. A zero-byte `gridpack.sha256` and missing `session_env.sh` / `run.log` indicate an interrupted or blocked pre-launch; this is **not** an internal Condor failure. The fix avoids full gridpack hashing at launch and starts a persistent tmux shell before sending the worker command.
+
+Safely stop the **specific** old `--smoke` launcher and its identified `sha256sum` child (do not kill unrelated `Gen_tf.py` processes). Before retrying, rename or archive only the incomplete `$HOME/aqp-vjets-tmux-condor/10k/smoke/Wenu/delta111` workdir and `/data/$USER/AQP_Vjets_tmx_condor_10k/smoke/Wenu/delta111` output directory. Then `git pull --ff-only` and rerun `--smoke`. The tmux session should appear promptly and show `Extracting ...` while decompressing the gridpack. Extraction still takes time, but it can now be monitored from tmux.
