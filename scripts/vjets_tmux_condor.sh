@@ -163,7 +163,10 @@ for rec in "${resolved_records[@]}"; do
   if [[ $mode == --smoke ]]; then events=20; fi
   printf 'repo_sha=%s\nprocess=%s\nconfig=%s\ndsid=%s\nseed=%s\nrequested_evnt=%s\ngridpack=%s\n' \
     "$git_sha" "$proc" "$cfg" "$dsid" "$seed" "$events" "$pack" > "$out/manifest.txt"
-  sha256sum "$pack" > "$out/gridpack.sha256"
+  # Never block a controller launch hashing multi-GB archives on shared /data.
+  # Record path, size and mtime; users can compute the full SHA256 offline.
+  stat -Lc 'gridpack_size_bytes=%s\ngridpack_mtime_epoch=%Y' "$pack" > "$out/gridpack.stat"
+  printf '%s\n' "$pack" > "$out/gridpack.path"
   sha256sum "$run/jo/$dsid"/mc.*.py > "$out/jo.sha256"
   # Per-session environment is essential: tmux servers retain their first environment.
   {
@@ -180,8 +183,12 @@ for rec in "${resolved_records[@]}"; do
   } > "$run/session_env.sh"
   chmod 600 "$run/session_env.sh"
   printf -v cmd 'bash %q %q' "$run/worker.sh" "$run/session_env.sh"
-  tmux -L "$socket" new-session -d -s "$sess" -c "$run" "$cmd"
-  tmux -L "$socket" set-window-option -t "$sess" remain-on-exit on 2>/dev/null || true
+  # Create a persistent shell, configure exit preservation, THEN run worker.
+  # Otherwise a fast worker failure can destroy the tmux session before
+  # remain-on-exit is set, erasing the reason for failure.
+  tmux -L "$socket" new-session -d -s "$sess" -c "$run"
+  tmux -L "$socket" set-window-option -t "$sess" remain-on-exit on
+  tmux -L "$socket" send-keys -t "$sess" "$cmd" C-m
   printf 'LAUNCHED=%s LOG=%s/run.log\n' "$sess" "$run"
 done
 echo 'Monitor: tmux -L aqp-vjets-condor10k ls; condor_q "$USER"'
