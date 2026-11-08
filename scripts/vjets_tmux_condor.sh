@@ -2,17 +2,18 @@
 # Eight independent tmux Gen_tf controllers using MadGraph internal Condor.
 set -euo pipefail
 usage() {
-  echo "Usage: bash scripts/vjets_tmux_condor.sh --check|--smoke|--start|--status"
+  echo "Usage: bash scripts/vjets_tmux_condor.sh --select|--check|--smoke|--start|--status"
 }
 (( $# == 1 )) || { usage; exit 2; }
 mode=$1
-case "$mode" in --check|--smoke|--start|--status) ;; *) usage; exit 2;; esac
+case "$mode" in --select|--check|--smoke|--start|--status) ;; *) usage; exit 2;; esac
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 packs_dir=${VJETS_GRIDPACK_ROOT:-/data/$USER/gridpacks}
 work_root=${VJETS_WORK_ROOT:-$HOME/aqp-vjets-tmux-condor/10k}
 out_root=${VJETS_OUT_ROOT:-/data/$USER/AQP_Vjets_tmx_condor_10k}
 patchroot=${GP_PATCH_ROOT:-$repo/.condor}
 socket=aqp-vjets-condor10k
+selection_file=${VJETS_GRIDPACK_SELECTION:-$out_root/gridpacks.selected.tsv}
 configs=(standard111 delta111 delta221 delta441)
 records=()
 for proc in Zee Wenu; do
@@ -29,6 +30,72 @@ for proc in Zee Wenu; do
     records+=("$proc|$cfg|$dsid|$seed|$jo_rel|$session|$work_root/$proc/$cfg|$out_root/$proc/$cfg")
   done
 done
+
+# Strictly match the current 2-jet HT2 gridpacks, excluding older HT2bias
+# candidates. Never guess between original and clean_v2 copies.
+candidates_for() {
+  local proc=$1 cfg=$2
+  find "$packs_dir" -type f \
+    -name "mc_*${proc}_FxFx_2jets_HT2_${cfg}.MG3511.GRID.tar.gz" -print0 | sort -z
+}
+resolve_pack() {
+  local proc=$1 cfg=$2 selection match found=0
+  local -a candidates=() chosen=()
+  mapfile -d '' candidates < <(candidates_for "$proc" "$cfg")
+  if [[ -s "$selection_file" ]]; then
+    mapfile -t chosen < <(awk -F '\t' -v p="$proc" -v c="$cfg" \
+      '$1==p && $2==c {print $3}' "$selection_file")
+    (( ${#chosen[@]} == 1 )) || {
+      echo "Expected one manifest entry for $proc $cfg in $selection_file" >&2; return 2;
+    }
+    selection=${chosen[0]}
+    for match in "${candidates[@]}"; do
+      [[ "$selection" == "$match" ]] && found=$((found + 1))
+    done
+    (( found == 1 )) || {
+      echo "Manifest path missing/wrong for $proc $cfg: $selection" >&2; return 2;
+    }
+  else
+    (( ${#candidates[@]} == 1 )) || {
+      echo "Found ${#candidates[@]} gridpacks for $proc $cfg. Run --select to pin one:" >&2
+      printf '%s\n' "${candidates[@]}" >&2
+      return 2
+    }
+    selection=${candidates[0]}
+  fi
+  printf '%s\n' "$selection"
+}
+if [[ $mode == --select ]]; then
+  [[ -d "$packs_dir" ]] || { echo "Missing $packs_dir" >&2; exit 2; }
+  [[ -t 0 ]] || { echo "--select needs an interactive terminal" >&2; exit 2; }
+  mkdir -p "$(dirname "$selection_file")"
+  tmp=$(mktemp "${selection_file}.tmp.XXXXXX")
+  trap 'rm -f "$tmp"' EXIT
+  for rec in "${records[@]}"; do
+    IFS='|' read -r proc cfg dsid seed rel sess run out <<< "$rec"
+    mapfile -d '' choices < <(candidates_for "$proc" "$cfg")
+    (( ${#choices[@]} > 0 )) || { echo "No gridpack for $proc $cfg" >&2; exit 2; }
+    if (( ${#choices[@]} == 1 )); then
+      selected=${choices[0]}
+    else
+      echo "Choose a verified gridpack for $proc $cfg (do not assume clean_v2 is correct):"
+      for j in "${!choices[@]}"; do
+        printf ' %s) %s\n' "$((j+1))" "${choices[j]}"
+      done
+      read -r -p "Selection [1-${#choices[@]}]: " index
+      [[ "$index" =~ ^[0-9]+$ ]] && (( index >= 1 && index <= ${#choices[@]} )) || {
+        echo "Invalid selection" >&2; exit 2;
+      }
+      selected=${choices[index-1]}
+    fi
+    printf '%s\t%s\t%s\n' "$proc" "$cfg" "$selected" >> "$tmp"
+  done
+  mv -f "$tmp" "$selection_file"
+  trap - EXIT
+  echo "Wrote explicit gridpack selection: $selection_file"
+  echo "Review with: cat $selection_file"
+  exit 0
+fi
 if [[ $mode == --status ]]; then
   for rec in "${records[@]}"; do
     IFS='|' read -r proc cfg dsid seed rel sess run out <<< "$rec"
@@ -63,16 +130,17 @@ export PYTHONPATH="$(dirname "$bootstrap"):$(realpath -e "$MADPATH"):${PYTHONPAT
 export AQP_CLUSTER_CANDIDATE="$candidate"
 python3 -c 'import madgraph.various.cluster as c; assert hasattr(c,"_aqp_states"); print("CONDOR_BACKEND_OK")'
 [[ -d "$packs_dir" ]] || { echo "Missing $packs_dir" >&2; exit 2; }
-# Validate ALL matches and workdirs before launching any session.
+# Validate all eight selected packs and workdirs before launching any session.
+resolved_records=()
 for rec in "${records[@]}"; do
   IFS='|' read -r proc cfg dsid seed rel sess run out <<< "$rec"
   python3 "$repo/scripts/check_sample.py" "$repo/$rel" >/dev/null
-  mapfile -d '' matches < <(find "$packs_dir" -type f -name "mc_*${proc}_FxFx_2jets_*_${cfg}.MG3511.GRID.tar.gz" -print0)
-  (( ${#matches[@]} == 1 )) || { echo "Expected exactly 1 gridpack for $proc $cfg, got ${#matches[@]}" >&2; printf '%s\n' "${matches[@]:-}" >&2; exit 2; }
+  pack=$(resolve_pack "$proc" "$cfg") || exit 2
   if tmux -L "$socket" has-session -t "$sess" 2>/dev/null || [[ -e "$run" || -e "$out" ]]; then
     echo "Existing session/work/output: $sess $run $out; refusing overwrite" >&2; exit 2
   fi
-  printf '%s %-12s DSID=%s SEED=%s PACK=%s\n' "$proc" "$cfg" "$dsid" "$seed" "${matches[0]}"
+  resolved_records+=("$rec|$pack")
+  printf '%s %-12s DSID=%s SEED=%s PACK=%s\n' "$proc" "$cfg" "$dsid" "$seed" "$pack"
 done
 if [[ $mode == --check ]]; then
   echo "PREFLIGHT_OK: eight gridpacks and JOs" 
@@ -86,10 +154,8 @@ mkdir -p "$work_root" "$out_root"
 home_real=$(realpath -e "$HOME"); work_real=$(realpath -e "$work_root")
 case "$work_real" in "$home_real"/*) ;; *) echo "Workdir must be in shared HOME" >&2; exit 2;; esac
 git_sha=$(git -C "$repo" rev-parse HEAD)
-for rec in "${records[@]}"; do
-  IFS='|' read -r proc cfg dsid seed rel sess run out <<< "$rec"
-  mapfile -d '' matches < <(find "$packs_dir" -type f -name "mc_*${proc}_FxFx_2jets_*_${cfg}.MG3511.GRID.tar.gz" -print0)
-  pack=${matches[0]}
+for rec in "${resolved_records[@]}"; do
+  IFS='|' read -r proc cfg dsid seed rel sess run out pack <<< "$rec"
   mkdir -p "$run/guard" "$run/jo" "$out"
   cp -a "$repo/$rel" "$run/jo/$dsid"
   cp "$repo/scripts/vjets_tmux_condor_worker.sh" "$run/worker.sh"
