@@ -21,6 +21,8 @@ USE_DELTA = True
 FOLDING = "1, 1, 1"
 REQUIRED_ACCURACY = 1e-3  # Requested 2-jet integration target; physics validation pending
 GRIDPACK_MODE = not is_gen_from_gridpack()
+# Condor distributes hard-event generation; Gen_tf/Pythia remains in controller.
+EVENT_USE_CONDOR = os.getenv("EVENT_USE_CONDOR", "1") != "0"
 
 evgenConfig.description = "aMcAtNlo Zee+0,1,2j HT2 NLO FxFx PR426 delta111"
 evgenConfig.contact = ["lenart.jerala@cern.ch"]
@@ -28,15 +30,12 @@ evgenConfig.keywords += ["Z", "jets"]
 evgenConfig.generators += ["aMcAtNlo", "Pythia8"]
 evgenConfig.nEventsPerJob = 2000 if GRIDPACK_MODE else 5000
 
-# PMG full PDF/scale weights in event mode; central PDF only for gridpack integration.
+# Pilot-only: central PDF and nominal signed event weights; no PDF/scale variations.
 MG.MADGRAPH_PDFSETTING = {
     "central_pdf": 325100,
-    "pdf_variations": [] if GRIDPACK_MODE else [325100, 93300],
-    "alternative_pdfs": [] if GRIDPACK_MODE else [
-        304400, 13000, 25300, 14000, 14100, 14200, 61200, 42560,
-        303200, 27400, 331500,
-    ],
-    "scale_variations": [] if GRIDPACK_MODE else [0.5, 1, 2],
+    "pdf_variations": [],
+    "alternative_pdfs": [],
+    "scale_variations": [],
 }
 MGC.MADGRAPH_PDFSETTING = MG.MADGRAPH_PDFSETTING
 
@@ -97,7 +96,7 @@ modify_run_card(process_dir=process_dir, runArgs=runArgs, settings={
 config_settings = (
     {"run_mode": 1, "nb_core": 1, "cluster_type": "condor",
      "cluster_size": 100, "cluster_nb_retry": 0}
-    if GRIDPACK_MODE else {"run_mode": 0, "nb_core": 1}
+    if GRIDPACK_MODE or EVENT_USE_CONDOR else {"run_mode": 0, "nb_core": 1}
 )
 if USE_DELTA:
     pythia8_path = os.getenv("PY8PATH")
