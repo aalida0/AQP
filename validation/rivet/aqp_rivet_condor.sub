@@ -1,28 +1,84 @@
-# Submit from a directory containing these three scripts.
-# All eight configurations run independently; processing is NOT capped at 2M.
+# Eight configurations x eight independent file shards = 64 Condor jobs.
+# The 8 shards cover ALL currently available EVNT files, not 2M.
 universe = vanilla
 executable = aqp_rivet_condor_worker.sh
-arguments = $(Proc) $(Cfg)
+arguments = $(Proc) $(Cfg) $(Shard) 8
 transfer_executable = True
 transfer_input_files = aqp_rivet_stream.py,aqp_rivet_evnt_job.py
 should_transfer_files = YES
 when_to_transfer_output = ON_EXIT
 getenv = True
-# If your ATLAS Rucio authentication is X.509, enable this after creating a proxy:
+# If Rucio uses X.509, configure proxy forwarding with the AF admin docs.
 # use_x509userproxy = True
 request_cpus = 1
 request_memory = 4000
 request_disk = 8000000
-output = /data/aalida/AQP_Rivet/condor_logs/$(Proc)_$(Cfg).out
-error  = /data/aalida/AQP_Rivet/condor_logs/$(Proc)_$(Cfg).err
-log    = /data/aalida/AQP_Rivet/condor_logs/$(Proc)_$(Cfg).condor.log
-queue Proc,Cfg from (
-  Zee standard111
-  Zee delta111
-  Zee delta221
-  Zee delta441
-  Wenu standard111
-  Wenu delta111
-  Wenu delta221
-  Wenu delta441
+output = /data/aalida/AQP_Rivet/condor_logs/$(Proc)_$(Cfg)_$(Shard).out
+error  = /data/aalida/AQP_Rivet/condor_logs/$(Proc)_$(Cfg)_$(Shard).err
+log    = /data/aalida/AQP_Rivet/condor_logs/$(Proc)_$(Cfg)_$(Shard).condor.log
+queue Proc,Cfg,Shard from (
+  Zee standard111 0
+  Zee standard111 1
+  Zee standard111 2
+  Zee standard111 3
+  Zee standard111 4
+  Zee standard111 5
+  Zee standard111 6
+  Zee standard111 7
+  Zee delta111 0
+  Zee delta111 1
+  Zee delta111 2
+  Zee delta111 3
+  Zee delta111 4
+  Zee delta111 5
+  Zee delta111 6
+  Zee delta111 7
+  Zee delta221 0
+  Zee delta221 1
+  Zee delta221 2
+  Zee delta221 3
+  Zee delta221 4
+  Zee delta221 5
+  Zee delta221 6
+  Zee delta221 7
+  Zee delta441 0
+  Zee delta441 1
+  Zee delta441 2
+  Zee delta441 3
+  Zee delta441 4
+  Zee delta441 5
+  Zee delta441 6
+  Zee delta441 7
+  Wenu standard111 0
+  Wenu standard111 1
+  Wenu standard111 2
+  Wenu standard111 3
+  Wenu standard111 4
+  Wenu standard111 5
+  Wenu standard111 6
+  Wenu standard111 7
+  Wenu delta111 0
+  Wenu delta111 1
+  Wenu delta111 2
+  Wenu delta111 3
+  Wenu delta111 4
+  Wenu delta111 5
+  Wenu delta111 6
+  Wenu delta111 7
+  Wenu delta221 0
+  Wenu delta221 1
+  Wenu delta221 2
+  Wenu delta221 3
+  Wenu delta221 4
+  Wenu delta221 5
+  Wenu delta221 6
+  Wenu delta221 7
+  Wenu delta441 0
+  Wenu delta441 1
+  Wenu delta441 2
+  Wenu delta441 3
+  Wenu delta441 4
+  Wenu delta441 5
+  Wenu delta441 6
+  Wenu delta441 7
 )
