@@ -4,7 +4,7 @@
 PROC="$1"
 CFG="$2"
 case "$PROC:$CFG" in
-  Zee:standard111|Zee:delta221|Zee:delta441|Wenu:standard111|Wenu:delta221|Wenu:delta441) ;;
+  Zee:standard111|Zee:delta111|Zee:delta221|Zee:delta441|Wenu:standard111|Wenu:delta111|Wenu:delta221|Wenu:delta441) ;;
   *) echo "ERROR: invalid process/config $PROC $CFG"; exit 2 ;;
 esac
 
