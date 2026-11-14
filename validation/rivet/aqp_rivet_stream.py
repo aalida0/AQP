@@ -12,6 +12,7 @@ import re
 import shutil
 import subprocess
 import sys
+import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -72,7 +73,7 @@ def process_one(args, process, config, ds, name, expected_events, folder, jo):
     yoda = yodadir / (name.replace(".EVNT.pool.root", "") + ".yoda.gz")
     log = logsdir / (name + ".rivet.log")
     stage = stagedir / name
-    index = folder / "processed_files.csv"
+    index = folder / f"processed_files.shard{args.shard_index:02d}-of-{args.shards:02d}.csv"
     if file_did in read_index(index) and yoda.exists() and yoda.stat().st_size > 100:
         print(f"ALREADY_DONE {file_did}", flush=True)
         return True
@@ -128,6 +129,8 @@ def main():
                    help="Comma-separated task versions to discover, default v2,v3; NO event limit")
     p.add_argument("--max-files", type=int, default=0,
                    help="Optional diagnostic file cap per configuration, 0=ALL currently available")
+    p.add_argument("--shards", type=int, default=1, help="Parallel workers per configuration")
+    p.add_argument("--shard-index", type=int, default=0, help="This worker index, zero based")
     p.add_argument("--discover-only", action="store_true")
     p.add_argument("--merge-only", action="store_true")
     p.add_argument("--keep-evnt", action="store_true", help="Keep large EVNT files after Rivet")
@@ -135,6 +138,8 @@ def main():
     a = p.parse_args()
     if a.max_files < 0:
         p.error("--max-files must be >=0")
+    if a.shards < 1 or not (0 <= a.shard_index < a.shards):
+        p.error("require --shards >= 1 and 0 <= --shard-index < --shards")
     root = a.root.expanduser().resolve()
     jo = a.job_options.expanduser().resolve()
     if not a.discover_only and not a.merge_only:
@@ -157,12 +162,14 @@ def main():
             if a.merge_only:
                 # Version-separated merging: do not combine v2 and v3
                 # without checking weight and phase-space equivalence.
-                index = folder / "processed_files.csv"
-                if not index.exists():
+                indexes = sorted(folder.glob("processed_files*.csv"))
+                if not indexes:
                     print(f"NO_YODA {proc} {cfg}", flush=True)
                     continue
-                with index.open(newline="", encoding="utf-8") as fh:
-                    rows = list(csv.DictReader(fh))
+                rows = []
+                for index in indexes:
+                    with index.open(newline="", encoding="utf-8") as fh:
+                        rows.extend(csv.DictReader(fh))
                 mergedir = folder / "merged"
                 mergedir.mkdir(parents=True, exist_ok=True)
                 for ver in (v.strip() for v in a.versions.split(",") if v.strip()):
@@ -194,11 +201,14 @@ def main():
             print(f"{proc} {cfg}: {len(entries)} currently registered EVNT files", flush=True)
             if a.discover_only:
                 continue
-            done = read_index(folder / "processed_files.csv")
+            index = folder / f"processed_files.shard{a.shard_index:02d}-of-{a.shards:02d}.csv"
+            done = read_index(index)
+            # Stable CRC32 partition: no two shards choose the same LFN.
             new = [(name, ds, n) for name, (ds, n) in sorted(entries.items())
-                   if "user.aalida:" + name not in done
-                   or not (folder / "yoda" /
-                           (name.replace(".EVNT.pool.root", "") + ".yoda.gz")).is_file()]
+                   if zlib.crc32(name.encode("utf-8")) % a.shards == a.shard_index
+                   and ("user.aalida:" + name not in done
+                        or not (folder / "yoda" /
+                                (name.replace(".EVNT.pool.root", "") + ".yoda.gz")).is_file())]
             if a.max_files:
                 new = new[:a.max_files]
             print(f"{proc} {cfg}: {len(done)} previously done; {len(new)} new selected", flush=True)
