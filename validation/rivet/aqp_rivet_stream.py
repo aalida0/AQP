@@ -123,7 +123,7 @@ def main():
     p.add_argument("--root", type=Path, required=True, help="Large /data storage")
     p.add_argument("--job-options", type=Path, required=True)
     p.add_argument("--process", choices=["Zee", "Wenu", "all"], default="all")
-    p.add_argument("--config", choices=["standard111", "delta221", "delta441", "all"], default="all")
+    p.add_argument("--config", choices=["standard111", "delta111", "delta221", "delta441", "all"], default="all")
     p.add_argument("--versions", default="v2,v3",
                    help="Comma-separated task versions to discover, default v2,v3; NO event limit")
     p.add_argument("--max-files", type=int, default=0,
@@ -149,27 +149,40 @@ def main():
         p.error("rucio not on PATH")
 
     processes = ["Zee", "Wenu"] if a.process == "all" else [a.process]
-    configs = ["standard111", "delta221", "delta441"] if a.config == "all" else [a.config]
+    configs = ["standard111", "delta111", "delta221", "delta441"] if a.config == "all" else [a.config]
     failed = 0
     for proc in processes:
         for cfg in configs:
             folder = root / proc / cfg
             if a.merge_only:
-                paths = sorted((folder / "yoda").glob("*.yoda.gz"))
-                if not paths:
+                # Version-separated merging: do not combine v2 and v3
+                # without checking weight and phase-space equivalence.
+                index = folder / "processed_files.csv"
+                if not index.exists():
                     print(f"NO_YODA {proc} {cfg}", flush=True)
                     continue
+                with index.open(newline="", encoding="utf-8") as fh:
+                    rows = list(csv.DictReader(fh))
                 mergedir = folder / "merged"
                 mergedir.mkdir(parents=True, exist_ok=True)
-                out = mergedir / f"{proc}_{cfg}_nominal_shapes.yoda.gz"
-                print(f"MERGING {proc} {cfg}: {len(paths)} YODA files", flush=True)
-                rc = cmd(["rivet-merge", "--equiv", "-o", str(out)] + [str(s) for s in paths],
-                         logfile=mergedir / "merge.log")
-                if rc:
-                    failed += 1
-                    print(f"MERGE_FAILED: see {mergedir / 'merge.log'}", flush=True)
-                else:
-                    print(f"MERGED {out}", flush=True)
+                for ver in (v.strip() for v in a.versions.split(",") if v.strip()):
+                    paths = sorted({
+                        Path(row["yoda"]) for row in rows
+                        if f".{ver}_EVNT.pool.root" in row.get("dataset_did", "")
+                        and row.get("yoda") and Path(row["yoda"]).is_file()
+                    })
+                    if not paths:
+                        print(f"NO_YODA {proc} {cfg} {ver}", flush=True)
+                        continue
+                    out = mergedir / f"{proc}_{cfg}_{ver}_nominal_shapes.yoda.gz"
+                    print(f"MERGING {proc} {cfg} {ver}: {len(paths)} YODA files", flush=True)
+                    rc = cmd(["rivet-merge", "-e", "-o", str(out)] +
+                             [str(src) for src in paths], logfile=mergedir / f"merge_{ver}.log")
+                    if rc:
+                        failed += 1
+                        print(f"MERGE_FAILED: see {mergedir / ('merge_' + ver + '.log')}", flush=True)
+                    else:
+                        print(f"MERGED {out}", flush=True)
                 continue
 
             entries = {}
@@ -183,7 +196,9 @@ def main():
                 continue
             done = read_index(folder / "processed_files.csv")
             new = [(name, ds, n) for name, (ds, n) in sorted(entries.items())
-                   if "user.aalida:" + name not in done]
+                   if "user.aalida:" + name not in done
+                   or not (folder / "yoda" /
+                           (name.replace(".EVNT.pool.root", "") + ".yoda.gz")).is_file()]
             if a.max_files:
                 new = new[:a.max_files]
             print(f"{proc} {cfg}: {len(done)} previously done; {len(new)} new selected", flush=True)
