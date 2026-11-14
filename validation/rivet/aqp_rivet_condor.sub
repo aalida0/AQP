@@ -1,8 +1,8 @@
-# Eight configurations x eight independent file shards = 64 Condor jobs.
+# Six completed v2 configurations x eight independent file shards = 48 Condor jobs.
 # The 8 shards cover ALL currently available EVNT files, not 2M.
 universe = vanilla
 executable = aqp_rivet_condor_worker.sh
-arguments = $(Proc) $(Cfg) $(Shard) 8
+arguments = $(Proc) $(Cfg) $(Shard) 8 v2
 transfer_executable = True
 transfer_input_files = aqp_rivet_stream.py,aqp_rivet_evnt_job.py
 should_transfer_files = YES
@@ -41,14 +41,6 @@ queue Proc,Cfg,Shard from (
   Zee delta221 5
   Zee delta221 6
   Zee delta221 7
-  Zee delta441 0
-  Zee delta441 1
-  Zee delta441 2
-  Zee delta441 3
-  Zee delta441 4
-  Zee delta441 5
-  Zee delta441 6
-  Zee delta441 7
   Wenu standard111 0
   Wenu standard111 1
   Wenu standard111 2
@@ -73,12 +65,4 @@ queue Proc,Cfg,Shard from (
   Wenu delta221 5
   Wenu delta221 6
   Wenu delta221 7
-  Wenu delta441 0
-  Wenu delta441 1
-  Wenu delta441 2
-  Wenu delta441 3
-  Wenu delta441 4
-  Wenu delta441 5
-  Wenu delta441 6
-  Wenu delta441 7
 )
