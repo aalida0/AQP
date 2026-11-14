@@ -3,6 +3,8 @@
 # No set -e, set -u, or pipefail.
 PROC="$1"
 CFG="$2"
+SHARD="${3:-0}"
+NSHARDS="${4:-1}"
 case "$PROC:$CFG" in
   Zee:standard111|Zee:delta111|Zee:delta221|Zee:delta441|Wenu:standard111|Wenu:delta111|Wenu:delta221|Wenu:delta441) ;;
   *) echo "ERROR: invalid process/config $PROC $CFG"; exit 2 ;;
@@ -23,7 +25,7 @@ for EXE in python3 rucio athena.py; do
   command -v "$EXE" || exit 3
 done
 
-echo "Starting incremental EVNT->Rivet job for $PROC $CFG"
+echo "Starting incremental EVNT->Rivet job for $PROC $CFG shard=$SHARD/$NSHARDS"
 echo "hostname=$(hostname) user=$(id -un)"
 echo "Rucio account:"
 rucio whoami
@@ -37,7 +39,9 @@ python3 aqp_rivet_stream.py \
   --root /data/aalida/AQP_Rivet \
   --job-options "$PWD/aqp_rivet_evnt_job.py" \
   --process "$PROC" \
-  --config "$CFG"
+  --config "$CFG" \
+  --shards "$NSHARDS" \
+  --shard-index "$SHARD"
 RC=$?
 echo "RIVET_CONDOR_EXIT=$RC"
 exit "$RC"
