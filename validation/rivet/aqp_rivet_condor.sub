@@ -15,7 +15,8 @@ request_memory = 4000
 request_disk = 8000000
 output = /data/aalida/AQP_Rivet/condor_logs/$(Proc)_$(Cfg)_$(Shard).out
 error  = /data/aalida/AQP_Rivet/condor_logs/$(Proc)_$(Cfg)_$(Shard).err
-log    = /data/aalida/AQP_Rivet/condor_logs/$(Proc)_$(Cfg)_$(Shard).condor.log
+# Condor user event logs are deliberately disabled: this AF rejects logs
+# located on Ceph (/data). Use condor_q/condor_history and stdout/stderr.
 queue Proc,Cfg,Shard from (
   Zee standard111 0
   Zee standard111 1
