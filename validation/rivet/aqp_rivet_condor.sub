@@ -1,5 +1,5 @@
 # Submit from a directory containing these three scripts.
-# All six configurations run independently; processing is NOT capped at 2M.
+# All eight configurations run independently; processing is NOT capped at 2M.
 universe = vanilla
 executable = aqp_rivet_condor_worker.sh
 arguments = $(Proc) $(Cfg)
@@ -18,9 +18,11 @@ error  = /data/aalida/AQP_Rivet/condor_logs/$(Proc)_$(Cfg).err
 log    = /data/aalida/AQP_Rivet/condor_logs/$(Proc)_$(Cfg).condor.log
 queue Proc,Cfg from (
   Zee standard111
+  Zee delta111
   Zee delta221
   Zee delta441
   Wenu standard111
+  Wenu delta111
   Wenu delta221
   Wenu delta441
 )
