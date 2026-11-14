@@ -1,0 +1,26 @@
+# Submit from a directory containing these three scripts.
+# All six configurations run independently; processing is NOT capped at 2M.
+universe = vanilla
+executable = aqp_rivet_condor_worker.sh
+arguments = $(Proc) $(Cfg)
+transfer_executable = True
+transfer_input_files = aqp_rivet_stream.py,aqp_rivet_evnt_job.py
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+getenv = True
+# If your ATLAS Rucio authentication is X.509, enable this after creating a proxy:
+# use_x509userproxy = True
+request_cpus = 1
+request_memory = 4000
+request_disk = 8000000
+output = /data/aalida/AQP_Rivet/condor_logs/$(Proc)_$(Cfg).out
+error  = /data/aalida/AQP_Rivet/condor_logs/$(Proc)_$(Cfg).err
+log    = /data/aalida/AQP_Rivet/condor_logs/$(Proc)_$(Cfg).condor.log
+queue Proc,Cfg from (
+  Zee standard111
+  Zee delta221
+  Zee delta441
+  Wenu standard111
+  Wenu delta221
+  Wenu delta441
+)
