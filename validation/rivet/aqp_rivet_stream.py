@@ -125,8 +125,8 @@ def main():
     p.add_argument("--job-options", type=Path, required=True)
     p.add_argument("--process", choices=["Zee", "Wenu", "all"], default="all")
     p.add_argument("--config", choices=["standard111", "delta111", "delta221", "delta441", "all"], default="all")
-    p.add_argument("--versions", default="v2,v3",
-                   help="Comma-separated task versions to discover, default v2,v3; NO event limit")
+    p.add_argument("--versions", default="v2",
+                   help="Default v2: completed S111/D111/D221. Use --config delta441 --versions v3 later; NO event limit")
     p.add_argument("--max-files", type=int, default=0,
                    help="Optional diagnostic file cap per configuration, 0=ALL currently available")
     p.add_argument("--shards", type=int, default=1, help="Parallel workers per configuration")
@@ -138,6 +138,11 @@ def main():
     a = p.parse_args()
     if a.max_files < 0:
         p.error("--max-files must be >=0")
+    # Never mix the aborted D441 v2 campaign with valid v3 production.
+    if a.config == "delta441" and a.versions != "v3":
+        p.error("Delta441 may only be processed from v3: use --config delta441 --versions v3")
+    if a.config != "delta441" and "v3" in a.versions.split(","):
+        p.error("v3 is reserved for Delta441; select --config delta441 --versions v3")
     if a.shards < 1 or not (0 <= a.shard_index < a.shards):
         p.error("require --shards >= 1 and 0 <= --shard-index < --shards")
     root = a.root.expanduser().resolve()
@@ -154,7 +159,7 @@ def main():
         p.error("rucio not on PATH")
 
     processes = ["Zee", "Wenu"] if a.process == "all" else [a.process]
-    configs = ["standard111", "delta111", "delta221", "delta441"] if a.config == "all" else [a.config]
+    configs = ["standard111", "delta111", "delta221"] if a.config == "all" else [a.config]
     failed = 0
     for proc in processes:
         for cfg in configs:
