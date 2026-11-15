@@ -37,7 +37,7 @@ def pythia_counts(text):
     for line in text.splitlines():
         if 'All included processes' not in line and 'All included subprocesses' not in line:
             continue
-        m = re.search(r'All included (?:sub)?processes\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\b', line, re.I)
+        m = re.search(r'All included (?:sub)?processes\s*\|?\s*(\d+)\s*\|?\s*(\d+)\s*\|?\s*(\d+)\b', line, re.I)
         if m:
             rows.append(tuple(map(int, m.groups())))
     if rows:
@@ -74,21 +74,42 @@ def timestamp_span(text):
 
 
 def load_log(path):
-    """Read plain text, gzipped text, or PanDA log.tgz payload.stdout."""
-    if path.name.endswith(('.tgz', '.tar.gz')):
-        with tarfile.open(path, 'r:gz') as archive:
-            files = [f for f in archive.getmembers() if f.isfile()]
-            files.sort(key=lambda f: (0 if Path(f.name).name == 'payload.stdout' else
-                                      1 if 'log.generate' in f.name else 2, f.name))
-            for member in files:
-                if Path(member.name).name == 'payload.stdout' or 'log.generate' in member.name:
-                    stream = archive.extractfile(member)
-                    if stream is not None:
-                        return stream.read().decode('utf-8', 'replace')
-        raise ValueError('No payload.stdout/log.generate text inside tarball')
-    op = gzip.open if path.name.endswith('.gz') else open
-    with op(path, 'rt', encoding='utf-8', errors='replace') as handle:
-        return handle.read()
+    """Load actual Athena generator log; PanDA .log.generate is often tar.gz.
+
+    Inspect the file bytes rather than guessing the format from the filename.
+    A single matching generator stdout is used to avoid double-counting.
+    """
+    with path.open("rb") as fh:
+        magic = fh.read(512)
+    tar_like = magic.startswith(b"\x1f\x8b") or magic[257:262] == b"ustar" or path.name.endswith((".tgz", ".tar.gz"))
+    if tar_like and tarfile.is_tarfile(path):
+        with tarfile.open(path, "r:*") as archive:
+            members = [m for m in archive.getmembers() if m.isfile()]
+            def rank(member):
+                name = Path(member.name).name
+                if name == "log.generate":
+                    return (0, member.name)
+                if name == "payload.stdout":
+                    return (1, member.name)
+                if name in ("generate.log", "log.generate.txt"):
+                    return (2, member.name)
+                if "generate" in name and name.endswith((".log", ".txt")):
+                    return (3, member.name)
+                return (10, member.name)
+            for member in sorted(members, key=rank):
+                if rank(member)[0] >= 10:
+                    continue
+                stream = archive.extractfile(member)
+                if stream:
+                    payload = stream.read()
+                    if payload.startswith(b"\x1f\x8b"):
+                        payload = gzip.decompress(payload)
+                    return payload.decode("utf-8", "replace")
+        raise ValueError("Archive contains no recognized generator log; inspect tar -tf <file>")
+    if magic.startswith(b"\x1f\x8b"):
+        with gzip.open(path, "rt", encoding="utf-8", errors="replace") as handle:
+            return handle.read()
+    return path.read_text(encoding="utf-8", errors="replace")
 
 
 def parse_one(path, process, cfg, version, events):
