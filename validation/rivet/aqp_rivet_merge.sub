@@ -1,0 +1,23 @@
+# Merge the six completed v2 samples separately.
+# Keep event logs off Ceph. No custom filesystem-domain requirement.
+universe = vanilla
+executable = aqp_rivet_merge_worker.sh
+arguments = $(Proc) $(Cfg)
+transfer_executable = True
+transfer_input_files = aqp_rivet_stream.py,aqp_rivet_evnt_job.py
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+getenv = True
+request_cpus = 1
+request_memory = 8000
+request_disk = 4000000
+output = /data/aalida/AQP_Rivet/condor_logs/merge_$(Proc)_$(Cfg).out
+error = /data/aalida/AQP_Rivet/condor_logs/merge_$(Proc)_$(Cfg).err
+queue Proc,Cfg from (
+ Zee standard111
+ Zee delta111
+ Zee delta221
+ Wenu standard111
+ Wenu delta111
+ Wenu delta221
+)
