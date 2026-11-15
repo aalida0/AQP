@@ -2,6 +2,17 @@
 
 Compare **160 log.generate files** across Zee and Wenu. Run 10 logs for each v2 standard111/delta111/delta221 configuration (5,000 events/job), and 50 logs for each delta441 v3 configuration (1,000 events/job). Aborted delta441 v2 tasks are excluded. Main branch and production JOs are unchanged.
 
+## Reuse previously downloaded logs (no Rucio re-download)
+
+PanDA files end in `.log.generate`, not `.log.generate.txt`. Versions of the script before commit `4d4fa68` missed those filenames even when Rucio successfully downloaded them. Update the branch and run only the analyzer:
+
+```bash
+git pull --ff-only origin work/aqp-50k-log-comparison
+python3 studies/log_pilot/compare_aqp_logs.py /data/aalida/AQP/aqp_log_comparison
+```
+
+This prints the complete table and overwrites the previous empty CSV/report files. It does not repeat any downloads.
+
 ## Run
 
 On lxplus or UChicago AF with authenticated ATLAS Rucio:
