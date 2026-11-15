@@ -43,11 +43,11 @@ python3 studies/log_pilot/compare_aqp_logs.py /data/aalida/AQP/aqp_log_compariso
 
 * Weighted NWF = absolute negative weight sum / total absolute weight sum, appropriate when generation bias causes nonunit weights.
 * Unweighted NWF = negative event count / total event count (when logged).
-* FxFx efficiency = sum(accepted) / sum(tried), never mean of job efficiencies.
-* Dilution = 1/(1-2f)^2, an **equal absolute weight approximation**. For biased samples the exact effective sample size needs sum(w^2).
-* Generation seconds/event is shown only when identifiable in logs; approximate log-timestamp span is reported separately.
+* FxFx efficiency = sum(accepted) / sum(tried) **when counters are available**. In the actual Nov 2026 PanDA logs only the printed `Pythia8 efficiency (nAccepted/nTried %) = ...` is visible. The script reports a `~`-prefixed **harmonic-mean estimate** assuming every job reaches the same accepted-event target, not an exact pooled count ratio.
+* Dilution = 1/(1-2f)^2, an **equal absolute weight approximation**. For biased samples `N_eff(w) = (sumOfPosWeights - abs(sumOfNegWeights))**2 / sumOfSqrWeights` is calculated when the necessary moments exist. Combined-job `N_eff` assumes compatible weight normalization across jobs.
+* Generation seconds/event is shown only when explicit timing and measured accepted counts both exist; missing measurements remain `NA`. For independent ATLAS generation CPU accounting also inspect the `generation_timing.txt` output datasets.
 * A v3 shower-only job and a v2 generation-plus-shower job must **not** be directly compared as equal-cost generation. Establish matching timing scope/CPU allocation first.
-* Incomplete or unrecognized metric fields are printed as NA, never guessed.
+* Incomplete or unrecognized metric fields are printed as NA. Accepted event **targets** (50,000/configuration) are not substituted for measured event counters. The FxFx `~` approximation is identified and never silently treated as a measured count ratio.
 * Sampling of a Rucio container may return incomplete jobs; actual coverage is shown, and raw manifests are retained.
 
 Run offline checks with `python3 -m unittest discover -s studies/log_pilot -p 'test_*.py' -v`.
