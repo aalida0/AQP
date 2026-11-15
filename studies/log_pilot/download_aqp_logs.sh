@@ -4,7 +4,7 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ROOT="\${1:-\${AQP_LOG_DIR:-$PWD/aqp_log_comparison}}"
+ROOT="${1:-${AQP_LOG_DIR:-$PWD/aqp_log_comparison}}"
 mkdir -p "$ROOT"
 ROOT="$(cd "$ROOT" && pwd)"
 
@@ -28,7 +28,7 @@ for process in Zee Wenu; do
     printf '%s\t%s\t%s\t%s\t%s\n' "$process" "$config" "$version" "$count" "$expected" >> "$ROOT/sampling_plan.tsv"
     dir="$ROOT/$process/$config/$version"
     mkdir -p "$dir"
-    did="user.aalida:user.aalida.AQP.\${process}.\${config}.FxFx2M.\${version}_log.generate/"
+    did="user.aalida:user.aalida.AQP.${process}.${config}.FxFx2M.${version}_log.generate/"
     printf '%s\t%s\t%s\t%s\t%s\n' "$process" "$config" "$version" "$count" "$did" >> "$ROOT/rucio_requests.tsv"
     echo "========== $process / $config / $version : $count logs =========="
     echo "DID: $did"
@@ -41,7 +41,7 @@ for process in Zee Wenu; do
     # --nrandom is applied to this container, not each of its 4 subdatasets.
     rucio download --nrandom "$count" --no-subdir --dir "$dir" "$did" \
       2>&1 | tee "$dir/rucio_download.txt"
-    status="\${PIPESTATUS[0]}"
+    status="${PIPESTATUS[0]}"
     if [[ "$status" -ne 0 ]]; then
       printf '%s\t%s\t%s\trucio_download_failed\n' "$process" "$config" "$version" >> "$ROOT/download_warnings.tsv"
       errors=$((errors+1))
