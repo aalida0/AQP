@@ -1,0 +1,19 @@
+# Plot completed v2 Zee/Wenu Standard111, Delta111, Delta221.
+# Condor job-event logs are intentionally omitted (Ceph restriction).
+# No set -e/-u and no FileSystemDomain requirement.
+universe = vanilla
+executable = aqp_rivet_plot_worker.sh
+arguments = $(Proc)
+transfer_executable = True
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+getenv = True
+request_cpus = 1
+request_memory = 8000
+request_disk = 4000000
+output = /data/aalida/AQP_Rivet/condor_logs/plot_$(Proc)_v2.out
+error  = /data/aalida/AQP_Rivet/condor_logs/plot_$(Proc)_v2.err
+queue Proc from (
+ Zee
+ Wenu
+)
