@@ -4,7 +4,7 @@ Compare **160 log.generate files** across Zee and Wenu. Run 10 logs for each v2 
 
 ## Reuse previously downloaded logs (no Rucio re-download)
 
-PanDA files end in `.log.generate`, not `.log.generate.txt`. Versions of the script before commit `4d4fa68` missed those filenames even when Rucio successfully downloaded them. Update the branch and run only the analyzer:
+PanDA files end in `.log.generate`, not `.log.generate.txt`, and these files can contain compressed tar archives despite having no `.gz` suffix. The parser detects the archive format from its bytes and extracts the generator log. Earlier versions missed the files or attempted to read compressed bytes as plain text. On any remaining zero-coverage configurations, the analyzer prints representative log counters for diagnosis. Update the branch and run only the analyzer:
 
 ```bash
 git pull --ff-only origin work/aqp-50k-log-comparison
