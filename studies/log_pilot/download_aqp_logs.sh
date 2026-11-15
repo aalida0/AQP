@@ -47,7 +47,7 @@ for process in Zee Wenu; do
       errors=$((errors+1))
     fi
     find "$dir" -type f \
-      \( -name '*log.generate.txt' -o -name '*log.generate.txt.gz' -o -name '*.log.tgz' -o -name '*.log.tar.gz' \) \
+      \( -name '*.log.generate' -o -name '*.log.generate.gz' -o -name '*.log.generate.txt' -o -name '*.log.generate.txt.gz' -o -name '*.log.tgz' -o -name '*.log.tar.gz' \) \
       -printf '%P\n' | LC_ALL=C sort > "$dir/downloaded_files.txt"
     actual="$(wc -l < "$dir/downloaded_files.txt")"
     echo "Log files found: $actual (requested: $count)"
