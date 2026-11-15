@@ -27,7 +27,7 @@ class AQPLogComparisonTests(unittest.TestCase):
             r = result[0]
             self.assertEqual(len(rows), 1)
             self.assertEqual(len(result), 8)
-            self.assertEqual(r['accepted_events'], 5000)
+            self.assertEqual(r['accepted_events_measured'], 5000)
             self.assertAlmostEqual(r['weighted_nwf'], .3)
             self.assertAlmostEqual(r['unweighted_nwf'], .1)
             self.assertAlmostEqual(r['fxfx_efficiency'], 5000/9000)
@@ -46,7 +46,7 @@ class AQPLogComparisonTests(unittest.TestCase):
             rows, results = summarize(Path(td))
             self.assertEqual(len(rows), 1)
             self.assertEqual(results[0]['downloaded_logs'], 1)
-            self.assertEqual(results[0]['valid_accepted_logs'], 1)
+            self.assertEqual(results[0]['usable_logs'], 1)
             self.assertAlmostEqual(results[0]['weighted_nwf'], .3)
 
 
@@ -63,7 +63,7 @@ class AQPLogComparisonTests(unittest.TestCase):
                 tar.addfile(info, io.BytesIO(payload))
             self.assertEqual(load_log(filename), MOCK)
             _, results = summarize(Path(td))
-            self.assertEqual(results[0]['accepted_events'], 5000)
+            self.assertEqual(results[0]['accepted_events_measured'], 5000)
             self.assertEqual(results[0]['jobs_weighted_nwf'], 1)
 
     def test_pythia_space_separated_counts(self):
@@ -78,7 +78,7 @@ class AQPLogComparisonTests(unittest.TestCase):
             (folder/'bad.log.generate.txt').write_text(MOCK)
             _, result = summarize(Path(td))
             self.assertEqual(result[-1]['downloaded_logs'], 1)
-            self.assertEqual(result[-1]['valid_accepted_logs'], 0)
+            self.assertEqual(result[-1]['usable_logs'], 0)
             self.assertIsNone(result[-1]['weighted_nwf'])
 
 
