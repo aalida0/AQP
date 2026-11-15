@@ -5,7 +5,7 @@ import tarfile
 import tempfile
 import unittest
 from pathlib import Path
-from compare_aqp_logs import load_log, parse_one, summarize, report_table
+from compare_aqp_logs import all_log_paths, load_log, parse_one, summarize, report_table
 
 MOCK = """generate 12:00:00 Py:Athena INFO starting
 | 0 | All included processes | 9000 | 9000 | 5000 |
@@ -34,6 +34,20 @@ class AQPLogComparisonTests(unittest.TestCase):
             self.assertAlmostEqual(r['gen_wall_s_per_event'], 4)
             self.assertAlmostEqual(r['dilution_approx'], 6.25)
             self.assertIn('Wenu/delta441', report_table(result))
+
+
+    def test_native_panda_extension(self):
+        with tempfile.TemporaryDirectory() as td:
+            folder = Path(td)/'Zee'/'standard111'/'v2'
+            folder.mkdir(parents=True)
+            logfile = folder/'user.aalida.53564233._000328.log.generate'
+            logfile.write_text(MOCK)
+            self.assertEqual(all_log_paths(folder), [logfile])
+            rows, results = summarize(Path(td))
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(results[0]['downloaded_logs'], 1)
+            self.assertEqual(results[0]['valid_accepted_logs'], 1)
+            self.assertAlmostEqual(results[0]['weighted_nwf'], .3)
 
     def test_wrong_size_excluded(self):
         with tempfile.TemporaryDirectory() as td:
