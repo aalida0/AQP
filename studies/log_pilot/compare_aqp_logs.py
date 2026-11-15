@@ -245,6 +245,48 @@ def report_table(summary):
     return '\n'.join(lines) + '\n'
 
 
+def diagnose_zero_coverage(root, summary):
+    """Show representative raw lines when counters cannot be parsed."""
+    failed = [row for row in summary
+              if row['downloaded_logs'] and not row['valid_accepted_logs']]
+    if not failed:
+        return
+    print("\nPARSER DIAGNOSTICS (first downloaded log from each unparsed configuration)")
+    print("-" * 78)
+    pattern = re.compile(
+        r"All included|nTried|nAccepted|nSelected|sumOf|negative.weights|"
+        r"positive.weights|[Ee]vents (?:tried|selected|accepted)|"
+        r"FxFx.*(?:eff|match)|Pythia8.*(?:statistic|accepted)", re.I)
+    for row in failed:
+        location = root / row['process'] / row['config'] / row['version']
+        files = all_log_paths(location)
+        if not files:
+            continue
+        first = files[0]
+        print(f"\n{row['process']}/{row['config']}/{row['version']} : {first.name}")
+        try:
+            with first.open('rb') as handle:
+                header = handle.read(512)
+            print(f"  source gzip={header.startswith(bytes.fromhex('1f8b'))}  tar={tarfile.is_tarfile(first)}")
+            if tarfile.is_tarfile(first):
+                with tarfile.open(first, 'r:*') as archive:
+                    members = [m.name for m in archive.getmembers() if m.isfile()]
+                    print("  archive members: " + ", ".join(members[:8]))
+            sample = load_log(first)
+            print(f"  decoded length: {len(sample):,} chars")
+            tried, selected, accepted = pythia_counts(sample)
+            print(f"  parsed Pythia counters: tried={tried}, selected={selected}, accepted={accepted}")
+            matches = [line.strip() for line in sample.splitlines() if pattern.search(line)]
+            print(f"  relevant lines: {len(matches)}")
+            for line in matches[-8:]:
+                print("   ", line[:220])
+            if not matches:
+                for line in sample.splitlines()[:3]:
+                    print("   RAW:", line[:220])
+        except (OSError, ValueError, tarfile.TarError) as exc:
+            print("  diagnostic failed:", exc)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('root', type=Path, help='Path containing Zee/ and Wenu/ downloaded logs')
@@ -260,6 +302,7 @@ def main():
     report = report_table(summary)
     (root/'aqp_results.txt').write_text(report, encoding='utf-8')
     print('\n' + report)
+    diagnose_zero_coverage(root, summary)
     print(f"Saved: {root/'aqp_per_log.csv'}, {root/'aqp_summary.csv'}, {root/'aqp_results.txt'}")
     if not rows:
         print('WARNING: No logs found. Results are empty; check the Rucio DIDs and downloads.')
