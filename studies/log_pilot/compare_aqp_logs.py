@@ -112,6 +112,17 @@ def load_log(path):
     return path.read_text(encoding="utf-8", errors="replace")
 
 
+def pythia_reported_efficiency(text):
+    """Pythia8's reported efficiency in percent, converted to [0,1]."""
+    matches = re.findall(
+        r'Pythia8 efficiency\s*\(\s*nAccepted\s*/\s*nTried\s*%\s*\)\s*=\s*('
+        + FLOAT + r')', text, re.I)
+    if not matches:
+        return None
+    value = float(matches[-1].replace('D', 'E').replace('d', 'e')) / 100
+    return value if 0 < value <= 1 else None
+
+
 def parse_one(path, process, cfg, version, events):
     row = dict(process=process, config=cfg, version=version,
                filename=str(path), expected_events=events)
@@ -121,21 +132,28 @@ def parse_one(path, process, cfg, version, events):
     except (OSError, ValueError, tarfile.TarError) as exc:
         row['parse_error'] = str(exc)
         return row
+
     tried, selected, accepted = pythia_counts(text)
     if tried is not None and accepted is not None and (tried < accepted or tried <= 0):
-        tried = accepted = selected = None
         row['parse_error'] = 'Inconsistent Pythia counts'
     pos = last_number(text, ('sumOfPosWeights', 'sum[ _-]*of[ _-]*positive[ _-]*weights', 'sumPosWeights'))
     neg = last_number(text, ('sumOfNegWeights', 'sum[ _-]*of[ _-]*negative[ _-]*weights', 'sumNegWeights'))
+    sqr = last_number(text, ('sumOfSqrWeights', 'sum[ _-]*of[ _-]*squared[ _-]*weights', 'sumWeightsSquared'))
     npos = last_number(text, ('nPosWeights', 'nPositiveWeights', 'nPosEvents'))
     nneg = last_number(text, ('nNegWeights', 'nNegativeWeights', 'nNegEvents'))
+    eff = pythia_reported_efficiency(text)
+    # Explicit counts supersede the printed rounded Pythia8 efficiency.
+    if tried is not None and tried > 0 and accepted is not None:
+        eff = accepted / tried
     row.update(tried=tried, selected=selected, accepted=accepted,
                sum_pos=pos if pos is not None and pos >= 0 else None,
                abs_sum_neg=abs(neg) if neg is not None else None,
+               sum_sqr=sqr if sqr is not None and sqr > 0 else None,
                n_pos=npos if npos is not None and npos >= 0 else None,
                n_neg=nneg if nneg is not None and nneg >= 0 else None,
+               fxfx_efficiency_reported=eff,
                generation_wall_s=explicit_seconds(text), log_span_s=timestamp_span(text),
-               close_to_expected=(accepted is not None and abs(accepted-events) <= max(5, 0.05*events)))
+               close_to_expected=(accepted is None or abs(accepted-events) <= max(5, 0.05*events)))
     return row
 
 
@@ -151,8 +169,49 @@ def weighted_fraction(rows, positive, negative):
 
 
 def time_per_event(rows, key):
+    """Use verified accepted counts only, not target events."""
     good = [r for r in rows if r.get(key) is not None and r.get('accepted') and r.get('close_to_expected')]
     return ratio(sum(r[key] for r in good), sum(r['accepted'] for r in good)), len(good)
+
+
+def summarize_efficiency(rows):
+    """Pool exact counters; otherwise estimate from rounded job-level efficiencies.
+
+    For equal accepted counts per job, pooled accepted/tried is the HARMONIC
+    mean of each job's accepted/tried. This fallback is marked an estimate,
+    because the log does not confirm the accepted count.
+    """
+    with_eff = [r for r in rows if r.get('fxfx_efficiency_reported')]
+    if not with_eff:
+        return None, 'unavailable', 0
+    all_explicit = all(r.get('tried') and r.get('accepted') is not None for r in with_eff)
+    if all_explicit:
+        return (ratio(sum(r['accepted'] for r in with_eff),
+                      sum(r['tried'] for r in with_eff)),
+                'pooled_counts', len(with_eff))
+    if all(r.get('accepted') is None or r.get('accepted') == r['expected_events']
+           for r in with_eff):
+        # Equal-accepted-target approximation, not measured event counts.
+        return (len(with_eff) / sum(1.0/r['fxfx_efficiency_reported'] for r in with_eff),
+                'harmonic_mean_assumes_equal_accepted_counts', len(with_eff))
+    # Mixed explicit accepted counts: cannot pool with only percentages.
+    return (sum(r['fxfx_efficiency_reported'] for r in with_eff)/len(with_eff),
+            'arithmetic_job_mean_not_pooled', len(with_eff))
+
+
+def effective_events(rows):
+    """Signed-weight N_eff using log metadata moments.
+
+    Valid as a combined sample only if event weights from different jobs
+    share a consistent normalization and cover the same accepted event set.
+    """
+    good = [r for r in rows if r.get('sum_pos') is not None
+            and r.get('abs_sum_neg') is not None and r.get('sum_sqr')]
+    if not good:
+        return None, 0
+    signed = sum(r['sum_pos'] - r['abs_sum_neg'] for r in good)
+    sumsq = sum(r['sum_sqr'] for r in good)
+    return ratio(signed*signed, sumsq), len(good)
 
 
 def as_csv(path, rows, fields):
@@ -182,73 +241,92 @@ def summarize(root):
         path = root/process/cfg/version
         logs = [parse_one(f, process, cfg, version, events) for f in all_log_paths(path)]
         individual.extend(logs)
-        good = [r for r in logs if not r.get('parse_error')]
-        valid = [r for r in good if r.get('close_to_expected')]
-        wf, nw = weighted_fraction(valid, 'sum_pos', 'abs_sum_neg')
-        nf, nn = weighted_fraction(valid, 'n_pos', 'n_neg')
-        fxs = [r for r in valid if r.get('tried') and r.get('accepted') is not None]
-        fx = ratio(sum(r['accepted'] for r in fxs), sum(r['tried'] for r in fxs))
-        tm, nt = time_per_event(valid, 'generation_wall_s')
-        span, ns = time_per_event(valid, 'log_span_s')
+        # Metadata moments and Pythia8 reported efficiency are useful even when
+        # absolute tried/accepted counters are absent in the generator log.
+        good = [r for r in logs if not r.get('parse_error') and r.get('close_to_expected')]
+        wf, nw = weighted_fraction(good, 'sum_pos', 'abs_sum_neg')
+        nf, nn = weighted_fraction(good, 'n_pos', 'n_neg')
+        fx, fxmethod, nfx = summarize_efficiency(good)
+        neff, nneff = effective_events(good)
+        tm, nt = time_per_event(good, 'generation_wall_s')
+        span, ns = time_per_event(good, 'log_span_s')
         dil = 1/(1-2*wf)**2 if wf is not None and wf < 0.5 else None
-        summary.append(dict(process=process, config=cfg, version=version,
-                            target_logs=target_jobs, downloaded_logs=len(logs),
-                            valid_accepted_logs=len(valid),
-                            accepted_events=sum(r['accepted'] for r in valid if r.get('accepted') is not None),
-                            tried_events=sum(r['tried'] for r in fxs),
-                            weighted_nwf=wf, unweighted_nwf=nf, fxfx_efficiency=fx,
-                            dilution_approx=dil,
-                            gen_wall_s_per_event=tm, log_span_s_per_event=span,
-                            cost_wall_s_per_neff_approx=tm*dil if tm is not None and dil is not None else None,
-                            jobs_weighted_nwf=nw, jobs_unweighted_nwf=nn, jobs_fxfx=len(fxs),
-                            jobs_gen_wall=nt, jobs_log_span=ns,
-                            parse_errors=sum(bool(r.get('parse_error')) for r in logs)))
+        with_counts = [r for r in good if r.get('accepted') is not None]
+        summary.append(dict(
+            process=process, config=cfg, version=version,
+            target_logs=target_jobs, downloaded_logs=len(logs),
+            usable_logs=len(good),
+            # Do not misrepresent requested accepted events as measured counts.
+            accepted_events_measured=sum(r['accepted'] for r in with_counts),
+            jobs_with_accepted_counts=len(with_counts),
+            accepted_events_target=target_jobs * events,
+            weighted_nwf=wf, unweighted_nwf=nf,
+            fxfx_efficiency=fx, fxfx_method=fxmethod,
+            neff_weight_moments=neff,
+            dilution_approx=dil,
+            gen_wall_s_per_event=tm, log_span_s_per_event=span,
+            cost_wall_s_per_neff_approx=tm*dil if tm is not None and dil is not None else None,
+            jobs_weighted_nwf=nw, jobs_unweighted_nwf=nn, jobs_fxfx=nfx,
+            jobs_neff=nneff, jobs_gen_wall=nt, jobs_log_span=ns,
+            parse_errors=sum(bool(r.get('parse_error')) for r in logs)))
     return individual, summary
 
 
 def report_table(summary):
-    lines = []
-    lines.append('AQP FxFx pilot: 50,000 requested accepted events per configuration')
-    lines.append('Aborted delta441 v2 tasks excluded; delta441 v3 = 1000/job, others v2 = 5000/job')
-    lines.append('')
-    hdr = (f"{'Sample':19} {'logs':>7} {'valid':>5} {'accepted':>9} "
-           f"{'wNWF%':>7} {'uNWF%':>7} {'FxFx%':>7} {'dilut.':>8} "
-           f"{'gen s/ev':>9} {'span s/ev':>10} {'cost s/N_eff':>12}")
-    lines.append(hdr)
-    lines.append('-'*len(hdr))
+    lines = [
+        'AQP FxFx pilot: 50,000 TARGET accepted events per configuration (not independently verified)',
+        'Aborted delta441 v2 tasks excluded; delta441 v3: 1000/job; other v2: 5000/job',
+        ''
+    ]
+    hdr = (f"{'Sample':19} {'logs':>7} {'usable':>6} {'wNWF%':>7} {'uNWF%':>7} "
+           f"{'FxFx%':>8} {'D~':>8} {'N_eff(w)':>10} {'gen s/ev':>9}")
+    lines.extend([hdr, '-'*len(hdr)])
     for r in summary:
         sample = f"{r['process']}/{r['config']}"
-        lines.append(f"{sample:19} {r['downloaded_logs']:>3}/{r['target_logs']:<3} "
-                     f"{r['valid_accepted_logs']:>5} {r['accepted_events']:>9,} "
-                     f"{fmt(r['weighted_nwf'],pct=True):>7} {fmt(r['unweighted_nwf'],pct=True):>7} "
-                     f"{fmt(r['fxfx_efficiency'],pct=True):>7} {fmt(r['dilution_approx']):>8} "
-                     f"{fmt(r['gen_wall_s_per_event'],3):>9} {fmt(r['log_span_s_per_event'],3):>10} "
-                     f"{fmt(r['cost_wall_s_per_neff_approx'],3):>12}")
+        eff_text = fmt(r['fxfx_efficiency'], pct=True)
+        if r['fxfx_method'] == 'harmonic_mean_assumes_equal_accepted_counts':
+            eff_text = '~' + eff_text
+        elif r['fxfx_method'] == 'arithmetic_job_mean_not_pooled':
+            eff_text = '*' + eff_text
+        lines.append(
+            f"{sample:19} {r['downloaded_logs']:>3}/{r['target_logs']:<3} "
+            f"{r['usable_logs']:>6} "
+            f"{fmt(r['weighted_nwf'],pct=True):>7} {fmt(r['unweighted_nwf'],pct=True):>7} "
+            f"{eff_text:>8} {fmt(r['dilution_approx']):>8} "
+            f"{fmt(r['neff_weight_moments'],1):>10} "
+            f"{fmt(r['gen_wall_s_per_event'],3):>9}"
+        )
     lines.extend(['', 'METRIC COVERAGE (jobs with the necessary measured values):'])
-    hdr2 = f"{'Sample':19} {'wNWF':>6} {'uNWF':>6} {'FxFx':>6} {'gen wall':>9} {'log span':>9} {'errors':>7}"
+    hdr2 = (f"{'Sample':19} {'wNWF':>6} {'uNWF':>6} {'FxFx':>6} "
+            f"{'N_eff':>6} {'counts':>7} {'gen wall':>9} {'errors':>7}")
     lines.extend([hdr2, '-'*len(hdr2)])
     for r in summary:
         sample = f"{r['process']}/{r['config']}"
         lines.append(f"{sample:19} {r['jobs_weighted_nwf']:>6} {r['jobs_unweighted_nwf']:>6} "
-                     f"{r['jobs_fxfx']:>6} {r['jobs_gen_wall']:>9} {r['jobs_log_span']:>9} {r['parse_errors']:>7}")
+                     f"{r['jobs_fxfx']:>6} {r['jobs_neff']:>6} "
+                     f"{r['jobs_with_accepted_counts']:>7} {r['jobs_gen_wall']:>9} "
+                     f"{r['parse_errors']:>7}")
     lines.extend(['', 'INTERPRETATION:'])
-    lines.append('  * wNWF uses absolute positive/negative WEIGHT sums (prefer for biased samples).')
-    lines.append('  * uNWF uses counts of positive/negative weights (when present).')
-    lines.append('  * FxFx = sum(nAccepted) / sum(nTried), not a mean of per-job percentages.')
-    lines.append('  * gen s/ev requires explicitly identified generation wall time; NA = not found.')
-    lines.append('  * span s/ev is a timestamp-span proxy, NOT certified CPU or generation time;')
-    lines.append('    it is ambiguous for logs running 24h or longer.')
-    lines.append('  * dilution and cost are approximations for equal-|weight| events; for biased')
-    lines.append('    events exact N_eff requires sum(w^2) and complete event weights.')
-    lines.append('  * Compare v2 vs v3 runtimes only after checking identical generation/shower scope')
-    lines.append('    and CPU allocations. Missing metrics are NA, never inferred.')
+    lines.append('  * wNWF = sum(abs(negative weights)) / sum(abs(all weights)), from MetaData.')
+    lines.append('  * uNWF = number of negative events / total; NA if event-sign counts absent.')
+    lines.append('  * FxFx%: pooled accepted/tried only if exact counts are logged.')
+    lines.append('  * ~FxFx%: HARMONIC mean of reported job efficiencies, assuming all jobs')
+    lines.append('    accepted the same target events. This is an estimate, NOT an exact count ratio.')
+    lines.append('  * *FxFx%: arithmetic job mean if accepted counts differ; NOT pooled efficiency.')
+    lines.append('  * N_eff(w) = [sum(pos)-sum(abs(neg))]^2 / sum(w^2) from MetaData.')
+    lines.append('    Combining jobs assumes consistent weight normalization across jobs.')
+    lines.append('  * D~ = 1/(1-2*wNWF)^2; equal-|weight| approximation,')
+    lines.append('    NOT exact statistical dilution for biased samples.')
+    lines.append('  * Accepted event targets are from the sampling plan, not verified counters.')
+    lines.append('  * gen s/ev requires explicit generation time AND accepted counts; otherwise NA.')
+    lines.append('  * v2 versus v3 timing is not comparable until ME/shower workload is aligned.')
     return '\n'.join(lines) + '\n'
 
 
 def diagnose_zero_coverage(root, summary):
     """Show representative raw lines when counters cannot be parsed."""
     failed = [row for row in summary
-              if row['downloaded_logs'] and not row['valid_accepted_logs']]
+              if row['downloaded_logs'] and not row['jobs_weighted_nwf']]
     if not failed:
         return
     print("\nPARSER DIAGNOSTICS (first downloaded log from each unparsed configuration)")
@@ -296,7 +374,8 @@ def main():
     rows, summary = summarize(root)
     perlog_fields = ['process','config','version','filename','expected_events','parse_error',
                      'tried','selected','accepted','close_to_expected','sum_pos','abs_sum_neg',
-                     'n_pos','n_neg','generation_wall_s','log_span_s']
+                     'sum_sqr','n_pos','n_neg','fxfx_efficiency_reported',
+                     'generation_wall_s','log_span_s']
     as_csv(root/'aqp_per_log.csv', rows, perlog_fields)
     as_csv(root/'aqp_summary.csv', summary, list(summary[0]))
     report = report_table(summary)
