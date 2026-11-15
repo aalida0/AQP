@@ -49,6 +49,28 @@ class AQPLogComparisonTests(unittest.TestCase):
             self.assertEqual(results[0]['valid_accepted_logs'], 1)
             self.assertAlmostEqual(results[0]['weighted_nwf'], .3)
 
+
+    def test_native_compressed_panda_tarball(self):
+        """Rucio transfers the tar.gz but names it *.log.generate."""
+        with tempfile.TemporaryDirectory() as td:
+            folder = Path(td)/'Zee'/'standard111'/'v2'
+            folder.mkdir(parents=True)
+            filename = folder/'user.aalida.53564233._000328.log.generate'
+            payload = MOCK.encode()
+            with tarfile.open(filename, 'w:gz') as tar:
+                info = tarfile.TarInfo('./log.generate')
+                info.size = len(payload)
+                tar.addfile(info, io.BytesIO(payload))
+            self.assertEqual(load_log(filename), MOCK)
+            _, results = summarize(Path(td))
+            self.assertEqual(results[0]['accepted_events'], 5000)
+            self.assertEqual(results[0]['jobs_weighted_nwf'], 1)
+
+    def test_pythia_space_separated_counts(self):
+        from compare_aqp_logs import pythia_counts
+        line = 'Pythia8 INFO | 0 | All included subprocesses | 9501 9501 5000 | 1.1e-2 |'
+        self.assertEqual(pythia_counts(line), (9501, 9501, 5000))
+
     def test_wrong_size_excluded(self):
         with tempfile.TemporaryDirectory() as td:
             folder = Path(td)/'Wenu'/'delta441'/'v3'
