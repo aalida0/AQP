@@ -1,0 +1,21 @@
+# Retry only four failed v2 EVNT downloads (not the 2334 completed Rivet files).
+# Keep Condor job-event logs OFF Ceph; no FileSystemDomain condition.
+universe = vanilla
+executable = aqp_rivet_condor_worker.sh
+arguments = $(Proc) $(Cfg) $(Shard) 8 v2
+transfer_executable = True
+transfer_input_files = aqp_rivet_stream.py,aqp_rivet_evnt_job.py
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+getenv = True
+request_cpus = 1
+request_memory = 4000
+request_disk = 8000000
+output = /data/aalida/AQP_Rivet/condor_logs/retry_$(Proc)_$(Cfg)_$(Shard).out
+error  = /data/aalida/AQP_Rivet/condor_logs/retry_$(Proc)_$(Cfg)_$(Shard).err
+queue Proc,Cfg,Shard from (
+  Zee standard111 4
+  Wenu delta111 0
+  Wenu delta221 2
+  Wenu delta221 6
+)
