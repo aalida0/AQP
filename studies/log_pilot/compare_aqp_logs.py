@@ -150,7 +150,7 @@ def fmt(x, decimals=2, pct=False):
 def all_log_paths(folder):
     items = []
     for p in folder.rglob('*') if folder.exists() else ():
-        if p.is_file() and (p.name.endswith(('log.generate.txt', 'log.generate.txt.gz', '.log.tgz', '.log.tar.gz'))):
+        if p.is_file() and (p.name.endswith(('.log.generate', '.log.generate.gz', '.log.generate.txt', '.log.generate.txt.gz', '.log.tgz', '.log.tar.gz'))):
             items.append(p)
     return sorted(set(items))
 
