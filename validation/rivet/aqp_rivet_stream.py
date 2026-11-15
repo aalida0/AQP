@@ -78,12 +78,16 @@ def process_one(args, process, config, ds, name, expected_events, folder, jo):
         print(f"ALREADY_DONE {file_did}", flush=True)
         return True
 
-    if not stage.is_file() or stage.stat().st_size == 0:
-        print(f"DOWNLOAD {file_did}", flush=True)
-        p = cmd(["rucio", "download", "--no-subdir", "--dir", str(stagedir), file_did])
-        if p.returncode:
-            print(f"DOWNLOAD_FAILED {file_did} :: {p.stderr.strip()[:250]}", flush=True)
-            return False
+    # Always invoke Rucio, even if a file is already present from an
+    # interrupted download: Rucio checks the local checksum and skips valid
+    # files, whereas a size-only check could pass a truncated EVNT file.
+    download_log = logsdir / (name + ".rucio.log")
+    print(f"DOWNLOAD {file_did}", flush=True)
+    p = cmd(["rucio", "download", "--no-subdir", "--dir", str(stagedir), file_did],
+            logfile=download_log)
+    if p.returncode:
+        print(f"DOWNLOAD_FAILED {file_did} exit={p.returncode}; full log={download_log}", flush=True)
+        return False
     if not stage.exists() or stage.stat().st_size < 100:
         print(f"DOWNLOAD_MISSING {file_did} expected {stage}", flush=True)
         return False
