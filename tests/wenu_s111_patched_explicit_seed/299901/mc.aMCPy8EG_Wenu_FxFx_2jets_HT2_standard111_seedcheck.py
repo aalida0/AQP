@@ -101,7 +101,7 @@ if GRIDPACK_MODE:
     if MG.my_MGC_instance is None:
         raise RuntimeError("MGControl instance unavailable for seed validation")
     MG.my_MGC_instance.runCardDict["iseed"] = int(runArgs.randomSeed)
-    print("AQP_MG_INTEGRATION_SEED_REQUESTED=%d" % int(runArgs.randomSeed))
+    print("MG_INTEGRATION_SEED_REQUESTED=%d" % int(runArgs.randomSeed))
 
 config_settings = (
     {"run_mode": 1, "nb_core": 1, "cluster_type": "condor",
