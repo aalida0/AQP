@@ -95,7 +95,15 @@ modify_run_card(process_dir=process_dir, runArgs=runArgs, settings={
     "store_rwgt_info": True,  # Must also be True when building the gridpack
 })
 
-# Keep MGControl\'s cached run-card seed synchronized with the file.\n# In MG5_aMC@NLO 3.5.11, iseed=0 makes NLO integration reuse auto-seeds.\nif GRIDPACK_MODE:\n    if MG.my_MGC_instance is None:\n        raise RuntimeError("MGControl instance unavailable for seed validation")\n    MG.my_MGC_instance.runCardDict["iseed"] = int(runArgs.randomSeed)\n    print("AQP_MG_INTEGRATION_SEED_REQUESTED=%d" % int(runArgs.randomSeed))\n\nconfig_settings = (
+# Keep MGControl's cached run-card seed synchronized with the file.
+# In MG5_aMC@NLO 3.5.11, iseed=0 makes NLO integration use auto-seeds.
+if GRIDPACK_MODE:
+    if MG.my_MGC_instance is None:
+        raise RuntimeError("MGControl instance unavailable for seed validation")
+    MG.my_MGC_instance.runCardDict["iseed"] = int(runArgs.randomSeed)
+    print("AQP_MG_INTEGRATION_SEED_REQUESTED=%d" % int(runArgs.randomSeed))
+
+config_settings = (
     {"run_mode": 1, "nb_core": 1, "cluster_type": "condor",
      "cluster_size": 100, "cluster_nb_retry": 0}
     if GRIDPACK_MODE else {"run_mode": 0, "nb_core": 1}
