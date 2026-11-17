@@ -4,8 +4,8 @@
 # Usage: bash scripts/wenu_s111_seed817263_grid_upload.sh --check
 #        bash scripts/wenu_s111_seed817263_grid_upload.sh --upload RSE_NAME
 
-MODE="\${1:---check}"
-RSE="\${2:-\${AQP_UPLOAD_RSE:-}}"
+MODE="${1:---check}"
+RSE="${2:-${AQP_UPLOAD_RSE:-}}"
 SCOPE="user.aalida"
 DATASET="user.aalida.mc_13TeV.aMCPy8EG_Wenu_FxFx_2jets_HT2_standard111_seed817263.MG3511.GRIDPACK"
 DID="$SCOPE:$DATASET"
@@ -34,7 +34,7 @@ echo "SOURCE=$SRC"
 echo "SOURCE_SHA256=$(sha256sum "$SRC" | awk '{print $1}')"
 echo "RUCIO_DID=$DID"
 echo "FILE=$FILE"
-echo "TARGET_RSE=\${RSE:-NOT_SELECTED}"
+echo "TARGET_RSE=${RSE:-NOT_SELECTED}"
 rucio whoami || { echo "ERROR: Rucio authentication unavailable" >&2; exit 2; }
 
 if [[ "$MODE" == "--check" ]]; then
@@ -72,7 +72,7 @@ fi
 echo "Uploading to Rucio..."
 rucio upload --register-after-upload --rse "$RSE" --scope "$SCOPE" \
     "$DID" "$TARGET" 2>&1 | tee "$LOGDIR/upload.log"
-states=("\${PIPESTATUS[@]}")
+states=("${PIPESTATUS[@]}")
 if (( states[0] != 0 || states[1] != 0 )); then
     echo "ERROR: Rucio upload failed; inspect $LOGDIR/upload.log" >&2
     exit 5
