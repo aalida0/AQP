@@ -44,6 +44,8 @@ fi
 BASE="$HOME/gridpack-work"
 mkdir -p "$BASE" || exit 2
 RUN=$(mktemp -d "$BASE/WenuS111_condor1k.XXXXXX") || exit 2
+# Keep every failed/successful attempt independently for reproducibility.
+OUT="$OUT/$(basename "$RUN")"
 mkdir -p "$RUN/guard" "$RUN/backend" || exit 2
 cp -a "$JO" "$RUN/" || exit 2
 python3 "$REPO/scripts/build_wenu_condor_query_v2.py" \
