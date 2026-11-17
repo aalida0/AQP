@@ -80,28 +80,7 @@ fi
 rucio list-files "$DID" > "$LOGDIR/list-files.txt"
 rc=$?
 if (( rc != 0 )) || ! grep -Fq -- "$FILE" "$LOGDIR/list-files.txt" || \
-   ! grep -Eq 'Total files[[:space:]]*:[[:space:]]*1[[:space:]]*
-    echo "ERROR: uploaded dataset missing expected file: $DID" >&2
-    exit 5
-fi
-rucio list-file-replicas "$SCOPE:$FILE" > "$LOGDIR/file-replicas.txt"
-rc=$?
-if (( rc != 0 )) || ! grep -Fq -- "$RSE" "$LOGDIR/file-replicas.txt"; then
-    echo "ERROR: uploaded file replica not confirmed at $RSE" >&2
-    exit 5
-fi
-{
-    echo "DID=$DID"
-    echo "FILE=$FILE"
-    echo "RSE=$RSE"
-    echo "SOURCE=$SRC"
-    echo "SOURCE_SHA256=$(sha256sum "$SRC" | awk '{print $1}')"
-    echo "STAGED_SHA256=$(sha256sum "$TARGET" | awk '{print $1}')"
-    echo "UPLOADED_AT=$(date -Is)"
-} > "$LOGDIR/manifest.txt" || exit 6
-echo "UPLOAD_VERIFIED: $DID"
-echo "MANIFEST=$LOGDIR/manifest.txt"
- "$LOGDIR/list-files.txt"; then
+   ! grep -Eq 'Total files[[:space:]]*:[[:space:]]*1[[:space:]]*$' "$LOGDIR/list-files.txt"; then
     echo "ERROR: uploaded dataset missing expected file: $DID" >&2
     exit 5
 fi
