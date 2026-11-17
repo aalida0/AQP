@@ -17,6 +17,7 @@ if [[ ! -d "$JO" || ! -s "$GP" ]]; then
 fi
 python3 "$REPO/scripts/check_sample.py" "$JO" || exit 2
 python3 "$REPO/scripts/test_wenu_condor_query_v2.py" || exit 2
+python3 "$REPO/scripts/test_wenu_condor_bootstrap_v2.py" || exit 2
 for cmd in Gen_tf.py condor_submit python3 sha256sum; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
         echo "ERROR: $cmd not available. Setup AthGeneration 23.6.63." >&2
