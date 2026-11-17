@@ -37,7 +37,7 @@ def make_bootstrap(source_bootstrap, candidate, target):
         raise ValueError("Source bootstrap already references the v2 digest")
     adapted = original.replace(PINNED_V1, PINNED_V2, 1)
     compile(adapted, "sitecustomize.py", "exec")
-    shutil.copytree(source, destination)
+    shutil.copytree(source, destination,\n                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     (destination / "sitecustomize.py").write_text(adapted)
     if PINNED_V1 in (destination / "sitecustomize.py").read_text():
         raise ValueError("Old candidate pin unexpectedly remains")
