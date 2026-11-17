@@ -121,7 +121,6 @@ should_transfer_files = YES
 when_to_transfer_output = ON_EXIT
 transfer_input_files = $STAGE/worker.sh,$STAGE/299901,$GRID
 transfer_output_files = pilot_output.tar
-transfer_output_remaps = "pilot_output.tar=$OUT/pilot_output.tar"
 request_cpus = 1
 request_memory = 8192 MB
 request_disk = 32000 MB
@@ -136,4 +135,4 @@ condor_submit "$STAGE/pilot.sub"
 rc=$?
 if (( rc != 0 )); then exit "$rc"; fi
 printf 'submitted_at=%s\n' "$(date -Is)" > "$STAGE/submitted.ok"
-printf 'SUBMISSION_DIR=%s\nOUTPUT_ARCHIVE=%s\n' "$STAGE" "$OUT/pilot_output.tar"
+printf 'SUBMISSION_DIR=%s\nOUTPUT_ARCHIVE=%s\nFINAL_OUTPUT_DIR=%s\n' "$STAGE" "$STAGE/pilot_output.tar" "$OUT"
