@@ -10,7 +10,7 @@ EVTS=5000
 TIMING=generation_timing.txt
 
 if [ "$#" -ne 4 ]; then
-    echo 'Usage: bash vjets_grid_2m_worker.sh GRIDPACK DSID SEED BASE'
+    echo 'Usage: bash wenu_s111_seed817263_grid_worker.sh GRIDPACK DSID SEED BASE'
     exit 2
 fi
 
