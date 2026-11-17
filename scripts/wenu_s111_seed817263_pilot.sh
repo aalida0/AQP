@@ -111,6 +111,33 @@ mkdir -p "$STAGE" "$OUT" || exit 2
 cp -a "$JO" "$STAGE/" || exit 2
 cp "$0" "$STAGE/worker.sh" || exit 2
 
+# UChicago AF rejects transfer_input_files entries pointing into Ceph /data.
+# Stage one immutable input gridpack in /home instead, before condor_submit.
+STAGED_GRID="$STAGE/$PACK"
+if [[ -e "$STAGED_GRID" ]]; then
+    if ! cmp -s "$GRID" "$STAGED_GRID"; then
+        echo "ERROR: existing staged gridpack differs from source; refusing overwrite" >&2
+        exit 3
+    fi
+    echo "Validated existing staged gridpack: $STAGED_GRID"
+else
+    BYTES=$(stat -c '%s' "$GRID") || exit 3
+    AVAILABLE_KB=$(df -Pk "$STAGE" | awk 'END {print $4}')
+    NEED_KB=$(( (BYTES + 1023) / 1024 + 262144 ))
+    if [[ ! "$AVAILABLE_KB" =~ ^[0-9]+$ ]] || (( AVAILABLE_KB < NEED_KB )); then
+        echo "ERROR: insufficient /home space to stage the input gridpack ($NEED_KB KiB needed incl. headroom)" >&2
+        exit 3
+    fi
+    echo "Staging gridpack from Ceph to /home (one-time copy): $STAGED_GRID"
+    cp -p "$GRID" "$STAGED_GRID.partial" || exit 3
+    if ! cmp -s "$GRID" "$STAGED_GRID.partial"; then
+        echo "ERROR: staged gridpack differs from source" >&2
+        rm -f "$STAGED_GRID.partial"
+        exit 3
+    fi
+    mv "$STAGED_GRID.partial" "$STAGED_GRID" || exit 3
+fi
+
 cat > "$STAGE/pilot.sub" <<EOF
 universe = vanilla
 executable = /bin/bash
@@ -119,7 +146,7 @@ initialdir = $STAGE
 getenv = True
 should_transfer_files = YES
 when_to_transfer_output = ON_EXIT
-transfer_input_files = $STAGE/worker.sh,$STAGE/299901,$GRID
+transfer_input_files = $STAGE/worker.sh,$STAGE/299901,$STAGED_GRID
 transfer_output_files = pilot_output.tar
 request_cpus = 1
 request_memory = 8192 MB
