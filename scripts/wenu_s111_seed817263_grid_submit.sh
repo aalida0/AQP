@@ -70,8 +70,9 @@ if (( rc != 0 )) || ! grep -Fq -- "$GRID_FILE" <<< "$VERIFY"; then
     exit 2
 fi
 FILE_MATCHES=$(grep -Fc -- "$GRID_FILE" <<< "$VERIFY")
-if [[ "$FILE_MATCHES" != "1" ]]; then
-    echo "ERROR: expected exactly one matching gridpack file, found $FILE_MATCHES" >&2
+if [[ "$FILE_MATCHES" != "1" ]] || \
+   ! grep -Eq 'Total files[[:space:]]*:[[:space:]]*1[[:space:]]*$' <<< "$VERIFY"; then
+    echo "ERROR: expected a Rucio dataset with exactly one corrected gridpack file" >&2
     exit 2
 fi
 if [[ "$MODE" == "--check" ]]; then
