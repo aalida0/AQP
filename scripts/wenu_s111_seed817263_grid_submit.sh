@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # PanDA Grid 2M Wenu S111 seed817263 (not the anomalous original S111).
 # Uses a NEW Rucio GRIDPACK DID; stage immutable JO/worker from a pinned Git SHA.
-# --check (read-only), --pilot (one 5k job), --full (400x5k; requires pilot signoff).
+# --check (read-only), --full (400x5k; requires successful 1k pilot).
 # No set -e, set -u, or pipefail.
 
 MODE="${1:---check}"
 case "$MODE" in
-    --check|--pilot|--full) ;;
-    *) echo "Usage: bash $0 --check|--pilot|--full" >&2; exit 2 ;;
+    --check|--full) ;;
+    *) echo "Usage: bash $0 --check|--full" >&2; exit 2 ;;
 esac
 
 REPO="${AQP_REPO:-$HOME/NWR}"
@@ -19,16 +19,10 @@ DATASET="user.aalida.mc_13TeV.aMCPy8EG_Wenu_FxFx_2jets_HT2_standard111_seed81726
 GRID_FILE="mc_13TeV.aMCPy8EG_Wenu_FxFx_2jets_HT2_standard111_seed817263.MG3511.GRID.tar.gz"
 DID="$SCOPE:$DATASET"
 OUT_BASE="user.aalida.AQP.Wenu.standard111.seed817263"
-PILOT_DS="$OUT_BASE.5kPilot.v1"
 FULL_DS="$OUT_BASE.FxFx2M.v1"
-OUTDS="$PILOT_DS"
-NJOBS=1
-BASE=928431
-if [[ "$MODE" == "--full" ]]; then
-    OUTDS="$FULL_DS"
-    NJOBS=400
-    BASE=280081700
-fi
+OUTDS="$FULL_DS"
+NJOBS=400
+BASE=280081700
 
 if [[ ! -d "$REPO/.git" ]]; then
     echo "ERROR: expected AQP Git checkout at $REPO" >&2
@@ -77,15 +71,15 @@ if [[ "$FILE_MATCHES" != "1" ]] || \
 fi
 if [[ "$MODE" == "--check" ]]; then
     echo "INPUT_DATASET_VERIFIED"
-    echo "Next: bash scripts/wenu_s111_seed817263_grid_submit.sh --pilot"
+    echo "Next: verify the completed 1k pilot and run --full"
     exit 0
 fi
 if ! command -v prun >/dev/null 2>&1; then
     echo "ERROR: prun unavailable. Run setupATLAS and lsetup panda." >&2
     exit 2
 fi
-if [[ "$MODE" == "--full" && "${AQP_WENU_S111_GRID_PILOT_VERIFIED:-}" != "YES" ]]; then
-    echo "ERROR: inspect the 5k Grid pilot and set AQP_WENU_S111_GRID_PILOT_VERIFIED=YES" >&2
+if [[ "${AQP_WENU_S111_GRID_PILOT_VERIFIED:-}" != "YES" ]]; then
+    echo "ERROR: verify completed task 53690423 (1k Pilot v2), then export AQP_WENU_S111_GRID_PILOT_VERIFIED=YES" >&2
     exit 2
 fi
 if rucio list-files "$SCOPE:$OUTDS" >/dev/null 2>&1; then
@@ -106,6 +100,24 @@ mv "$DEST/$SOURCE_JO" "$DEST/200000" || exit 3
 mv "$DEST/$SOURCE_WORKER" "$DEST/worker.sh" || exit 3
 rm -rf -- "$DEST/tests" "$DEST/scripts"
 python3 "$REPO/scripts/check_sample.py" "$DEST/200000" || exit 3
+# Athena's physicsShort is derived from mc.<physicsShort>.py (<=50 chars).
+JOS=( "$DEST"/200000/mc.*.py )
+if (( ${#JOS[@]} != 1 )) || [[ ! -f "${JOS[0]}" ]]; then
+    echo "ERROR: expected exactly one staged mc.*.py JobOption" >&2
+    exit 3
+fi
+JONAME=$(basename "${JOS[0]}")
+PHYSICS_SHORT="${JONAME#mc.}"
+PHYSICS_SHORT="${PHYSICS_SHORT%.py}"
+if (( ${#PHYSICS_SHORT} > 50 )); then
+    echo "ERROR: Athena physicsShort exceeds 50 characters: $PHYSICS_SHORT" >&2
+    exit 3
+fi
+echo "PHYSICS_SHORT_OK=$PHYSICS_SHORT (${#PHYSICS_SHORT} characters)"
+if [[ "$JONAME" != "mc.aMCPy8EG_Wenu_FxFx_2j_S111_s817263.py" ]]; then
+    echo "ERROR: unexpected JobOption filename: $JONAME" >&2
+    exit 3
+fi
 (
     cd "$DEST" || exit 3
     echo "$REV" > source_git_commit.txt
