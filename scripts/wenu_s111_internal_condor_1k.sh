@@ -43,17 +43,19 @@ fi
 BASE="$HOME/gridpack-work"
 mkdir -p "$BASE" || exit 2
 RUN=$(mktemp -d "$BASE/WenuS111_condor1k.XXXXXX") || exit 2
-mkdir -p "$RUN/guard" || exit 2
+mkdir -p "$RUN/guard" "$RUN/backend" || exit 2
 cp -a "$JO" "$RUN/" || exit 2
+python3 "$REPO/scripts/build_wenu_condor_query_v2.py" \
+    "$CANDIDATE" "$RUN/backend/cluster.py" || exit 2
 cd "$RUN" || exit 2
 
 export DATAPATH="$RUN/299903:${DATAPATH:-}"
-export AQP_CLUSTER_CANDIDATE="$CANDIDATE"
+export AQP_CLUSTER_CANDIDATE="$RUN/backend/cluster.py"
 export AQP_CONDOR_GUARD_DIR="$RUN/guard"
 export PYTHONPATH="$BOOTSTRAP:$(realpath -e "$MADPATH"):${PYTHONPATH:-}"
 
 # Verify that the patched backend is actually imported, not only staged.
-python3 -c 'import madgraph.various.cluster as c; assert hasattr(c, "_aqp_states"); print("CONDOR_BACKEND_OK", c.__file__)' || exit 2
+python3 -c 'import madgraph.various.cluster as c; assert hasattr(c, "_aqp_states"); assert getattr(c._aqp_query, "_wenu_query_v2", False); print("CONDOR_BACKEND_QUERY_V2_OK", c.__file__)' || exit 2
 
 echo "RUN=$RUN"
 echo "INPUT_GRIDPACK=$GP"
