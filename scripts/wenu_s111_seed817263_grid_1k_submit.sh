@@ -8,7 +8,7 @@ JOPATH="tests/wenu_s111_seed817263_grid_2m/200000"
 WORKER="scripts/wenu_s111_seed817263_grid_worker_1k.sh"
 DATASET="user.aalida.mc_13TeV.aMCPy8EG_Wenu_FxFx_2jets_HT2_standard111_seed817263.MG3511.GRIDPACK"
 EXPECTED_FILE="mc_13TeV.aMCPy8EG_Wenu_FxFx_2jets_HT2_standard111_seed817263.MG3511.GRID.tar.gz"
-OUTDS="user.aalida.AQP.Wenu.standard111.seed817263.1kPilot.v1"
+OUTDS="user.aalida.AQP.Wenu.standard111.seed817263.1kPilot.v2"
 SCOPE="user.aalida"
 BASE=928431
 if [[ ! -d "$REPO/.git" ]]; then echo "Missing $REPO checkout"; exit 2; fi
@@ -36,6 +36,14 @@ mv "$RUN/$JOPATH" "$RUN/200000" || exit 3
 mv "$RUN/$WORKER" "$RUN/worker.sh" || exit 3
 rm -r "$RUN/tests" "$RUN/scripts"
 python3 "$REPO/scripts/check_sample.py" "$RUN/200000" || exit 3
+JO_NAME=$(basename "$RUN"/200000/mc.*.py)
+PHYSICS_SHORT="${JO_NAME#mc.}"
+PHYSICS_SHORT="${PHYSICS_SHORT%.py}"
+if (( ${#PHYSICS_SHORT} > 50 )); then
+    echo "ERROR: physicsShort too long (${#PHYSICS_SHORT} chars): $PHYSICS_SHORT" >&2
+    exit 3
+fi
+echo "PHYSICS_SHORT_OK=${PHYSICS_SHORT} (${#PHYSICS_SHORT} chars)"
 cd "$RUN" || exit 3
 echo "$REV" > source_git_commit.txt
 sha256sum 200000/mc.*.py worker.sh > code.sha256
