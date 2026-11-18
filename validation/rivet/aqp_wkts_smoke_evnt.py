@@ -24,7 +24,10 @@ job += xAODMaker__EventInfoCnvAlg()
 from Rivet_i.Rivet_iConf import Rivet_i
 rivet = Rivet_i("AQPWKTSmoke")
 rivet.McEventKey = "GEN_EVENT"
-rivet.Analyses = ["AQP_WKTSPLITTINGS:LMODE=EL"]
+analysis = os.environ.get("AQP_WKTS_ANALYSIS", "MC_WKTSPLITTINGS")
+if analysis not in ("MC_WKTSPLITTINGS", "AQP_WKTSPLITTINGS"):
+    raise RuntimeError("Unexpected W splitting-scale routine: " + analysis)
+rivet.Analyses = [analysis + ":LMODE=EL"]
 rivet.AnalysisPath = plugin_dir
 rivet.RunName = ""
 rivet.HistoFile = yoda_output
@@ -35,3 +38,4 @@ job += rivet
 print("AQP_WKTS_INPUT=" + evnt_input)
 print("AQP_WKTS_PLUGIN_DIR=" + plugin_dir)
 print("AQP_WKTS_OUTPUT=" + yoda_output)
+print("AQP_WKTS_ANALYSIS=" + analysis)
