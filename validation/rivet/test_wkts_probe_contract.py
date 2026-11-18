@@ -25,6 +25,9 @@ class WKTSContractTests(unittest.TestCase):
         self.assertIn('AQP_WKTS_SMOKE_PASS=', worker)
         self.assertIn('OUTPUT_ALREADY_EXISTS', worker)
         self.assertIn("rivet-build", worker)
+        self.assertIn("AQP_WKTS_OFFICIAL_ISOLATED_PASS=", worker)
+        self.assertLess(worker.index("AQP_WKTS_CONTROL=official"),
+                        worker.index('rivet-build "$PLUGINS'))
 
 if __name__ == "__main__":
     unittest.main()
