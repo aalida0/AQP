@@ -73,8 +73,18 @@ If it fails, report the exact `RIVET_BUILD`, `ATHENA_WKTS` error and the
 first `FATAL` line. Do not equate output-file existence with physics
 validation. The smoke script refuses to overwrite an existing test YODA.
 
+The submit file sets `should_transfer_files = YES` because setting
+it to `NO` causes HTCondor to append an **implicit**
+`TARGET.FileSystemDomain == MY.FileSystemDomain` restriction, leaving no
+eligible AF slots. The YODA file is still written directly under `/data`;
+HTCondor stdout/stderr/event logs remain in `/home`.
+
+If job `4303695.0` was already queued with the previous submit file,
+remove that **single idle job** and submit again. Changing the file on
+disk does not change a job already in the queue.
+
 No `set -e`, `set -u`, `pipefail`, Condor logs on Ceph, or
-`FileSystemDomain` requirements are used.
+explicit `FileSystemDomain` requirements are used.
 
 ## Acceptance gates before replacing missing W+jets splitting plots
 
