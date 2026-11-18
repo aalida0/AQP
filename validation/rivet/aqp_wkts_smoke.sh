@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
 # Run on an AF worker; no set -e, set -u, or FileSystemDomain requirements.
 # Compiles the isolated plugin using the same Rivet used by Athena.
-# Condor's inherited HOME can point inside the CVMFS toolchain.
-# Keep the source path absolute and independent of setup scripts.
-BASE="/home/aalida/AQP/validation/rivet"
+# Avoid the generic variable BASE: LCG/Athena setup overwrites it.
 ROOT="/data/aalida/AQP_Rivet_full"
-PLUGINS="$BASE/_wkts_probe"
 RESULTS="$ROOT/outputs/_wkts_probe"
 INPUTS="$ROOT/inputs/Wenu/delta441"
 
@@ -17,6 +14,10 @@ if [ "$RC" -ne 0 ]; then echo "ERROR ATLAS_LOCAL_SETUP=$RC"; exit "$RC"; fi
 asetup AthGeneration,23.6.63
 RC=$?
 if [ "$RC" -ne 0 ]; then echo "ERROR ASETUP=$RC"; exit "$RC"; fi
+
+# Define AQP-specific paths AFTER asetup so the toolchain cannot clobber them.
+AQP_WKTS_SOURCE_DIR="/home/aalida/AQP/validation/rivet"
+PLUGINS="$AQP_WKTS_SOURCE_DIR/_wkts_probe"
 
 for TOOL in rivet-build athena.py; do
     command -v "$TOOL"
@@ -32,12 +33,12 @@ mkdir -p "$PLUGINS" "$RESULTS"
 RC=$?
 if [ "$RC" -ne 0 ]; then echo "ERROR MKDIR=$RC"; exit "$RC"; fi
 
-if [ ! -f "$BASE/aqp_wkts_smoke_evnt.py" ]; then
-    echo "ERROR ATHENA_JOBOPTIONS_MISSING=$BASE/aqp_wkts_smoke_evnt.py"
+if [ ! -f "$AQP_WKTS_SOURCE_DIR/aqp_wkts_smoke_evnt.py" ]; then
+    echo "ERROR ATHENA_JOBOPTIONS_MISSING=$AQP_WKTS_SOURCE_DIR/aqp_wkts_smoke_evnt.py"
     exit 2
 fi
-echo "AQP_WKTS_BASE=$BASE"
-echo "AQP_WKTS_INHERITED_HOME=${HOME:-unset}"
+echo "AQP_WKTS_SOURCE_DIR=$AQP_WKTS_SOURCE_DIR"
+echo "AQP_WKTS_RUNTIME_HOME=${HOME:-unset}"
 
 export AQP_RIVET_INPUT="$INPUT"
 export AQP_RIVET_PLUGIN_DIR="$PLUGINS"
@@ -57,7 +58,7 @@ export AQP_WKTS_ANALYSIS=MC_WKTSPLITTINGS
 export AQP_RIVET_OUTPUT="$OFFICIAL_OUT"
 echo "AQP_WKTS_CONTROL=official analysis only"
 echo "AQP_WKTS_EVNT=$INPUT"
-athena.py "$BASE/aqp_wkts_smoke_evnt.py"
+athena.py "$AQP_WKTS_SOURCE_DIR/aqp_wkts_smoke_evnt.py"
 RC=$?
 if [ "$RC" -eq 0 ] && [ -s "$OFFICIAL_OUT" ]; then
     gzip -t "$OFFICIAL_OUT"
@@ -74,12 +75,12 @@ fi
 echo "AQP_WKTS_OFFICIAL_ISOLATED_FAILED exit=$RC"
 echo "Testing alternate AQP plugin with unique MET and lepton projection keys."
 
-if [ ! -f "$BASE/AQP_WKTSPLITTINGS.cc" ]; then
-    echo "ERROR source not found: $BASE/AQP_WKTSPLITTINGS.cc"
+if [ ! -f "$AQP_WKTS_SOURCE_DIR/AQP_WKTSPLITTINGS.cc" ]; then
+    echo "ERROR source not found: $AQP_WKTS_SOURCE_DIR/AQP_WKTSPLITTINGS.cc"
     exit 2
 fi
 
-rivet-build "$PLUGINS/RivetAQP_WKTSPLITTINGS.so" "$BASE/AQP_WKTSPLITTINGS.cc"
+rivet-build "$PLUGINS/RivetAQP_WKTSPLITTINGS.so" "$AQP_WKTS_SOURCE_DIR/AQP_WKTSPLITTINGS.cc"
 RC=$?
 if [ "$RC" -ne 0 ]; then echo "ERROR RIVET_BUILD=$RC"; exit "$RC"; fi
 
@@ -92,7 +93,7 @@ fi
 export AQP_WKTS_ANALYSIS=AQP_WKTSPLITTINGS
 export AQP_RIVET_OUTPUT="$OUT"
 echo "AQP_WKTS_SHARED_LIBRARY=$PLUGINS/RivetAQP_WKTSPLITTINGS.so"
-athena.py "$BASE/aqp_wkts_smoke_evnt.py"
+athena.py "$AQP_WKTS_SOURCE_DIR/aqp_wkts_smoke_evnt.py"
 RC=$?
 if [ "$RC" -ne 0 ]; then echo "ERROR ATHENA_WKTS=$RC"; exit "$RC"; fi
 
