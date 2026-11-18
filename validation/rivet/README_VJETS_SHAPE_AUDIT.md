@@ -51,9 +51,28 @@ parsed as AST literals, **not executed**.
   The parser masks both y-values and uncertainties in these bins and leaves
   gaps in curves and ratios; it does **not** silently substitute zeros.
   `shape_checks.csv` records a per-configuration `undefined_bins` count.
-- Wenu is a W+→e+ν sample, not an inclusive W+/W− production sample:
-  any Rivet charge-asymmetry or W+/W− ratio observables are diagnostic
-  only and must not be used as a meaningful charge-asymmetry validation.
+- **Charge content verified from the production JOs:** despite the `Wenu`
+  label, all four W+jets JobOptions define `e = e+ e-`, `nu = ve ve~`
+  and generate `p p > e nu` with 0, 1 and 2 jets. This includes
+  `W+ -> e+ ve` **and** `W- -> e- ve~`. The corrected-seed S111 JO
+  retains this same process definition. Both charge-specific `Wplus_pT`
+  and `Wminus_pT` histograms are populated.
+- `MC_WINC/W_chargeasymm_eta` and `W_chargeasymm_pT` are therefore
+  physically meaningful **generator-level W+/W− charge comparisons**,
+  subject to fiducial, normalization and statistical checks. Do not
+  mistake the abbreviation `Wenu` for positive-charge-only production.
+- The corrected-shape archive holds **101 PNG plots only**:
+  `MC_ZJETS` (40), `MC_ZINC` (7), `MC_WJETS` (40), and
+  `MC_WINC` (14). These are reconstructed four-configuration MC
+  comparisons, **not** all expanded ATLAS/CMS/jet-splitting/weight
+  plots, and not comparisons against experimental data.
+- In these figures, top panels show individually unit-area normalized
+  differential distributions, except inclusive jet multiplicities
+  (scaled to the inclusive first bin) and derived asymmetries/ratios
+  (left in their original dimensionless units); lower panels are the
+  configuration's bin-by-bin value divided by S111. This is useful for
+  comparing shapes, **not** for cross-section, acceptance or
+  absolute W+/W− production-rate conclusions.
 - Differential histograms are explicitly divided by their own
   bin-width-weighted integrals. Inclusive jet multiplicities are divided
   by their first bin. Derived charge asymmetries and jet ratios stay unscaled.
