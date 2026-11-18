@@ -17,6 +17,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 CONFIGS = ("S111", "D111", "D221", "D441")
+PLOT_LABELS = {
+    "S111": "MC@NLO, 111",
+    "D111": "MC@NLO-Δ, 111",
+    "D221": "MC@NLO-Δ, 221",
+    "D441": "MC@NLO-Δ, 441",
+}
 ANALYSES = {"Zee": ("MC_ZJETS", "MC_ZINC"),
             "Wenu": ("MC_WJETS", "MC_WINC")}
 
@@ -117,7 +123,7 @@ def draw(edges, curves, mode, title, dest):
     reference_floor = max(float(np.nanmax(np.abs(ref)))*2e-5, 1e-14)
     for label in CONFIGS:
         y, err = curves[label]
-        (line,) = ax.plot(centers, y, lw=1.1, marker=".", markersize=2, label=label)
+        (line,) = ax.plot(centers, y, lw=1.1, marker=".", markersize=2, label=PLOT_LABELS[label])
         if label == "S111":
             ax.fill_between(centers, y-err[0], y+err[1],
                             alpha=0.12, color=line.get_color())
@@ -127,16 +133,16 @@ def draw(edges, curves, mode, title, dest):
             mask = np.isfinite(divided) & (np.abs(divided) < 5)
             # Preserve gaps for undefined bins instead of connecting across them.
             ratio.plot(centers, np.where(mask, divided, np.nan), lw=1,
-                       color=line.get_color(), label=label)
+                       color=line.get_color(), label=PLOT_LABELS[label])
     ratio.axhline(1, lw=0.8, color="black", ls="--")
     ratio.set_ylim(0.55, 1.45)
-    ratio.set_ylabel("/ S111")
+    ratio.set_ylabel("/ MC@NLO, 111")
     ratio.set_xlabel(title.split("/")[-1])
     ax.set_title(title)
     ax.set_ylabel({"unit_integral": "Unit-area density",
                    "inclusive_jet_bin": "Fraction relative to inclusive bin",
                    "derived_ratio_unscaled": "Unscaled dimensionless observable"}[mode])
-    ax.legend(ncol=4, fontsize=9)
+    ax.legend(ncol=2, fontsize=9)
     ax.grid(alpha=0.2)
     ratio.grid(alpha=0.2)
     fig.text(0.02, 0.01, "Diagnostic from Rivet plot exports; not YODA-level validation.",
