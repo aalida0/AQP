@@ -42,5 +42,38 @@ class PlotAuditTests(unittest.TestCase):
                 plotter.read_export(file)
 
 
+    def test_derived_undefined_bins_are_gaps(self):
+        # Rivet jet_multi_ratio: finite y but undefined error in the final bin.
+        with tempfile.TemporaryDirectory() as temp:
+            file = Path(temp) / "jet_multi_ratio__data.py"
+            keys = ["plot_"+label+"_file.yoda.gz" for label in plotter.CONFIGS]
+            edges = {key: [0, 1, 2, 3] for key in keys}
+            vals = {key: [0.3, 0.4, 0.] for key in keys}
+            errors = {key: [[0.01, 0.02, float("nan")],
+                            [0.01, 0.02, float("nan")]] for key in keys}
+            file.write_text(f"xedges = {edges!r}\nyvals = {vals!r}\nyerrs = {errors!r}\n")
+            bins, curves = plotter.read_export(file)
+            for y, err in curves.values():
+                self.assertTrue(np.isnan(y[-1]))
+                self.assertTrue(np.isnan(err[:, -1]).all())
+                self.assertAlmostEqual(y[0], 0.3)
+            scaled, factors = plotter.normalize(bins, curves, "derived_ratio_unscaled")
+            self.assertTrue(all(factor == 1. for factor in factors.values()))
+            target = Path(temp) / "jet_multi_ratio.png"
+            plotter.draw(bins, scaled, "derived_ratio_unscaled", "Zee/MC_ZJETS/jet_multi_ratio", target)
+            self.assertGreater(target.stat().st_size, 0)
+
+    def test_nan_in_differential_histogram_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            file = Path(temp) / "Z_pT__data.py"
+            keys = ["plot_"+label+"_file.yoda.gz" for label in plotter.CONFIGS]
+            edges = {key: [0, 1, 2] for key in keys}
+            vals = {key: [0.5, float("nan")] for key in keys}
+            errors = {key: [[0.01, float("nan")], [0.01, float("nan")]] for key in keys}
+            file.write_text(f"xedges = {edges!r}\nyvals = {vals!r}\nyerrs = {errors!r}\n")
+            with self.assertRaisesRegex(ValueError, "nonfinite histogram in a physical distribution"):
+                plotter.read_export(file)
+
+
 if __name__ == "__main__":
     unittest.main()
