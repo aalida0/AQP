@@ -13,6 +13,14 @@ spec.loader.exec_module(plotter)
 
 
 class PlotAuditTests(unittest.TestCase):
+    def test_legend_labels(self):
+        self.assertEqual(plotter.PLOT_LABELS, {
+            "S111": "MC@NLO, 111",
+            "D111": "MC@NLO-Δ, 111",
+            "D221": "MC@NLO-Δ, 221",
+            "D441": "MC@NLO-Δ, 441",
+        })
+
     def test_normalization_and_shape_distance(self):
         edges = np.array([0., 1., 3.])
         sample = {label: (np.array([2., 1.]), np.array([[0.2, 0.1], [0.2, 0.1]]))
