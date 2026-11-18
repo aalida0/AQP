@@ -28,8 +28,12 @@ class WKTSContractTests(unittest.TestCase):
         self.assertIn('AQP_WKTS_SMOKE_PASS=', worker)
         self.assertIn('OUTPUT_ALREADY_EXISTS', worker)
         self.assertIn("rivet-build", worker)
-        self.assertIn('BASE="/home/aalida/AQP/validation/rivet"', worker)
-        self.assertNotIn('BASE="$HOME/', worker)
+        self.assertIn('AQP_WKTS_SOURCE_DIR="/home/aalida/AQP/validation/rivet"', worker)
+        self.assertNotIn('BASE="/home/aalida', worker)
+        self.assertNotIn('$BASE/', worker)
+        self.assertLess(worker.index("asetup AthGeneration,23.6.63"),
+                        worker.index('AQP_WKTS_SOURCE_DIR="/home/aalida/'))
+        self.assertIn('athena.py "$AQP_WKTS_SOURCE_DIR/aqp_wkts_smoke_evnt.py"', worker)
         self.assertIn("ATHENA_JOBOPTIONS_MISSING", worker)
         self.assertIn("AQP_WKTS_OFFICIAL_ISOLATED_PASS=", worker)
         self.assertLess(worker.index("AQP_WKTS_CONTROL=official"),
