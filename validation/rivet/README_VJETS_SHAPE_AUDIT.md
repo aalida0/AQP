@@ -57,10 +57,16 @@ parsed as AST literals, **not executed**.
   `W+ -> e+ ve` **and** `W- -> e- ve~`. The corrected-seed S111 JO
   retains this same process definition. Both charge-specific `Wplus_pT`
   and `Wminus_pT` histograms are populated.
-- `MC_WINC/W_chargeasymm_eta` and `W_chargeasymm_pT` are therefore
-  physically meaningful **generator-level W+/W− charge comparisons**,
-  subject to fiducial, normalization and statistical checks. Do not
-  mistake the abbreviation `Wenu` for positive-charge-only production.
+- `MC_WINC/W_chargeasymm_eta` means **lepton-charge asymmetry**
+  `(d sigma(l+) - d sigma(l-))/(d sigma(l+) + d sigma(l-))` versus lepton eta.
+  Despite its histogram name, `MC_WINC/W_chargeasymm_pT` is the **ratio**
+  `d sigma(W+)/d sigma(W-)` versus W pT, not a difference-over-sum.
+  Both require both W charges (verified above) and careful signed-weight
+  uncertainty treatment. In the uploaded corrected gallery the latter's
+  high-pT tail shows large excursions and even a negative D441 bin:
+  **do not interpret those statistically unstable signed-weight tails as
+  physical negative production rates**.
+  Do not mistake `Wenu` for positive-charge-only production.
 - The corrected-shape archive holds **101 PNG plots only**:
   `MC_ZJETS` (40), `MC_ZINC` (7), `MC_WJETS` (40), and
   `MC_WINC` (14). These are reconstructed four-configuration MC
