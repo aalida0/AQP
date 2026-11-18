@@ -1,0 +1,14 @@
+# One AF-worker probe, not full production.
+# Ceph /data is for EVNT/YODA only; HTCondor logs must live on /home.
+universe = vanilla
+initialdir = /home/aalida/AQP/validation/rivet
+executable = /home/aalida/AQP/validation/rivet/aqp_wkts_smoke.sh
+getenv = True
+should_transfer_files = NO
+request_cpus = 1
+request_memory = 6000
+request_disk = 6000000
+output = /home/aalida/AQP/validation/rivet/condor_logs/wkts_smoke.$(Cluster).out
+error = /home/aalida/AQP/validation/rivet/condor_logs/wkts_smoke.$(Cluster).err
+log = /home/aalida/AQP/validation/rivet/condor_logs/wkts_smoke.$(Cluster).condor.log
+queue 1
