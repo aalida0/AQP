@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Run on an AF worker; no set -e, set -u, or FileSystemDomain requirements.
 # Compiles the isolated plugin using the same Rivet used by Athena.
-BASE="$HOME/AQP/validation/rivet"
+# Condor's inherited HOME can point inside the CVMFS toolchain.
+# Keep the source path absolute and independent of setup scripts.
+BASE="/home/aalida/AQP/validation/rivet"
 ROOT="/data/aalida/AQP_Rivet_full"
 PLUGINS="$BASE/_wkts_probe"
 RESULTS="$ROOT/outputs/_wkts_probe"
@@ -30,10 +32,19 @@ mkdir -p "$PLUGINS" "$RESULTS"
 RC=$?
 if [ "$RC" -ne 0 ]; then echo "ERROR MKDIR=$RC"; exit "$RC"; fi
 
+if [ ! -f "$BASE/aqp_wkts_smoke_evnt.py" ]; then
+    echo "ERROR ATHENA_JOBOPTIONS_MISSING=$BASE/aqp_wkts_smoke_evnt.py"
+    exit 2
+fi
+echo "AQP_WKTS_BASE=$BASE"
+echo "AQP_WKTS_INHERITED_HOME=${HOME:-unset}"
+
 export AQP_RIVET_INPUT="$INPUT"
 export AQP_RIVET_PLUGIN_DIR="$PLUGINS"
 export RIVET_ANALYSIS_PATH="$PLUGINS"
 cd "$PLUGINS"
+RC=$?
+if [ "$RC" -ne 0 ]; then echo "ERROR PLUGIN_CWD=$PLUGINS"; exit "$RC"; fi
 
 # Control: does the official MC_WKTSPLITTINGS work in isolation?
 OFFICIAL_OUT="$RESULTS/MC_WKTSPLITTINGS_Wenu_delta441_isolated.yoda.gz"
