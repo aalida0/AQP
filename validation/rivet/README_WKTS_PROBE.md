@@ -115,6 +115,53 @@ deliberately refuses to overwrite any result. Read the full stdout/stderr
 and distinguish an Athena JobOptions path failure from the original
 `No projection 'MET'` exception before interpreting the result.
 
+## Working plugin smoke on AF (cluster 4303710)
+
+The official `MC_WKTSPLITTINGS:LMODE=EL` reproduces
+
+```
+MC_WKTSPLITTINGS:LMODE=EL::analyze method error:
+No projection 'MET' found
+AQP_WKTS_OFFICIAL_ISOLATED_FAILED exit=64
+```
+
+even when scheduled **alone** in an Athena/Rivet job. The isolated AQP
+plugin builds, runs on the existing Wenu D441 EVNT file, and yields:
+
+```
+AQP_WKTS_SMOKE_PASS=/data/aalida/AQP_Rivet_full/outputs/_wkts_probe/AQP_WKTSPLITTINGS_Wenu_delta441_smoke.yoda.gz
+```
+
+This resolves the runtime blocker for a **custom-named** analysis. It
+does **not** identify the exact defect in the official plugin or certify
+physics-equivalent output. The published code and custom plugin both
+call `MC_KTSPLITTINGS_BASE::init/analyze/finalize` and apply the same
+lepton, missing-momentum, W-mass and kT-jet selections. The projection
+names, declaration order, and `apply<MissingMomentum>` spelling differ.
+
+Without rerunning Athena, check that the smoke YODA contains at least
+one *populated* histogram, not just an object header:
+
+```bash
+cd /home/aalida/AQP
+git pull --ff-only origin study/vjets-final-shape-audit-20261118
+python3 -m unittest discover -s validation/rivet -p 'test_wkts_check_yoda.py' -v
+python3 validation/rivet/aqp_wkts_check_yoda.py \
+  /data/aalida/AQP_Rivet_full/outputs/_wkts_probe/AQP_WKTSPLITTINGS_Wenu_delta441_smoke.yoda.gz
+```
+
+Expected `AQP_WKTS_YODA_POPULATED_PASS=N` for `N > 0`, and finite
+`sumW` entries for the reported splitting histograms. Signed MC@NLO
+weights mean a `sumW` can be negative; that is not automatically an
+error. Empty histograms, zero event entries, and NaN/Inf are distinct
+checks. This check is not a statistical shape comparison.
+
+**Next production gate:** inspect a sample plot with the original YODA
+binning using `mplhep.style.ATLAS`, and check a reference run/selection
+on a few EVNT events before triggering the all-four-configuration
+Wenu pass. Keep this routine named `AQP_WKTSPLITTINGS` and provenance
+explicit; do not imply it is the unmodified official routine.
+
 ## Acceptance gates before replacing missing W+jets splitting plots
 
 1. Plugin compiles against the actual Athena-compatible Rivet.
