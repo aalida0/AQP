@@ -65,8 +65,16 @@ def read_export(path):
         err = np.asarray(fields["yerrs"][key], dtype=float)
         if y.shape != (len(edges)-1,) or err.shape != (2, len(y)):
             raise ValueError(f"{label}: incompatible y/error shapes")
-        if not np.all(np.isfinite(y)) or not np.all(np.isfinite(err)):
-            raise ValueError(f"{label}: nonfinite histogram")
+        valid = np.isfinite(y) & np.all(np.isfinite(err), axis=0)
+        if not np.all(valid):
+            # Derived ratios may have undefined tails (zero denominator).
+            # Hide them as gaps; never invent zero content or zero uncertainty.
+            if normalization_mode(path.name.removesuffix("__data.py")) != "derived_ratio_unscaled":
+                raise ValueError(f"{label}: nonfinite histogram in a physical distribution")
+            if not np.any(valid):
+                raise ValueError(f"{label}: no defined bins in derived observable")
+            y = np.where(valid, y, np.nan)
+            err = np.where(valid[None, :], err, np.nan)
         curves[label] = (y, err)
     return edges, curves
 
@@ -106,7 +114,7 @@ def draw(edges, curves, mode, title, dest):
         ax.set_xscale("log")
         ratio.set_xscale("log")
     ref = curves["S111"][0]
-    reference_floor = max(float(np.max(np.abs(ref)))*2e-5, 1e-14)
+    reference_floor = max(float(np.nanmax(np.abs(ref)))*2e-5, 1e-14)
     for label in CONFIGS:
         y, err = curves[label]
         (line,) = ax.plot(centers, y, lw=1.1, marker=".", markersize=2, label=label)
@@ -117,7 +125,8 @@ def draw(edges, curves, mode, title, dest):
             divided = np.divide(y, ref, out=np.full_like(y, np.nan),
                                 where=np.abs(ref) > reference_floor)
             mask = np.isfinite(divided) & (np.abs(divided) < 5)
-            ratio.plot(centers[mask], divided[mask], lw=1,
+            # Preserve gaps for undefined bins instead of connecting across them.
+            ratio.plot(centers, np.where(mask, divided, np.nan), lw=1,
                        color=line.get_color(), label=label)
     ratio.axhline(1, lw=0.8, color="black", ls="--")
     ratio.set_ylim(0.55, 1.45)
@@ -163,7 +172,8 @@ def run(source, output):
                         tv = (0.5*float(np.dot(np.abs(curves[cfg][0]-baseline),
                                              np.diff(edges))) if mode=="unit_integral"
                               else "")
-                        records.append((proc,analysis,name,cfg,mode,factors[cfg],tv))
+                        masked = int(np.count_nonzero(~np.isfinite(raw[cfg][0])))
+                        records.append((proc,analysis,name,cfg,mode,factors[cfg],tv,masked))
                 except (ValueError, KeyError, OSError, AssertionError) as exc:
                     errors.append(f"{file}: {exc}")
             galleries.append((proc, analysis, figures))
@@ -171,7 +181,7 @@ def run(source, output):
     with (output/"shape_checks.csv").open("w", newline="") as fp:
         w = csv.writer(fp)
         w.writerow(("process","analysis","histogram","configuration",
-                    "normalization","original_scale","TV_against_S111"))
+                    "normalization","original_scale","TV_against_S111","undefined_bins"))
         w.writerows(records)
     parts = ['<!doctype html><meta charset="utf-8"><title>AQP V+jets shape audit</title>',
              '<h1>AQP V+jets — four-way shape diagnostic</h1>',
