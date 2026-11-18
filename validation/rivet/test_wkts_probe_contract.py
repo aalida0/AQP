@@ -18,7 +18,10 @@ class WKTSContractTests(unittest.TestCase):
     def test_condor_contract(self):
         submit = (ROOT / "aqp_wkts_smoke.sub").read_text()
         worker = (ROOT / "aqp_wkts_smoke.sh").read_text()
-        self.assertNotIn("FileSystemDomain", submit)
+        self.assertNotIn("FileSystemDomain = ", submit)
+        self.assertIn("should_transfer_files = YES", submit)
+        self.assertIn("when_to_transfer_output = ON_EXIT", submit)
+        self.assertIn('transfer_output_files = ""', submit)
         self.assertIn("condor_logs/", submit)
         for setting in ("set -e", "set -u", "pipefail"):
             self.assertNotIn(setting+"\n", worker)
