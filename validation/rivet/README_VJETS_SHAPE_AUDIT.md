@@ -43,6 +43,17 @@ parsed as AST literals, **not executed**.
   samples used generator metadata. Their displayed absolute rates differ
   by large factors. The previous `PLOT:NormalizeToIntegral=1` invocation
   **did not actually yield unit-area numerical distributions**.
+- Four derived observables have undefined tail bins in the Rivet exports:
+  `Zee/MC_ZJETS/jet_multi_ratio` (1 bin),
+  `Wenu/MC_WJETS/jet_multi_ratio` (1 bin),
+  `Wenu/MC_WINC/W_chargeasymm_eta` (2 bins), and
+  `Wenu/MC_WINC/W_chargeasymm_pT` (4 bins).
+  The parser masks both y-values and uncertainties in these bins and leaves
+  gaps in curves and ratios; it does **not** silently substitute zeros.
+  `shape_checks.csv` records a per-configuration `undefined_bins` count.
+- Wenu is a W+→e+ν sample, not an inclusive W+/W− production sample:
+  any Rivet charge-asymmetry or W+/W− ratio observables are diagnostic
+  only and must not be used as a meaningful charge-asymmetry validation.
 - Differential histograms are explicitly divided by their own
   bin-width-weighted integrals. Inclusive jet multiplicities are divided
   by their first bin. Derived charge asymmetries and jet ratios stay unscaled.
