@@ -95,11 +95,18 @@ AQP_WKTS_OFFICIAL_ISOLATED_FAILED exit=2
 ERROR source not found: /cvmfs/sft.cern.ch/lcg/releases/gcc/.../AQP_WKTSPLITTINGS.cc
 ```
 
-This is **not a physics-plugin result**. The worker relied on `$HOME` to
-resolve the JobOptions and plugin source, but `$HOME` resolved inside the
-CVMFS toolchain in the Condor environment. The worker now uses the fixed
-source directory `/home/aalida/AQP/validation/rivet` and checks that
-the Athena JobOptions file exists before starting the official control.
+This is **not a physics-plugin result**. The source directory was
+stored in the generic Bash variable `BASE`; sourcing the ATLAS/LCG setup
+overwrites that variable with the GCC toolchain path under CVMFS.
+Merely setting `BASE` to an absolute path before `asetup` did not fix it.
+The worker now sets `AQP_WKTS_SOURCE_DIR=/home/aalida/AQP/validation/rivet`
+**after** `asetup` and uses this unique variable for JobOptions,
+plugin source, and plugin build output. A regression test guards that order.
+
+A later run (4303705) confirmed the previous fix was insufficient:
+`ERROR ATHENA_JOBOPTIONS_MISSING=/cvmfs/.../gcc/.../aqp_wkts_smoke_evnt.py`.
+This was still a path failure **before** the official Rivet analysis
+could be evaluated.
 
 After pulling the fix, run the static test, then submit the single-file
 probe once more. If the earlier attempt left either isolated-test YODA
