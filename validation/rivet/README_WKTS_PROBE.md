@@ -48,19 +48,27 @@ cd validation/rivet
 condor_submit aqp_wkts_smoke.sub
 ```
 
-The job compiles the plugin against **the same AthGeneration,23.6.63
-environment used for EVNT processing**, then processes ONE existing
-Wenu D441 EVNT file on a Condor worker.
+The job first runs **official `MC_WKTSPLITTINGS:LMODE=EL` alone**, 
+on ONE existing Wenu D441 EVNT file, to check whether the problem was
+interference from the other analyses. If that works, the official plugin
+is preferred and the alternative plugin is **not** compiled or run.
+If it fails, the job builds the alternative plugin against the **same
+AthGeneration,23.6.63 environment** used for EVNT processing and tests
+it on the same file.
 
-The outputs are isolated at:
+The control and optional workaround outputs are isolated at:
 
 ```
 /home/aalida/AQP/validation/rivet/condor_logs/wkts_smoke.<cluster>.out
+/data/aalida/AQP_Rivet_full/outputs/_wkts_probe/MC_WKTSPLITTINGS_Wenu_delta441_isolated.yoda.gz
 /data/aalida/AQP_Rivet_full/outputs/_wkts_probe/AQP_WKTSPLITTINGS_Wenu_delta441_smoke.yoda.gz
 ```
 
-Check the job exit status and search the stdout for
-`AQP_WKTS_SMOKE_PASS=`. Do not run full production before this passes.
+Check the job exit status and search stdout for **either**
+`AQP_WKTS_OFFICIAL_ISOLATED_PASS=` or `AQP_WKTS_SMOKE_PASS=`.
+If only the official control passes, run the official routine in a
+**separate, dedicated Rivet pass**, not alongside the other Wenu analyses.
+Do not run full production before one of these tests passes.
 If it fails, report the exact `RIVET_BUILD`, `ATHENA_WKTS` error and the
 first `FATAL` line. Do not equate output-file existence with physics
 validation. The smoke script refuses to overwrite an existing test YODA.
