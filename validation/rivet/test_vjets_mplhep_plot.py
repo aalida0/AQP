@@ -1,59 +1,99 @@
-"""Regression checks for the AQP mplhep plotting inputs and ratios."""
-import ast
+"""Regression tests: mplhep must not modify Rivet plotting physics content."""
 import importlib.util
+import os
 from pathlib import Path
-import tempfile
 import unittest
-import numpy as np
 
 ROOT = Path(__file__).resolve().parent
-SPEC = importlib.util.spec_from_file_location("aqp_vjets_mplhep_plot",
-                                            ROOT / "aqp_vjets_mplhep_plot.py")
+SPEC = importlib.util.spec_from_file_location(
+    "aqp_vjets_mplhep_plot", ROOT / "aqp_vjets_mplhep_plot.py")
 PLOT = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(PLOT)
 
 
+def restore_style_only(styled):
+    """Reverse our three visual edits to prove lossless Rivet content."""
+    original = styled.replace(
+        "import matplotlib.pyplot as plt\nimport mplhep as hep",
+        "import matplotlib.pyplot as plt")
+    original = original.replace(PLOT.ATLAS_STYLE, PLOT.STYLE_LINE)
+    original = original.replace(
+        "# Font is provided by mplhep ATLAS style.", PLOT.FONT_LINE)
+    original = original.replace(
+        "\nratio0_ax.xaxis.label.set_horizontalalignment('right')"
+        "\nfig.subplots_adjust(right=0.94, bottom=0.16)", "")
+    original = original.replace(
+        "\nhep.atlas.label('Internal', data=False, ax=ax, loc=1, fontsize=11)", "")
+    original = original.replace(
+        "\nax.text(0.97, 0.96, r'$\\bf{ATLAS}$ Simulation Internal', "
+        "ha='right', va='top', transform=ax.transAxes, fontsize=11)", "")
+    return original
+
+
+TEMPLATE = """import matplotlib.pyplot as plt
+plt.style.use(os.path.join(plotDir, '../default.mplstyle'))
+plt.rc('font', family='DejaVu Sans')
+labels = {'legend': (['S111', 'D111', 'D221', 'D441'], '')}
+styles = {'S111': {'color': '#EE3311'}, 'D441': {'color': '#FF9900'}}
+yvals = dataf['yvals']
+xedges = dataf['xedges']
+main_err = np.array(dataf['yerrs'][label])
+ratio_err = np.array(dataf['ratio0_yerrs'][label])
+ax.errorbar(xpoints, yvals, yerr=main_err)
+ratio0_ax.errorbar(xpoints, yvals, yerr=ratio_err)
+ratio0_ax.set_ylabel('Ratio')
+ax.set_xlim(xLims)
+ax.set_ylim(yLims)
+ax.add_artist(ax.legend(legend_items, labels['legend'][0],
+                        loc='center left', bbox_to_anchor=(0.0, 0.5)))
+fig.align_ylabels((ax, ratio0_ax))
+# numerical __data.py is loaded by the source
+"""
+
+
 class MplhepPlotTests(unittest.TestCase):
-    def test_physics_labels_and_difference_for_asymmetry(self):
-        self.assertEqual(PLOT.PLOT_LABELS, {
-            "S111": "MC@NLO, 111", "D111": "MC@NLO-Δ, 111",
-            "D221": "MC@NLO-Δ, 221", "D441": "MC@NLO-Δ, 441",
-        })
-        curves = {
-            "S111": (np.array([0., .4, -.2]), None),
-            "D111": (np.array([.1, .5, -.1]), None),
-            "D221": (np.array([.2, .6, 0.]), None),
-            "D441": (np.array([.3, .7, .1]), None),
-        }
-        values, baseline = PLOT.ratio_values(curves, "derived_ratio_unscaled")
-        self.assertEqual(baseline, 0.)
-        np.testing.assert_allclose(values["D111"], [.1, .1, .1])
+    def test_restylizing_preserves_every_original_instruction(self):
+        result = PLOT.restyle_script(TEMPLATE)
+        self.assertEqual(restore_style_only(result), TEMPLATE)
+        self.assertIn("dataf['ratio0_yerrs'][label]", result)
+        self.assertIn("dataf['yerrs'][label]", result)
+        self.assertIn("'#EE3311'", result)
+        self.assertIn("'#FF9900'", result)
+        self.assertIn("ax.set_ylim(yLims)", result)
+        self.assertIn("ax.set_xlim(xLims)", result)
+        self.assertIn("labels['legend'][0]", result)
+        self.assertNotIn("Unit-area density", result)
+        self.assertNotIn("Shape-only diagnostic", result)
+        self.assertNotIn("hep.histplot(", result)
 
-    def test_ordinary_ratio_masks_empty_bins(self):
-        curves = {
-            "S111": (np.array([4., 2., 0., .001]), None),
-            "D111": (np.array([4., 0., 3., 0.]), None),
-            "D221": (np.array([4., 3., 0., 0.]), None),
-            "D441": (np.array([4., 2., 0., .001]), None),
-        }
-        values, baseline = PLOT.ratio_values(curves, "unit_integral")
-        self.assertEqual(baseline, 1.)
-        self.assertAlmostEqual(values["D111"][0], 1.)
-        self.assertTrue(np.isnan(values["D111"][1]))
-        self.assertTrue(np.isnan(values["D111"][2]))
-        self.assertTrue(np.isnan(values["D111"][3]))
+    def test_upper_left_legend_moves_atlas_label_not_legend(self):
+        original = TEMPLATE.replace(
+            "loc='center left', bbox_to_anchor=(0.0, 0.5)",
+            "loc='upper left', bbox_to_anchor=(0.0, 0.97)")
+        result = PLOT.restyle_script(original)
+        self.assertIn("loc='upper left', bbox_to_anchor=(0.0, 0.97)", result)
+        self.assertIn("ax.text(0.97, 0.96,", result)
+        self.assertEqual(restore_style_only(result), original)
 
-    def test_metadata_parser_never_executes_plot_script(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "jet_HT.py"
-            path.write_text(
-                'ax_xLabel = "Jet H_T [GeV]"\n'
-                'ax_xScale = "log"\n'
-                'import os; os.system("false")\n'
-            )
-            meta = PLOT.plot_metadata(path)
-            self.assertEqual(meta["ax_xLabel"], "Jet H_T [GeV]")
-            self.assertEqual(meta["ax_xScale"], "log")
+    def test_rejects_non_rivet_style_script(self):
+        with self.assertRaisesRegex(ValueError, "plotting anchor"):
+            PLOT.restyle_script("print('not a Rivet auto-plot')")
+
+    def test_actual_rivet_source_preserved_when_available(self):
+        source = Path(os.environ.get(
+            "AQP_VJETS_SOURCE",
+            "/data/aalida/AQP_Rivet_full/outputs/Vjets_final_plots_20261118"))
+        if not source.is_dir():
+            self.skipTest("Rivet exported plots not mounted here")
+        scripts = sorted(p for p in source.glob(
+            "*/01_four_way_common_MC_shapes/*/*.py")
+            if not p.name.endswith("__data.py"))
+        self.assertEqual(len(scripts), 101)
+        for p in scripts:
+            with self.subTest(path=str(p)):
+                raw = p.read_text(encoding="utf-8")
+                self.assertEqual(restore_style_only(PLOT.restyle_script(raw)), raw)
+                self.assertTrue(p.with_name(p.stem + "__data.py").is_file())
 
 
 if __name__ == "__main__":
