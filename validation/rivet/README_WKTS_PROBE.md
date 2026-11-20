@@ -150,6 +150,14 @@ python3 validation/rivet/aqp_wkts_check_yoda.py \
   /data/aalida/AQP_Rivet_full/outputs/_wkts_probe/AQP_WKTSPLITTINGS_Wenu_delta441_smoke.yoda.gz
 ```
 
+The checker uses Python's standard library only (`gzip` and text
+parsing); it does **not** require the `yoda` Python module or `asetup`.
+Its parser recognizes histogram entry statistics in YODA V2 and V3
+records, including `/RAW/` paths. It intentionally does not infer event
+entries from scatter-only records. If the installed Rivet version writes
+an unrecognized YODA object type, inspect the `BEGIN YODA_*` lines and
+update the parser instead of treating an unparsed object as empty.
+
 Expected `AQP_WKTS_YODA_POPULATED_PASS=N` for `N > 0`, and finite
 `sumW` entries for the reported splitting histograms. Signed MC@NLO
 weights mean a `sumW` can be negative; that is not automatically an
