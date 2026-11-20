@@ -22,6 +22,14 @@ ANALYSES = {"Zee": ("MC_ZJETS", "MC_ZINC"),
 STYLE_LINE = "plt.style.use(os.path.join(plotDir, '../default.mplstyle'))"
 FONT_LINE = "plt.rc('font', family='DejaVu Sans')"
 LABEL_ANCHOR = "fig.align_ylabels((ax, ratio0_ax))"
+# Presentation-only: thicken the stepped HISTOGRAM outlines; keep the original
+# .errorbar() call, its yerrs/xerrs and error-bar line widths untouched.
+HIST_LINE_WIDTH = 1.8
+HIST_UPPER_LINE = ("linewidth=styles[label]['linewidth'],\\n"
+                   "                       drawstyle=styles[label]['drawstyle']")
+HIST_RATIO_LINE = ("linewidth=styles[label]['linewidth'],\\n"
+                   "                       linestyle=styles[label]['ratio0_linestyle']")
+
 
 # Typography only: all line colors/markers/error bar settings come from
 # the original Rivet plot script, never from a replacement palette.
@@ -55,6 +63,16 @@ def restyle_script(original):
     restyled = restyled.replace(STYLE_LINE, ATLAS_STYLE, 1)
     restyled = restyled.replace(
         FONT_LINE, "# Font is provided by mplhep ATLAS style.", 1)
+
+    # Only the two step-curve ax.plot()/ratio0_ax.plot() linewidths change.
+    # Rivet's error bars retain their native linewidth and uncertainty arrays.
+    for anchor in (HIST_UPPER_LINE, HIST_RATIO_LINE):
+        if restyled.count(anchor) != 1:
+            raise ValueError("Expected a single Rivet histogram-line anchor: " + anchor)
+        restyled = restyled.replace(
+            anchor, anchor.replace("linewidth=styles[label]['linewidth']",
+                                   f"linewidth={HIST_LINE_WIDTH} * styles[label]['linewidth']"),
+            1)
 
     # Original legend stays inside the axes and is *not* moved/relabelled.
     # The ATLAS label gets a different corner for plots with upper-left legend.
