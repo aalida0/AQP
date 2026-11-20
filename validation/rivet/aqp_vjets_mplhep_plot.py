@@ -64,6 +64,7 @@ def restyle_script(original):
     else:
         label = "hep.atlas.label('Internal', data=False, ax=ax, loc=1, fontsize=11)"
     layout = ("ratio0_ax.xaxis.label.set_horizontalalignment('right')\n"
+              "ratio0_ax.xaxis.set_label_coords(0.96, -0.15)\n"
               "fig.subplots_adjust(right=0.94, bottom=0.16)")
     restyled = restyled.replace(
         LABEL_ANCHOR, LABEL_ANCHOR + "\n" + layout + "\n" + label, 1)
