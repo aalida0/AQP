@@ -32,7 +32,7 @@ class WKTSContractTests(unittest.TestCase):
         self.assertIn("METKEY_OUTPUT_EXISTS", worker)
         self.assertIn("AQP_WKTS_METKEY_PASS=", worker)
         for setting in ("set -e", "set -u", "pipefail"):
-            self.assertNotIn(setting+"\\n", worker)
+            self.assertNotIn(setting+"\n", worker)
 
     def test_condor_contract(self):
         submit = (ROOT / "aqp_wkts_smoke.sub").read_text()
