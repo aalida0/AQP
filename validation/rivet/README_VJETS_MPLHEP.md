@@ -89,3 +89,43 @@ validation procedure with verified event weights and cross sections,
 
 Remaining ATLAS/CMS routines and W kT-splitting full production are out
 of scope for this pass. `main` is not changed.
+
+## Normalization mismatch diagnosed on 20 November 2026
+
+The original plotted distributions are **not on a consistent rate scale**.
+The old v2 Rivet runs explicitly set `CrossSection = 1.0`, whereas the
+new v1/v3 productions used `CrossSection = 0.0`. Do not interpret the
+orange D441 curve being three orders of magnitude above the other
+Zee curves as a physics effect of MC@NLO-Delta or increased folding.
+The Wenu comparison has more than one inconsistent rate scale.
+
+The archive source `Zee/01_four_way_common_MC_shapes/MC_ZJETS/jet_HT__data.py`
+integrates to approximately 0.14885, 0.14678, 0.14931 and
+323.40 for S111, D111, D221, and D441, respectively. For
+`Wenu/MC_WJETS/jet_HT` the corresponding figures are approximately
+2807.26, 0.13022, 0.13400, and 912.06. These are **Rivet plot-export
+integrals**, not separately validated physical cross sections.
+
+The existing Rivet plotting pass asked for `PLOT:NormalizeToIntegral=1`,
+but the exported curves are visibly not normalized to unit area;
+do not assume the option applied successfully.
+
+For an independent, read-only check of all ordinary differential plots:
+
+```bash
+cd ~/AQP
+~/.venvs/aqp-mplhep/bin/python -m unittest discover \
+  -s validation/rivet -p 'test_vjets_normalization_audit.py' -v
+~/.venvs/aqp-mplhep/bin/python \
+  validation/rivet/aqp_vjets_normalization_audit.py \
+  --source /data/aalida/AQP_Rivet_full/outputs/Vjets_final_plots_20261118 \
+  --csv /data/aalida/AQP_Rivet_full/outputs/vjets_normalization_audit.csv
+```
+
+The audit flags integrals that are outside [0.5, 2] times S111
+and **does not edit the histograms, uncertainties, ratio panels or
+absolute rates**. It skips derived asymmetries and non-differential
+inclusive multiplicities. Correction requires a separate, validated
+YODA/EVNT normalization workflow with consistent cross sections and
+handling of the generation bias; arbitrary per-curve factors in the
+presentation script are forbidden.
