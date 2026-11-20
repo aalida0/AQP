@@ -21,6 +21,7 @@ def restore_style_only(styled):
         "# Font is provided by mplhep ATLAS style.", PLOT.FONT_LINE)
     original = original.replace(
         "\nratio0_ax.xaxis.label.set_horizontalalignment('right')"
+        "\nratio0_ax.xaxis.set_label_coords(0.96, -0.15)"
         "\nfig.subplots_adjust(right=0.94, bottom=0.16)", "")
     original = original.replace(
         "\nhep.atlas.label('Internal', data=False, ax=ax, loc=1, fontsize=11)", "")
