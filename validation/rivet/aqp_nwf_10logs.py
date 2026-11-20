@@ -282,7 +282,7 @@ def summarize(root):
 
 def report_table(summary):
     lines = [
-        'AQP FxFx 10-log pilot (10 generator logs per configuration; accepted-event totals differ for v2/v3)',
+        'AQP FxFx 10-log pilot (10 generator logs/configuration; event totals differ for v2/v3)',
         'Wenu S111 corrected v1 only (wrong-seed v2 excluded); D441 v3: 1000/job; others: 5000/job',
         ''
     ]
@@ -384,13 +384,13 @@ def main():
                      'tried','selected','accepted','close_to_expected','sum_pos','abs_sum_neg',
                      'sum_sqr','n_pos','n_neg','fxfx_efficiency_reported',
                      'generation_wall_s','log_span_s']
-    as_csv(root/'aqp_per_log.csv', rows, perlog_fields)
-    as_csv(root/'aqp_summary.csv', summary, list(summary[0]))
+    as_csv(root/'aqp_10log_per_log.csv', rows, perlog_fields)
+    as_csv(root/'aqp_10log_summary.csv', summary, list(summary[0]))
     report = report_table(summary)
-    (root/'aqp_results.txt').write_text(report, encoding='utf-8')
+    (root/'aqp_10log_results.txt').write_text(report, encoding='utf-8')
     print('\n' + report)
     diagnose_zero_coverage(root, summary)
-    print(f"Saved: {root/'aqp_per_log.csv'}, {root/'aqp_summary.csv'}, {root/'aqp_results.txt'}")
+    print(f"Saved: {root/'aqp_10log_per_log.csv'}, {root/'aqp_10log_summary.csv'}, {root/'aqp_10log_results.txt'}")
     for row in summary:
         if row['usable_logs'] < 10:
             print(f"WARNING: {row['process']}/{row['config']}/{row['version']} "
