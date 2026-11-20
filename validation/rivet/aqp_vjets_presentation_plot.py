@@ -79,13 +79,45 @@ def present_source(script, mode):
     original = script.read_text(encoding="utf-8")
     code = restyle_script(original)
 
-    # Keep the legend in the original Rivet position and move the ATLAS label
-    # into an unobstructed upper-right corner of the main panel.
-    needle = "hep.atlas.label('Internal', data=False, ax=ax, loc=1, fontsize=11)"
-    mark = ("ax.text(0.975, 0.96, r'$\\bf{ATLAS}$ Simulation Internal', "
-            "ha='right', va='top', transform=ax.transAxes, fontsize=11)")
-    if needle in code:
-        code = code.replace(needle, mark, 1)
+    # mplhep's canonical ATLAS label: inside upper LEFT (loc=1).
+    # The Rivet legend belongs inside upper RIGHT, away from the label.
+    right_label = ("ax.text(0.97, 0.96, r'$\\bf{ATLAS}$ Simulation Internal', "
+                   "ha='right', va='top', transform=ax.transAxes, fontsize=11)")
+    left_label = "hep.atlas.label('Internal', data=False, ax=ax, loc=1, fontsize=11)"
+    atlas_label = "hep.atlas.label('Internal', data=False, ax=ax, loc=1, fontsize=13)"
+    if code.count(right_label) + code.count(left_label) != 1:
+        raise ValueError("Expected exactly one ATLAS label: " + script.name)
+    code = code.replace(right_label, atlas_label).replace(left_label, atlas_label)
+
+    # Change the four *legend labels*, not YODA filenames or data dictionaries.
+    labels = (
+        ("S111", "MC@NLO, 111"),
+        ("D111", "MC@NLO-\u0394, 111"),
+        ("D221", "MC@NLO-\u0394, 221"),
+        ("D441", "MC@NLO-\u0394, 441"),
+    )
+    for original_label, readable_label in labels:
+        text = f'r"{original_label}"'
+        if code.count(text) != 1:
+            raise ValueError("Expected one Rivet legend label " + original_label)
+        code = code.replace(text, f'r"{readable_label}"', 1)
+
+    # Move only the in-axes legend artist. Retain its handles and all original
+    # colors, bin widths, errors, and drawing options.
+    import re
+    legend_start = code.find("ax.add_artist(ax.legend(legend_items,")
+    legend_end = code.find("))", legend_start)
+    if legend_start < 0 or legend_end < 0:
+        raise ValueError("Rivet legend artist missing: " + script.name)
+    legend = code[legend_start:legend_end + 2]
+    legend, n = re.subn(
+        r"loc='[^']+',\s*bbox_to_anchor=\([^)]+\)",
+        "loc='upper right',\n                        bbox_to_anchor=(0.975, 0.96)",
+        legend,
+    )
+    if n != 1:
+        raise ValueError("Rivet legend placement missing: " + script.name)
+    code = code[:legend_start] + legend + code[legend_end + 2:]
 
     if mode == "derived_ratio_unscaled":
         return code
