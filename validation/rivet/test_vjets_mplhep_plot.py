@@ -28,6 +28,13 @@ def restore_style_only(styled):
     original = original.replace(
         "\nax.text(0.97, 0.96, r'$\\bf{ATLAS}$ Simulation Internal', "
         "ha='right', va='top', transform=ax.transAxes, fontsize=11)", "")
+    # The only additional edits are the two stepped-histogram linewidths.
+    # Error-bar width settings and their x/y uncertainty arrays stay untouched.
+    for anchor in (PLOT.HIST_UPPER_LINE, PLOT.HIST_RATIO_LINE):
+        thick = anchor.replace(
+            "linewidth=styles[label]['linewidth']",
+            f"linewidth={PLOT.HIST_LINE_WIDTH} * styles[label]['linewidth']")
+        original = original.replace(thick, anchor)
     return original
 
 
@@ -40,8 +47,15 @@ yvals = dataf['yvals']
 xedges = dataf['xedges']
 main_err = np.array(dataf['yerrs'][label])
 ratio_err = np.array(dataf['ratio0_yerrs'][label])
+ax.plot(xpos, ypos,
+                       linewidth=styles[label]['linewidth'],
+                       drawstyle=styles[label]['drawstyle'])
+ratio0_ax.plot(xpos, ypos,
+                       linewidth=styles[label]['linewidth'],
+                       linestyle=styles[label]['ratio0_linestyle'])
 ax.errorbar(xpoints, yvals, yerr=main_err)
 ratio0_ax.errorbar(xpoints, yvals, yerr=ratio_err)
+tmp[-1][0].set_linewidth(styles[label]['linewidth'])
 ratio0_ax.set_ylabel('Ratio')
 ax.set_xlim(xLims)
 ax.set_ylim(yLims)
@@ -58,6 +72,10 @@ class MplhepPlotTests(unittest.TestCase):
         self.assertEqual(restore_style_only(result), TEMPLATE)
         self.assertIn("dataf['ratio0_yerrs'][label]", result)
         self.assertIn("dataf['yerrs'][label]", result)
+        self.assertIn("linewidth=1.8 * styles[label]['linewidth']", result)
+        self.assertEqual(result.count("linewidth=1.8 * styles[label]['linewidth']"), 2)
+        self.assertIn("tmp[-1][0].set_linewidth(styles[label]['linewidth'])", result)
+        self.assertEqual(result.count("dataf['ratio0_yerrs'][label]"), 1)
         self.assertIn("'#EE3311'", result)
         self.assertIn("'#FF9900'", result)
         self.assertIn("ax.set_ylim(yLims)", result)
