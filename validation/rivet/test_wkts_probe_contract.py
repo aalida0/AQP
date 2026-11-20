@@ -15,6 +15,25 @@ class WKTSContractTests(unittest.TestCase):
         self.assertIn("MC_KTSPLITTINGS_BASE::analyze(event);", c)
         self.assertIn("RIVET_DECLARE_PLUGIN(AQP_WKTSPLITTINGS)", c)
 
+    def test_minimal_metkey_probe(self):
+        source = (ROOT / "AQP_WKTSPLITTINGS_METKEY.cc").read_text()
+        worker = (ROOT / "aqp_wkts_metkey_probe.sh").read_text()
+        submit = (ROOT / "aqp_wkts_metkey_probe.sub").read_text()
+        jo = (ROOT / "aqp_wkts_smoke_evnt.py").read_text()
+        self.assertIn('declare(MissingMomentum(), "AQP_W_MET")', source)
+        self.assertIn('apply<MissingMom>(event, "AQP_W_MET")', source)
+        self.assertIn('declare(lf, "Leptons")', source)
+        self.assertIn("AQP_WKTSPLITTINGS_METKEY", jo)
+        self.assertIn("should_transfer_files = YES", submit)
+        self.assertIn("condor_logs/", submit)
+        self.assertNotIn("FileSystemDomain =", submit)
+        self.assertLess(worker.index("asetup AthGeneration,23.6.63"),
+                        worker.index('AQP_WKTS_SOURCE_DIR="/home/aalida/'))
+        self.assertIn("METKEY_OUTPUT_EXISTS", worker)
+        self.assertIn("AQP_WKTS_METKEY_PASS=", worker)
+        for setting in ("set -e", "set -u", "pipefail"):
+            self.assertNotIn(setting+"\\n", worker)
+
     def test_condor_contract(self):
         submit = (ROOT / "aqp_wkts_smoke.sub").read_text()
         worker = (ROOT / "aqp_wkts_smoke.sh").read_text()
