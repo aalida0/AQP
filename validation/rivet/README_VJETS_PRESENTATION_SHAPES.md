@@ -24,10 +24,22 @@ after loading the original `__data.py`, without modifying the source.
 - Four configurations retain their original bin edges, colors, legend
   text and error bars. Histogram outlines use the independently requested
   1.8× line width from the existing `aqp_vjets_mplhep_plot.py`.
-- Original x-axis labels, ranges and scales remain. Only the y-axis label
-  and range change as mathematically required for normalized shapes.
-- Original upper-panel legend stays inside the axes; the ATLAS label is
-  relocated inside the upper right to avoid overlapping the histogram.
+- Original x-axis labels, ranges and scales remain. The y-axis retains
+  **Rivet's observable-specific differential expression** rather than
+  showing a generic "Unit-area normalized shape" label. For normalized
+  ordinary histograms, the expression is multiplied by `1/sigma` and
+  the `pb` factor is removed, e.g.
+  `dσ/dη(jet 1) [pb]` -> `(1/σ) dσ/dη(jet 1)` and
+  `dσ/dHT [pb/GeV]` -> `(1/σ) dσ/dHT [GeV^-1]`.
+  This unit adjustment is necessary because independent area normalization
+  destroys the absolute pb scale. Inclusive jet multiplicities keep the
+  `σ(≥Njet)` expression but use a first-bin denominator.
+  Their axes are autoscaled to normalized data.
+- The `mplhep` ATLAS Simulation Internal label is placed in the standard
+  **upper-left** position, inside the upper panel. The four-configuration
+  legend is placed at the **upper right**, inside the axes, with names
+  `MC@NLO, 111`, `MC@NLO-Δ, 111/221/441`.
+  Curve colors and all original Rivet error bars remain unchanged.
 - No diagnostic footer is added to figures.
 
 ## Execute on UChicago AF login node
