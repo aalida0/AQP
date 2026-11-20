@@ -25,9 +25,9 @@ LABEL_ANCHOR = "fig.align_ylabels((ax, ratio0_ax))"
 # Presentation-only: thicken the stepped HISTOGRAM outlines; keep the original
 # .errorbar() call, its yerrs/xerrs and error-bar line widths untouched.
 HIST_LINE_WIDTH = 1.8
-HIST_UPPER_LINE = ("linewidth=styles[label]['linewidth'],\\n"
+HIST_UPPER_LINE = ("linewidth=styles[label]['linewidth'],\n"
                    "                       drawstyle=styles[label]['drawstyle']")
-HIST_RATIO_LINE = ("linewidth=styles[label]['linewidth'],\\n"
+HIST_RATIO_LINE = ("linewidth=styles[label]['linewidth'],\n"
                    "                       linestyle=styles[label]['ratio0_linestyle']")
 
 
