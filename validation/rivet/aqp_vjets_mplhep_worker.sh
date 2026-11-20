@@ -4,7 +4,7 @@
 AQP_MPLHEP_PYTHON="/home/aalida/.venvs/aqp-mplhep/bin/python"
 AQP_MPLHEP_SCRIPT="/home/aalida/AQP/validation/rivet/aqp_vjets_mplhep_plot.py"
 AQP_MPLHEP_SOURCE="/data/aalida/AQP_Rivet_full/outputs/Vjets_final_plots_20261118"
-AQP_MPLHEP_OUTPUT="/data/aalida/AQP_Rivet_full/outputs/Vjets_mplhep_20261120"
+AQP_MPLHEP_OUTPUT="/data/aalida/AQP_Rivet_full/outputs/Vjets_mplhep_rivet_preserved_20261120"
 
 if [ ! -x "$AQP_MPLHEP_PYTHON" ]; then
   echo "ERROR MPLHEP_PYTHON_MISSING=$AQP_MPLHEP_PYTHON"
