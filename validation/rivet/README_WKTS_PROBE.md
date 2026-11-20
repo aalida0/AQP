@@ -170,6 +170,52 @@ on a few EVNT events before triggering the all-four-configuration
 Wenu pass. Keep this routine named `AQP_WKTSPLITTINGS` and provenance
 explicit; do not imply it is the unmodified official routine.
 
+## Next diagnosis: isolate the MET projection key
+
+The production JO smoke has **passed** for `AQP_WKTSPLITTINGS`, and the
+raw YODA checker found **nine populated histograms**. The four
+`log10_d_ij` distributions each have 579 entries in the sample,
+whereas the `log10_R_i` histograms have different fill multiplicities.
+The raw event-weight sums are very large in this biased sample and
+are not validated cross sections.
+
+The published `MC_WKTSPLITTINGS` source registers
+`MissingMomentum()` with projection key `MET` and calls
+`apply<MissingMom>(event,"MET")`. **`MissingMom` is a documented
+alias of `MissingMomentum`**, not a distinct projection type; the
+initial type-mismatch hypothesis was false.
+
+The new `AQP_WKTSPLITTINGS_METKEY.cc` preserves the published
+selection and declaration syntax, changing only the analysis name and
+the projection key `MET -> AQP_W_MET`. This is a more controlled
+diagnosis of the installed Rivet projection registration than the
+earlier `AQP_WKTSPLITTINGS.cc` plugin, which also changed other
+projection names and declaration order.
+
+To test on **one existing Wenu D441 EVNT file**:
+
+```bash
+cd /home/aalida/AQP
+git pull --ff-only origin study/vjets-final-shape-audit-20261118
+python3 -m unittest discover -s validation/rivet -p 'test_wkts_probe_contract.py' -v
+bash -n validation/rivet/aqp_wkts_metkey_probe.sh
+chmod +x validation/rivet/aqp_wkts_metkey_probe.sh
+cd validation/rivet
+mkdir -p condor_logs
+condor_submit aqp_wkts_metkey_probe.sub
+```
+
+Check `condor_logs/wkts_metkey.<cluster>.out` for
+`AQP_WKTS_METKEY_PASS` or `ERROR METKEY_ATHENA`. If the test
+passes, next compare the histogram bins in that YODA file with the
+original `AQP_WKTSPLITTINGS` smoke file from the same EVNT input.
+**Only if both match** should the minimally modified plugin replace
+the exploratory implementation in all-config production.
+
+The new smoke-test YODA output is versioned by a distinct filename
+`_wkts_probe/AQP_WKTSPLITTINGS_METKEY_Wenu_delta441.yoda.gz`;
+old outputs are never overwritten.
+
 ## Acceptance gates before replacing missing W+jets splitting plots
 
 1. Plugin compiles against the actual Athena-compatible Rivet.
