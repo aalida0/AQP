@@ -74,6 +74,33 @@ def rescale_plot_data(data, observable):
     return {"mode": mode, "scales": scales}
 
 
+
+def presentation_ylabel(rivet_label, mode):
+    """Keep Rivet's differential observable notation with truthful units.
+
+    Ordinary histograms are unit-area normalized in this presentation pass,
+    so their y axis cannot still carry pb or pb/GeV. Retain the exact
+    observable expression, adding (1/sigma) and removing only pb units.
+    """
+    if mode == "derived_ratio_unscaled":
+        return rivet_label
+    if mode == "inclusive_jet_bin":
+        label = rivet_label.replace(" [pb]", "")
+        if "$" in label and r"\sigma(" in label:
+            head, sep, tail = label.rpartition("$")
+            return head + r"/\sigma_{\mathrm{first\,bin}}" + sep + tail
+        return label
+
+    label = rivet_label.replace(" [pb/GeV]", r" [GeV$^{-1}$]")
+    label = label.replace(" [pb]", "")
+    if label.startswith(r"$\mathrm{d}\sigma/"):
+        label = label.replace(
+            r"$\mathrm{d}\sigma/",
+            r"$\frac{1}{\sigma}\,\mathrm{d}\sigma/", 1
+        )
+    return label
+
+
 def present_source(script, mode):
     """Modify an in-memory copy of the Rivet plot, never the source file."""
     original = script.read_text(encoding="utf-8")
@@ -127,14 +154,15 @@ def present_source(script, mode):
     code = code.replace(
         anchor, anchor + f"\n_aqp_scale = rescale_plot_data(dataf, {script.stem!r})", 1)
 
-    # A pb-based label would be incorrect after shape normalization.
-    label = "Unit-area normalized shape"
-    if mode == "inclusive_jet_bin":
-        label = "Yield relative to first jet bin"
-    elif "/GeV" in inspect_script(original).get("ax_yLabel", ""):
-        label = "Unit-area density [GeV$^{-1}$]"
+    # Retain the original Rivet differential notation for the same observable.
+    # Unit-area normalization requires (1/sigma) and removal of pb units;
+    # preserving pb here would falsely present a physical cross section.
+    ylabel = presentation_ylabel(inspect_script(original).get("ax_yLabel", ""),
+                                 mode)
     import re
-    code, n = re.subn(r"(?m)^ax_yLabel\s*=.*$", f"ax_yLabel = {label!r}", code)
+    code, n = re.subn(
+        r"(?m)^ax_yLabel\s*=.*$", lambda match: "ax_yLabel = " + repr(ylabel), code
+    )
     if n != 1:
         raise ValueError("Rivet y-axis label anchor missing: " + script.name)
 
