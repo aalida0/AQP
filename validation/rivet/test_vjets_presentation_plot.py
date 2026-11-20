@@ -68,6 +68,56 @@ class PresentationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Invalid integral"):
             PLOT.rescale_plot_data(data, "jet_HT")
 
+    def test_ylabel_preserves_rivet_observable_and_corrects_units(self):
+        original_eta = r'$\mathrm{d}\sigma/\mathrm{d}\eta(\mathrm{jet~1})$ [pb]'
+        self.assertEqual(
+            PLOT.presentation_ylabel(original_eta, "unit_integral"),
+            r'$\frac{1}{\sigma}\,\mathrm{d}\sigma/\mathrm{d}\eta(\mathrm{jet~1})
+        # The source-to-source transform receives only a string; the renderer
+        # executes it in-memory with the original script's __file__ preserved.
+        code = (ROOT / "aqp_vjets_presentation_plot.py").read_text()
+        self.assertIn("code = restyle_script(original)", code)
+        self.assertIn("dataf, {script.stem!r}", code)
+        self.assertNotIn(".write_text(code", code)
+        self.assertIn("rescale_plot_data", code)
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+        )
+        original_ht = r'$\mathrm{d}\sigma/\mathrm{d}HT$ [pb/GeV]'
+        self.assertEqual(
+            PLOT.presentation_ylabel(original_ht, "unit_integral"),
+            r'$\frac{1}{\sigma}\,\mathrm{d}\sigma/\mathrm{d}HT$ [GeV$^{-1}$]'
+        )
+        self.assertNotIn("Unit-area normalized shape",
+                         PLOT.presentation_ylabel(original_ht, "unit_integral"))
+
+    def test_inclusive_axis_uses_first_bin_denominator(self):
+        source = r'$\sigma(\geq N_{\mathrm{jet}})$ [pb]'
+        result = PLOT.presentation_ylabel(source, "inclusive_jet_bin")
+        self.assertIn(r'\sigma(\geq N_{\mathrm{jet}})', result)
+        self.assertIn(r'/\sigma_{\mathrm{first\,bin}}', result)
+        self.assertNotIn("[pb]", result)
+
+    def test_derived_axis_and_missing_metadata_unchanged(self):
+        asym = r'$(\mathrm{d}\sigma(W^+)-\mathrm{d}\sigma(W^-))
+        # The source-to-source transform receives only a string; the renderer
+        # executes it in-memory with the original script's __file__ preserved.
+        code = (ROOT / "aqp_vjets_presentation_plot.py").read_text()
+        self.assertIn("code = restyle_script(original)", code)
+        self.assertIn("dataf, {script.stem!r}", code)
+        self.assertNotIn(".write_text(code", code)
+        self.assertIn("rescale_plot_data", code)
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+        self.assertEqual(PLOT.presentation_ylabel(asym, "derived_ratio_unscaled"), asym)
+        self.assertEqual(PLOT.presentation_ylabel("", "unit_integral"), "")
+
     def test_original_script_is_not_written_to(self):
         # The source-to-source transform receives only a string; the renderer
         # executes it in-memory with the original script's __file__ preserved.
