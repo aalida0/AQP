@@ -25,7 +25,8 @@ from Rivet_i.Rivet_iConf import Rivet_i
 rivet = Rivet_i("AQPWKTSmoke")
 rivet.McEventKey = "GEN_EVENT"
 analysis = os.environ.get("AQP_WKTS_ANALYSIS", "MC_WKTSPLITTINGS")
-if analysis not in ("MC_WKTSPLITTINGS", "AQP_WKTSPLITTINGS"):
+if analysis not in ("MC_WKTSPLITTINGS", "AQP_WKTSPLITTINGS",
+                    "AQP_WKTSPLITTINGS_METKEY"):
     raise RuntimeError("Unexpected W splitting-scale routine: " + analysis)
 rivet.Analyses = [analysis + ":LMODE=EL"]
 rivet.AnalysisPath = plugin_dir
