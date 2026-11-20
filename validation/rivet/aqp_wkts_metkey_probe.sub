@@ -1,0 +1,15 @@
+# Run one existing EVNT file; logs only on /home, YODA on /data.
+universe = vanilla
+initialdir = /home/aalida/AQP/validation/rivet
+executable = /home/aalida/AQP/validation/rivet/aqp_wkts_metkey_probe.sh
+getenv = True
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+transfer_output_files = ""
+request_cpus = 1
+request_memory = 6000
+request_disk = 6000000
+output = /home/aalida/AQP/validation/rivet/condor_logs/wkts_metkey.$(Cluster).out
+error = /home/aalida/AQP/validation/rivet/condor_logs/wkts_metkey.$(Cluster).err
+log = /home/aalida/AQP/validation/rivet/condor_logs/wkts_metkey.$(Cluster).condor.log
+queue 1
