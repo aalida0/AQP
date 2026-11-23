@@ -133,3 +133,56 @@ No arbitrary ratios of integrated histograms or 1/2200 factors.
   fiducial phase-space definition; reference uncertainties retained.
 
 Reference: https://www.heprivet.org/tutorials/merging2/
+
+## 2026-11-23: confirmed cross-section metadata, new discrepancy
+
+The preflight found all eight inputs readable, with RAW and finalized
+objects, _XSEC and _EVTCOUNT present. The artificial 1 pb values are
+confirmed for all five old v2 files.
+
+The other three merged cross sections are:
+- Zee D441 v3: 2210.455 +/- 164.576 pb;
+- corrected Wenu S111 v1: 21247.90 +/- 773.997 pb;
+- Wenu D441 v3: 6831.097 +/- 1678.537 pb.
+
+The Wenu D441/S111 ratio is ~0.322, even though both use the same
+Rivet `CrossSection=0.0` metadata convention and have nearly identical
+signed sums of weights (~1e11). This is an **independent additional
+cross-section problem**, and it would be premature to use either number
+as an independently certified physical rate.
+
+### Next: localize the Wenu discrepancy before applying any XS override
+
+On UChicago AF:
+
+```bash
+cd ~/AQP
+git pull --ff-only origin study/vjets-physical-normalization-20261123
+
+python3 -m unittest discover -s validation/rivet \
+  -p 'test_vjets_xsec_per_file.py' -v
+
+python3 validation/rivet/aqp_vjets_xsec_per_file.py --max-files 20
+```
+
+This scans the first 20 original per-file YODA inputs (or fewer if there
+are fewer) for selected old/new samples; it prints their XSEC median,
+range, merged XS, and sample size. Raw metadata and sample paths are
+recorded in `/data/aalida/AQP_Rivet_full/outputs/xsec_per_file_pilot_20261123.json`.
+
+- If Wenu D441 per-file XS clusters at **~6831 pb**, the discrepancy
+  arose **before or during individual Rivet file processing**:
+  compare generator `log.generate` cross sections / EVNT provenance.
+- If the Wenu D441 per-file XS clusters at **~21248 pb**, but the
+  merged XS is 6831 pb, investigate `rivet-merge -e` input handling,
+  duplicate/missing files and signed-weight cross-section averaging.
+- If the per-file XSECs vary considerably, examine outlier job IDs,
+  generator seeds and per-file sumW. Increase --max-files or compute
+  the full weighted average before diagnosing the merger.
+
+The uncertainty on an individual effective event counter is not the
+same as the uncertainty on the generator cross section; do not infer
+that 1.98M events guarantee a precise or accurate cross section.
+
+No XS override, renormalized rate plot, new EVNT generation or event
+resimulation is authorized by this diagnostic script.
