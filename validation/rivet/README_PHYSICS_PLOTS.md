@@ -389,3 +389,59 @@ final 2M-event rate determination.
 Keep the recovered Wenu D441 output on the independent
 physics_remerge_Wenu_D441_validXS_20261123 path and leave older
 YODA files and main branch untouched.
+
+
+### 2026-11-23: post-FxFx production cross-section evidence found in logs
+
+The existing 10-log pilot for each configuration contains, per
+completed job, BOTH:
+
+    Using FxFx cross section recipe: xs = A / B
+    MetaData: cross-section (nb)= C
+
+The generator logs explicitly warn that the much larger
+"Total cross section, incl. bias (DO NOT USE)" must NOT be used
+for rate-normalized Rivet. In these samples, A/B*1e6=C in nb
+(with the printed precision); convert C to pb by multiplying by 1000.
+
+Pilot arithmetic mean of the 10 MetaData xsec values:
+
+- Zee S111 v2: 2205.2 pb (SD of job xs: 107.3 pb)
+- Zee D111 v2: 2188.9 pb (SD: 105.0 pb)
+- Zee D221 v2: 2177.9 pb (SD: 78.6 pb)
+- Zee D441 v3: 2195.1 pb (SD: 208.5 pb)
+- Wenu corrected S111 v1: 21066 pb (SD: 1214 pb)
+- Wenu D111 v2: 21134 pb (SD: 859 pb)
+- Wenu D221 v2: 21521 pb (SD: 2000 pb)
+- Wenu D441 v3: 20515 pb (SD: 1647 pb)
+
+The job-to-job SD is not the statistical uncertainty on the
+full production cross section. The ten jobs do not give the
+full ~2M accepted-event sample normalization.
+
+The new READ-ONLY script matches original log.generate and
+per-file old-v2 YODA by PanDA task ID + job index, rather than
+file-order guessing. It only accepts an original XSEC=1pb
+and positive post-FxFx log metadata with a matching recipe.
+It reports exact coverage and per-job cross sections:
+
+    cd ~/AQP
+    git pull --ff-only origin study/vjets-physical-normalization-20261123
+    python3 -m unittest discover -s validation/rivet -p 'test_vjets_v2_xsec_match.py' -v
+    python3 validation/rivet/aqp_vjets_v2_xsec_match.py
+
+Saved report: ~/AQP/v2_log_yoda_xsec_match_20261123.json
+
+If only 10/400 log files are present, the matched coverage is
+only ~2.5%. Before publishing absolute rates, acquire
+log.generate metadata for every YODA job actually entering the
+merged v2 histogram. The existing Rucio source containers are
+named by configuration/version as before.
+
+No re-finalization or generator-rerun is executed by this script.
+Once full matched XS provenance is in place, test Rivet 4.1.2
+equivalent merge with per-file ':=' XS overrides on a 10-file
+pilot. Check the output normalized differential histograms,
+event counts, sumW and XS before applying it to full samples.
+Rivet documentation:
+https://www.heprivet.org/tutorials/merging2/
