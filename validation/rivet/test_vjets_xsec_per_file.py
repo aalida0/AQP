@@ -58,7 +58,14 @@ class PerFileXSTests(unittest.TestCase):
             self.assertEqual(report[0]["merged_xsec_pb"], 6820.)
             self.assertEqual(report[0]["sample_xsec_median_pb"], 6500.)
             self.assertEqual(report[0]["sample_xsec_weighted_avg_pb"], 6750.)
+            self.assertAlmostEqual(report[0]["sample_xsec_rivet_equiv_pb"], 6720.)
+            self.assertTrue(report[0]["all_files_checked_and_valid"])
             self.assertEqual(report[0]["n_files_checked"], 2)
+            with patch.object(MOD, "TARGETS", (("Wenu", "delta441"),)):
+                full, _ = MOD.inspect(old, new, limit=0, targets=(("Wenu", "delta441"),))
+            self.assertEqual(full[0]["n_files_checked"], 2)
+            self.assertAlmostEqual(full[0]["fractional_difference_weighted_vs_merged"],
+                                   6720. / 6820. - 1.)
 
 
 if __name__ == "__main__":
