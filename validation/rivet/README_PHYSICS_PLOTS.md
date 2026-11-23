@@ -186,3 +186,57 @@ that 1.98M events guarantee a precise or accurate cross section.
 
 No XS override, renormalized rate plot, new EVNT generation or event
 resimulation is authorized by this diagnostic script.
+
+### 2026-11-23: first 20 YODA files and all-files diagnostic
+
+The first 20 Wenu D441 v3 per-file YODA cross sections have
+median **21721.48 pb** and range **18193.75–30327.89 pb**,
+whereas the merged cross section is **6831.097 pb**. The first
+20 corrected Wenu S111 v1 files have median **21213.43 pb** and
+range **19537.83–24062.62 pb**, compared with **21247.90 pb**
+in the merged sample. The first 20 Zee D441 files have median
+**2216.52 pb**, but a 5506.26 pb outlier.
+
+**Do not call this a merge bug yet.** The first 20 sorted files
+may not represent the full 1,984-file Wenu D441 sample, and
+Rivet equivalent merging uses an effective trials denominator
+rather than the naive arithmetic average:
+
+```text
+XS_Rivet_equiv = sum(sumW_i) / sum(sumW_i / XS_i)
+```
+
+The diagnostic now computes this quantity as well as the
+arithmetic sumW-weighted average and counts extreme per-file XS
+values. It checks whether the sum of per-file signed weights
+matches the recorded merged sumW.
+
+Run **only Wenu D441**, selecting all available per-file YODA files:
+
+```bash
+cd ~/AQP
+git pull --ff-only origin study/vjets-physical-normalization-20261123
+
+python3 -m unittest discover -s validation/rivet \
+  -p 'test_vjets_xsec_per_file.py' -v
+
+python3 validation/rivet/aqp_vjets_xsec_per_file.py \
+  --only Wenu/delta441 --max-files 0 \
+  --out /data/aalida/AQP_Rivet_full/outputs/wenu_d441_xsec_full_20261123.json
+```
+
+Interpretation:
+- If `RIVET_EQUIV_XSEC_pb` agrees with merged XS *and* the
+  independent signed sumW agrees, the merge is numerically
+  consistent with its inputs. Locate the very-low-XS individual jobs.
+- If full reconstructed XS or signed sumW disagree significantly,
+  investigate the exact per-file input manifest, duplicates,
+  omissions and merge log; do **not** override cross sections.
+- This is an audit of Rivet's XS values, not independent generator
+  validation. For absolute rates, cross-check MG5/Pythia/PanDA
+  generator cross section provenance and HT2 bias handling.
+
+Rivet's existing equivalent-merging code constructs a trials
+estimate by summing `sumW_i / XS_i`. The public merging tutorial
+discusses the general requirement for equivalent merging, but
+source code/runtime version verification remains important.
