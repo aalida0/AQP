@@ -235,3 +235,71 @@ distinguish anomalous inputs from a merger bookkeeping problem.
 Physical cross sections must subsequently be cross-checked against
 the original MG5/Pythia generation logs and HT2 bias treatment.
 Do not apply arbitrary normalization corrections to plots.
+
+
+### 2026-11-23: Wenu D441 invalid XS sentinel ROOT CAUSE
+
+Out of 1984 original per-file YODA inputs, 1982 have positive cross
+section and sumW. Two have XS=-1 pb and negative signed weight sums:
+
+- job 001393: XS=-1 pb, sumW=-8267115.
+- job 001701: XS=-1 pb, sumW=-1678280.
+
+With all 1984, the original Wenu D441 merge has sumW=100429181665.
+With only the other 1982, sumW=100439127060 and the effective-trials
+XS is 21116.762525986065 pb. The two bad files contribute
+(-8267115-1678280)/(-1)=9945395 spurious effective trials.
+
+The actual merged XS is reproduced with high precision:
+
+    good trials = 100439127060/21116.762525986065 = 4756369.58726
+    bad trials  = 9945395
+    reconstructed old XS = 100429181665/(4756369.58726+9945395)
+                         = 6831.0971155 pb
+    observed old XS = 6831.097 pb
+
+This exactly explains the factor-of-three anomaly in the merged
+cross section. The actual implementation's effective-trials
+denominator is also visible in Rivet AnalysisHandler.cc
+(sumw / xsec->val()). The earlier concern about the formula
+being an unsupported approximation is resolved by this
+numerical reconstruction.
+
+A *guarded and non-destructive* remerge program has been added.
+It excludes exactly the two offending YODA files, refuses any
+other exclusions or a partial manifest, preserves all original
+inputs, and writes its result in a separate output directory.
+The corrected XS is provisional until independently checked
+against the MG5/Pythia generator cross section.
+
+Run on AF login node (dry run and unit tests):
+
+    cd ~/AQP
+    git pull --ff-only origin study/vjets-physical-normalization-20261123
+    python3 -m unittest discover -s validation/rivet -p 'test_vjets_remerge_wenu_d441.py' -v
+    python3 validation/rivet/aqp_vjets_remerge_wenu_d441.py
+
+Expected: SELECTED=1982, EXCLUDED=2, EXPECTED_XSEC_PB~21116.76,
+DRY_RUN_ONLY=YES.
+
+Run actual merge on Condor (single job, 8 GB RAM):
+
+    cd ~/AQP/validation/rivet
+    mkdir -p /data/aalida/AQP_Rivet_full/outputs/physics_remerge_condor_logs
+    condor_submit aqp_vjets_remerge_wenu_d441.sub
+
+Condor log:
+    /data/aalida/AQP_Rivet_full/outputs/physics_remerge_condor_logs/Wenu_D441.out
+
+New, non-overwriting YODA:
+    /data/aalida/AQP_Rivet_full/outputs/physics_remerge_Wenu_D441_validXS_20261123/Wenu_delta441_v3_exclude_invalidXS.yoda.gz
+
+The new merge has 1,982,000 events, omitting 2,000 accepted events
+(0.10%). Full inclusion could instead be restored by repairing
+only the two copied YODA metadata values using *independently
+validated* generator XS, not median XS. This validation does not
+yet certify any physical-rate prediction.
+
+The other five old v2 samples still have artificial XS=1 pb.
+Their normalizations require independent generator XS
+provenance before creating final report-scale differential rates.
