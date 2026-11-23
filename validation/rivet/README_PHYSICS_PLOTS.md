@@ -303,3 +303,38 @@ yet certify any physical-rate prediction.
 The other five old v2 samples still have artificial XS=1 pb.
 Their normalizations require independent generator XS
 provenance before creating final report-scale differential rates.
+
+
+### 2026-11-23: UChicago AF HTCondor no-Ceph-logging correction
+
+Initial submission was rejected because the Condor log, output and
+error files were placed on Ceph (/data). This is not a physics
+or rivet-merge failure.
+
+The revised submit uses non-Ceph relative paths under the /home
+submission directory:
+    output = condor_logs/Wenu_D441.$(ClusterId).out
+    error  = condor_logs/Wenu_D441.$(ClusterId).err
+    log    = condor_logs/Wenu_D441.$(ClusterId).condor.log
+
+No FileSystemDomain requirement, no global set -e or set -u in the
+worker. Merge subprocess stdout and stderr go to Condor scratch and
+return to the submit directory when the job ends. Only physical
+merged YODA and its metadata manifests are written to /data.
+
+AF commands:
+
+    cd ~/AQP
+    git fetch origin study/vjets-physical-normalization-20261123
+    git switch study/vjets-physical-normalization-20261123
+    git pull --ff-only
+    cd validation/rivet
+    mkdir -p condor_logs
+    condor_submit aqp_vjets_remerge_wenu_d441.sub
+
+To check:
+
+    ls -lt condor_logs/
+    tail -n 40 condor_logs/Wenu_D441.*.out
+
+Submit from ~/AQP/validation/rivet under /home, not from /data.
