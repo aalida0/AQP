@@ -89,8 +89,8 @@ def inspect(old, new, limit, targets=TARGETS):
         if local:
             xs_sample = [x[0] for x in local]
             weighted = sum(x * w for x, w, _ in local) / sum(w for _, w, _ in local)
-            # Rivet 4's equivalent merging estimates ntrials = sum(sumW_i/xsec_i)
-            # and XS = total_sumW / ntrials; NOT the arithmetic mean.
+            # Harmonic-weighting proxy (not a verified Rivet 4.1.2 merge formula).
+            # The official Rivet tutorial describes XS as a weighted average.
             trials = sum(w / x for x, w, _ in local if x != 0)
             harmonic = (sum(w for _, w, _ in local) / trials) if trials else None
             neff_points = [(x, (w*w)/w2) for x,w,w2 in local if w2 is not None and w2 > 0]
@@ -116,7 +116,7 @@ def inspect(old, new, limit, targets=TARGETS):
             "n_files_with_cross_section": len(local),
             "all_files_checked_and_valid": complete,
             "sample_xsec_weighted_avg_pb": weighted,
-            "sample_xsec_rivet_equiv_pb": harmonic,
+            "sample_xsec_harmonic_proxy_pb": harmonic,
             "sample_xsec_neff_weighted_avg_pb": weighted_neff,
             "sample_xsec_median_pb": median,
             "sample_xsec_min_pb": lo, "sample_xsec_max_pb": hi,
@@ -127,7 +127,7 @@ def inspect(old, new, limit, targets=TARGETS):
             "sample_xsec_cv": coefficient,
             "recomputed_sumW_all_valid_files": sum(w for _,w,_ in local),
             "fractional_difference_weighted_vs_merged": (
-                (harmonic/merged_xs - 1)
+                (weighted/merged_xs - 1)
                 if complete and merged_xs not in (None, 0) else None),
         })
     return aggregates, rows
@@ -156,8 +156,8 @@ def main():
         "status": "PER_FILE_XSEC_DIAGNOSTIC_ONLY_NOT_PHYSICS_CERTIFIED",
         "notes": [
             "Sample selection is deterministic (first filenames sorted) unless --max-files 0 uses all files.",
-            "Rivet equivalent merge combines per-file XSEC with sumW weights.",
-            "Rivet equivalent merging estimates XS = sum(sumW_i) / sum(sumW_i/XS_i).",
+            "Rivet documentation describes a per-file weighted XS average.",
+            "The harmonic XS proxy is NOT established as the Rivet 4.1.2 algorithm.",
             "A sampled per-file average is not the full-file merged average.",
             "Old v2 CrossSection=1 pb is artificial by construction.",
             "Compare Wenu D441 to Wenu corrected S111 independently of this step.",
@@ -183,13 +183,13 @@ def main():
     for item in reports:
         if item["all_files_checked_and_valid"]:
             print(f"FULL_AUDIT {item['process']}/{item['config']}: "
-                  f"RIVET_EQUIV_XSEC_pb={item['sample_xsec_rivet_equiv_pb']:.6f} "
+                  f"HARMONIC_PROXY_pb={item['sample_xsec_harmonic_proxy_pb']:.6f} "
                   f"arithmetic_sumW_mean_pb={item['sample_xsec_weighted_avg_pb']:.6f} "
                   f"Neff_weighted_mean_pb={item['sample_xsec_neff_weighted_avg_pb']} "
                   f"merged_pb={item['merged_xsec_pb']} "
                   f"sumW_in_files={item['recomputed_sumW_all_valid_files']:.8g} "
                   f"sumW_merged={item['merged_sumW']} "
-                  f"relative_diff_rivet_equiv_vs_merged={item['fractional_difference_weighted_vs_merged']:.6g} "
+                  f"relative_diff_sumW_mean_vs_merged={item['fractional_difference_weighted_vs_merged']:.6g} "
                   f"n_xsec_below_10k={item['n_xsec_below_10k_pb']} "
                   f"p10/p90={item['sample_xsec_p10_pb']}/{item['sample_xsec_p90_pb']}")
         else:
