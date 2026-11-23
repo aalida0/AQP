@@ -1,0 +1,16 @@
+# Run from ~/AQP/validation/rivet; prepare logs directory before submission.
+# Output YODA and metadata are written to the shared /data filesystem.
+universe = vanilla
+executable = /bin/bash
+arguments = aqp_vjets_remerge_wenu_d441_worker.sh
+transfer_input_files = aqp_vjets_remerge_wenu_d441_worker.sh,aqp_vjets_remerge_wenu_d441.py,aqp_vjets_xsec_per_file.py,aqp_vjets_physics_preflight.py
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+getenv = True
+request_cpus = 1
+request_memory = 8000
+request_disk = 4000000
+output = /data/aalida/AQP_Rivet_full/outputs/physics_remerge_condor_logs/Wenu_D441.out
+error = /data/aalida/AQP_Rivet_full/outputs/physics_remerge_condor_logs/Wenu_D441.err
+log = /data/aalida/AQP_Rivet_full/outputs/physics_remerge_condor_logs/Wenu_D441.condor.log
+queue
