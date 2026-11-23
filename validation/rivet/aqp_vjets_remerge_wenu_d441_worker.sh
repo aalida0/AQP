@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Non-destructive 1,982-file Wenu D441 equivalent remerge after excluding
 # two identified -1 pb cross-section records. Run via Condor (one job).
-set -uo pipefail
+# Explicit exit-status checks; no global shell strict-mode flags.
 VIEW=/cvmfs/sft.cern.ch/lcg/views/LCG_108a_ATLAS_9/x86_64-el9-gcc14-opt/setup.sh
 if [ ! -r "$VIEW" ]; then
     echo "ERROR: coherent LCG Rivet/YODA view unavailable: $VIEW" >&2
