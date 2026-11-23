@@ -116,6 +116,8 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--json", type=Path, default=DEFAULT_JSON)
     p.add_argument("--outdir", type=Path, default=DEFAULT_DIR)
+    p.add_argument("--logdir", type=Path, default=Path.cwd(),
+                   help="rivet-merge process logs (default: current Condor scratch directory, NOT /data)")
     p.add_argument("--execute", action="store_true", help="actually run rivet-merge")
     args = p.parse_args()
 
@@ -161,12 +163,19 @@ def main():
     command = ["rivet-merge", "-e", "-o", str(output), *(str(p) for p in paths)]
     print("RUNNING_RIVET_MERGE=YES", flush=True)
     print(f"RIVET_COMMAND_FILE={kept_list}", flush=True)
-    with (outdir / "merge.stdout.log").open("w") as stdout, (
-            outdir / "merge.stderr.log").open("w") as stderr:
+    logdir = args.logdir.expanduser().absolute()
+    # Never place runtime log streams on the Ceph /data filesystem.
+    if logdir == Path("/data") or Path("/data") in logdir.parents:
+        p.error("Logging to Ceph /data is forbidden; use Condor scratch or /home")
+    logdir.mkdir(parents=True, exist_ok=True)
+    stdout_path = logdir / "merge.stdout.log"
+    stderr_path = logdir / "merge.stderr.log"
+    print(f"RIVET_PROCESS_LOGS={stdout_path} {stderr_path}", flush=True)
+    with stdout_path.open("w") as stdout, stderr_path.open("w") as stderr:
         result = subprocess.run(command, stdout=stdout, stderr=stderr, check=False)
     if result.returncode != 0:
         print(f"MERGE_FAILED={result.returncode}", file=sys.stderr)
-        print(f"INSPECT={outdir/'merge.stderr.log'}", file=sys.stderr)
+        print(f"INSPECT={stderr_path}", file=sys.stderr)
         return result.returncode
 
     metadata = scan_yoda(output)
