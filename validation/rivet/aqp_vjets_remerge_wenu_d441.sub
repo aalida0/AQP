@@ -1,5 +1,7 @@
-# Run from ~/AQP/validation/rivet; prepare logs directory before submission.
-# Output YODA and metadata are written to the shared /data filesystem.
+# Submit from ~/AQP/validation/rivet (located under /home, not Ceph).
+# Create condor_logs/ in this directory first.
+# ONLY physics YODA output is written to /data; HTCondor logs stay in /home.
+# No filesystem-domain requirements, no Ceph submit logs.
 universe = vanilla
 executable = /bin/bash
 arguments = aqp_vjets_remerge_wenu_d441_worker.sh
@@ -10,7 +12,7 @@ getenv = True
 request_cpus = 1
 request_memory = 8000
 request_disk = 4000000
-output = /data/aalida/AQP_Rivet_full/outputs/physics_remerge_condor_logs/Wenu_D441.out
-error = /data/aalida/AQP_Rivet_full/outputs/physics_remerge_condor_logs/Wenu_D441.err
-log = /data/aalida/AQP_Rivet_full/outputs/physics_remerge_condor_logs/Wenu_D441.condor.log
+output = condor_logs/Wenu_D441.$(ClusterId).out
+error = condor_logs/Wenu_D441.$(ClusterId).err
+log = condor_logs/Wenu_D441.$(ClusterId).condor.log
 queue
