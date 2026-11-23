@@ -53,7 +53,7 @@ def scan_yoda(source):
     """Capture metadata records verbatim and check per-analysis object presence."""
     record = {
         "exists": source.is_file(), "size_bytes": None, "error": None,
-        "finalized_count": 0, "raw_count": 0,
+        "finalized_count": 0, "raw_count": 0, "raw_histogram_count": 0,
         "analyses": {}, "canonical_final_paths": [],
         "metadata_blocks": []
     }
@@ -84,6 +84,8 @@ def scan_yoda(source):
                     if path:
                         if path.startswith("/RAW/"):
                             record["raw_count"] += 1
+                            if "HISTO" in (kind or "") or "PROFILE" in (kind or ""):
+                                record["raw_histogram_count"] += 1
                         elif path.startswith("/TMP/") or path.startswith("/REF/"):
                             pass
                         else:
@@ -110,7 +112,7 @@ def scan_yoda(source):
         record["error"] = type(exc).__name__ + ": " + str(exc)
     record["analyses"] = analysis
     record["canonical_final_paths"] = sorted(final_paths)
-    if record["raw_count"] == 0 and not record["error"]:
+    if record["raw_histogram_count"] == 0 and not record["error"]:
         record["error"] = "NO_RAW_HISTOGRAMS: cannot assume safe re-finalization"
     return record
 
