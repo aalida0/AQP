@@ -78,6 +78,17 @@ def load_audit(json_path):
         missing = [str(p) for p in paths if not p.is_file()]
         raise ValueError("Missing source files: " + ", ".join(missing[:5]))
 
+    # First reconstruct the already observed defective merge from all 1984
+    # records. It must agree with Rivet metadata before filtering the -1 pb
+    # sentinel cross sections: otherwise abort rather than guessing.
+    all_signed = sum(r["sumW"] for r in rows)
+    all_denominator = sum(r["sumW"]/r["xsec_pb"] for r in rows)
+    reconstructed_original = all_signed/all_denominator
+    merged_original = stats[0].get("merged_xsec_pb")
+    if (merged_original is None or
+            abs(reconstructed_original/merged_original - 1) > 0.0005):
+        raise ValueError("Could not reproduce original merged cross section")
+
     signed = sum(r["sumW"] for r in keep)
     denominator = sum(r["sumW"]/r["xsec_pb"] for r in keep)
     if denominator <= 0 or signed <= 0:
@@ -92,6 +103,8 @@ def load_audit(json_path):
         "included_yoda": len(keep), "excluded_yoda": len(bad),
         "included_entries": sum(int(r["entries"]) for r in keep),
         "expected_sumW": signed, "predicted_rivet_equiv_xsec_pb": prediction,
+        "reconstructed_old_xsec_pb": reconstructed_original,
+        "observed_old_xsec_pb": merged_original,
         "excluded_sources": bad,
         "physics_note": (
             "Two anomalous -1 pb cross-section records excluded. "
