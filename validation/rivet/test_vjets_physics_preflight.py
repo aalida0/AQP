@@ -43,6 +43,7 @@ class PreflightTests(unittest.TestCase):
             row = PREFLIGHT.scan_yoda(file)
             self.assertIsNone(row["error"])
             self.assertEqual(row["raw_count"], 2)
+            self.assertEqual(row["raw_histogram_count"], 1)
             self.assertEqual(row["finalized_count"], 2)
             self.assertIn("/MC_WJETS/jet_HT", row["canonical_final_paths"])
             self.assertTrue(any("_XSEC" in item["path"] for item in row["metadata_blocks"]))
@@ -53,19 +54,20 @@ class PreflightTests(unittest.TestCase):
         self.assertEqual(row["error"], "FILE_MISSING")
         self.assertEqual(row["metadata_blocks"], [])
 
-    def test_raw_missing_is_blocker(self):
+    def test_only_raw_bookkeeping_cannot_refinalize(self):
         with tempfile.TemporaryDirectory() as temporary:
             file = Path(temporary, "merged.yoda")
-            file.write_text(FIXTURE.replace("BEGIN YODA_HISTO1D_V2 /RAW",
-                                            "BEGIN YODA_HISTO1D_V2 /SKIP")
-                            .replace("Path: /RAW", "Path: /SKIP")
-                            .replace("BEGIN YODA_COUNTER_V2 /SKIP",
-                                     "BEGIN YODA_COUNTER_V2 /RAW"))
+            # Replacing the RAW histogram with a finalized one, retaining
+            # the RAW event counter, must not pass the re-finalization gate.
+            text = FIXTURE.replace(
+                "/RAW/MC_WJETS:LMODE=EL/jet_HT",
+                "/MC_WJETS:LMODE=EL/jet_HT"
+            )
+            file.write_text(text)
             row = PREFLIGHT.scan_yoda(file)
-            self.assertIsNone(row["error"])  # RAW event counter remains.
-            # Old fake file now has no RAW histogram; bookkeeping alone cannot
-            # establish correct histo re-finalization.
-            self.assertTrue(any("/SKIP/" in p for p in row["canonical_final_paths"]))
+            self.assertEqual(row["raw_count"], 1)
+            self.assertEqual(row["raw_histogram_count"], 0)
+            self.assertIn("NO_RAW_HISTOGRAMS", row["error"])
 
     def test_corrected_sample_version_and_no_wrong_seed_v2(self):
         old = Path("/old")
