@@ -78,7 +78,10 @@ def inspect(old, new, limit, targets=TARGETS):
             rows.append(row)
             if sw is not None and sw <= 0:
                 nonpositive_sumw += 1
-            if xs is not None and sw is not None and sw > 0:
+            # Respect signed event weights: a negative per-job sumW is
+            # unusual but must not be silently discarded. A zero/negative
+            # cross section is not usable for the trials reconstruction.
+            if xs is not None and xs > 0 and sw is not None and sw != 0:
                 local.append((xs, sw, sw2))
         merged_meta = scan_yoda(merged)
         merged_xs = get_first(merged_meta, "_XSEC")
