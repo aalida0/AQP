@@ -198,45 +198,40 @@ in the merged sample. The first 20 Zee D441 files have median
 **2216.52 pb**, but a 5506.26 pb outlier.
 
 **Do not call this a merge bug yet.** The first 20 sorted files
-may not represent the full 1,984-file Wenu D441 sample, and
-Rivet equivalent merging uses an effective trials denominator
-rather than the naive arithmetic average:
+were unrepresentative of the complete 1,984-file Wenu D441 sample.
 
-```text
-XS_Rivet_equiv = sum(sumW_i) / sum(sumW_i / XS_i)
-```
+The official Rivet merging tutorial describes the equivalent-merge
+cross section as a **weighted mean of per-file cross sections**.
+The exact weighting in the deployed Rivet 4.1.2 implementation
+must be checked: an upstream Rivet issue specifically flags
+event-count weighting versus sum-of-weights weighting for samples
+with nonuniform event weights. The older diagnostic's
+`sum(sumW)/sum(sumW/XS)` construction was a **harmonic proxy** and
+must **not** be presented as the Rivet merging formula.
 
-The diagnostic now computes this quantity as well as the
-arithmetic sumW-weighted average and counts extreme per-file XS
-values. It checks whether the sum of per-file signed weights
-matches the recorded merged sumW.
+For the completed 1,984-file diagnostic, **1,982** files had a
+positive, parseable XS and nonzero signed sum of weights.
+The valid-file XS range is 8688.849–82124.980 pb and the median is
+20901.370 pb, while the merged XS is only 6831.097 pb.
 
-Run **only Wenu D441**, selecting all available per-file YODA files:
+The first priority is to identify the **two excluded metadata records**,
+check negative event-weight sums and compare the arithmetic XS averages
+weighted by event count and signed sumW.
 
 ```bash
 cd ~/AQP
 git pull --ff-only origin study/vjets-physical-normalization-20261123
 
-python3 -m unittest discover -s validation/rivet \
-  -p 'test_vjets_xsec_per_file.py' -v
-
-python3 validation/rivet/aqp_vjets_xsec_per_file.py \
-  --only Wenu/delta441 --max-files 0 \
-  --out /data/aalida/AQP_Rivet_full/outputs/wenu_d441_xsec_full_20261123.json
+python3 validation/rivet/aqp_vjets_xsec_json_diagnose.py \
+  /data/aalida/AQP_Rivet_full/outputs/wenu_d441_xsec_full_20261123.json
 ```
 
-Interpretation:
-- If `RIVET_EQUIV_XSEC_pb` agrees with merged XS *and* the
-  independent signed sumW agrees, the merge is numerically
-  consistent with its inputs. Locate the very-low-XS individual jobs.
-- If full reconstructed XS or signed sumW disagree significantly,
-  investigate the exact per-file input manifest, duplicates,
-  omissions and merge log; do **not** override cross sections.
-- This is an audit of Rivet's XS values, not independent generator
-  validation. For absolute rates, cross-check MG5/Pythia/PanDA
-  generator cross section provenance and HT2 bias handling.
+This reuses the saved JSON; it does not read or modify the YODA files.
+Check `EXCLUDED_FILES`, the per-file `sumW` values,
+`sumW_all_over_merged`, and the arithmetic XS estimates.
 
-Rivet's existing equivalent-merging code constructs a trials
-estimate by summing `sumW_i / XS_i`. The public merging tutorial
-discusses the general requirement for equivalent merging, but
-source code/runtime version verification remains important.
+Then inspect the exact file set recorded by the Rivet merger to
+distinguish anomalous inputs from a merger bookkeeping problem.
+Physical cross sections must subsequently be cross-checked against
+the original MG5/Pythia generation logs and HT2 bias treatment.
+Do not apply arbitrary normalization corrections to plots.
