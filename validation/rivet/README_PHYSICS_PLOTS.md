@@ -338,3 +338,54 @@ To check:
     tail -n 40 condor_logs/Wenu_D441.*.out
 
 Submit from ~/AQP/validation/rivet under /home, not from /data.
+
+
+### 2026-11-23: Wenu D441 remerge PASSED all three metadata checks
+
+Actual user-verified output of the non-destructive 1,982-file remerge:
+
+- status: REMERGE_VALIDATED_METADATA_ONLY_NOT_PHYSICS_CERTIFIED
+- actual XS: 21116.76 pb
+- signed sumW: 100439100000
+- accepted events: 1982000
+- remerge_xs_matches_prediction: true
+- sumW_matches_prediction: true
+- entries_match_expected: true
+
+This proves the remerge behaves as expected and removes the two
+-1 pb cross-section sentinels. It does not yet independently
+certify the generator cross section or replace the full 1,984-file
+physics production.
+
+### Next: obtain generator-level rate evidence for old Rivet v2 files
+
+The remaining five old v2 samples have explicitly artificial
+Rivet 1 pb cross sections:
+Zee S111/D111/D221 and Wenu D111/D221.
+
+A new read-only tool searches already downloaded, original
+PanDA log.generate files for cross-section and sigmaGen text:
+
+    cd ~/AQP
+    git pull --ff-only origin study/vjets-physical-normalization-20261123
+    python3 -m unittest discover -s validation/rivet -p 'test_vjets_generator_xsec_evidence.py' -v
+    python3 validation/rivet/aqp_vjets_generator_xsec_evidence.py \
+      --root /data/aalida/AQP/aqp_log_comparison \
+      --max-logs 10 \
+      --output ~/AQP/vjets_generator_xsec_evidence_20261123.txt
+
+If the log evidence is sparse, DO NOT infer a physical XS from the
+1 pb Rivet file. Retrieve the original generation log data
+(e.g. through the Rucio log.generate datasets) or inspect EVNT/HepMC
+metadata with the correct AthGeneration release.
+
+The tool deliberately prints raw candidate lines and does not
+claim which cross-section stage is physically appropriate. For
+production-quality differential cross sections, verify generator
+XS provenance, signed-bias weights, post-FxFx matching convention
+and per-job consistency. A sample of 10 logs is a pilot, not a
+final 2M-event rate determination.
+
+Keep the recovered Wenu D441 output on the independent
+physics_remerge_Wenu_D441_validXS_20261123 path and leave older
+YODA files and main branch untouched.
