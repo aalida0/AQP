@@ -17,13 +17,32 @@ def input_path(sample, row):
     return OUT/"full"/sample/"yoda"/row["evnt"].replace(".EVNT.pool.root", ".yoda.gz")
 
 
+# Both registered WebDAV sources failed on AF; keep the frozen manifest intact.
+UNAVAILABLE = ("Zee/delta221/v2", "user.aalida.53564254._000060.EVNT.pool.root")
+
+
+def select_inputs(sample, data):
+    selected, excluded = [], []
+    for r in data["included"]:
+        path = input_path(sample, r)
+        if ((sample, r["evnt"]) == UNAVAILABLE and
+                not path.exists() and not path.with_suffix(".json").exists()):
+            excluded.append({**r, "reason": "WEBDAV_TRANSFER_UNAVAILABLE"})
+            print(f"ALLOWED_MISSING {sample} {r['evnt']} entries={r['entries']}", flush=True)
+        else:
+            selected.append(r)
+    return selected, excluded
+
+
 def coverage(sample, data):
-    paths = [input_path(sample, r) for r in data["included"]]
+    selected, excluded = select_inputs(sample, data)
+    paths = [input_path(sample, r) for r in selected]
     if len(set(paths)) != len(paths):
         raise ValueError("Duplicate manifest input")
     missing = [p for p in paths if not p.is_file() or not p.with_suffix(".json").is_file()]
-    print(f"COVERAGE {sample} {len(paths)-len(missing)}/{len(paths)} "
-          f"events={sum(r['entries'] for r in data['included'])} "
+    print(f"COVERAGE {sample} {len(paths)-len(missing)}/{len(data['included'])} "
+          f"planned_events={sum(r['entries'] for r in data['included'])} "
+          f"allowed_missing={len(excluded)} "
           f"manifest_excluded={len(data['excluded'])}", flush=True)
     for p in missing:
         print(f"MISSING {p}")
@@ -56,9 +75,10 @@ def combine(rows):
 def merge(sample, data):
     if not coverage(sample, data):
         raise ValueError("Incomplete manifest coverage")
+    selected, transfer_excluded = select_inputs(sample, data)
     inputs, rows = [], []
     analyses = None
-    for r in data["included"]:
+    for r in selected:
         path = input_path(sample, r)
         receipt = json.loads(path.with_suffix(".json").read_text())
         xs, sw, sw2, n, m = metadata(path)
@@ -103,7 +123,7 @@ def merge(sample, data):
         result = {"sample": sample, "files": len(inputs), "entries": gn,
                   "xs_pb": gx, "sumW": gw, "sumW2": gw2,
                   "neff": gw*gw/gw2, "neff_over_n": gw*gw/(gw2*gn),
-                  "excluded": data["excluded"], "mc_xs_records": records,
+                  "excluded": data["excluded"] + transfer_excluded, "mc_xs_records": records,
                   "analyses": m["analyses"], "metadata_check": "PASS",
                   "physics_validated": False}
         out.replace(dest)
