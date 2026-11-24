@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from aqp_rivet_fresh_pilot import ROUTINES, PLAN, choose_pair
+from aqp_rivet_fresh_pilot import ROUTINES, PLAN, TASKS, production_did, choose_pair
 
 
 class FreshRivetPilotTests(unittest.TestCase):
@@ -14,6 +14,16 @@ class FreshRivetPilotTests(unittest.TestCase):
             self.assertIn("MC_WEIGHTS", routines)
             self.assertIn("MC_XS", routines)
         self.assertNotIn("CMS_2017_I1610623", ROUTINES["Wenu"])
+
+    def test_exact_production_dids(self):
+        self.assertEqual(set(TASKS), set(PLAN))
+        self.assertEqual(TASKS[("Wenu", "standard111", "v1")], "53692983")
+        self.assertEqual(production_did("Wenu", "standard111", "v1"),
+            "user.aalida:user.aalida.AQP.Wenu.standard111.seed817263.FxFx2M.v1_EVNT.pool.root")
+        self.assertEqual(production_did("Zee", "delta441", "v3"),
+            "user.aalida:user.aalida.AQP.Zee.delta441.FxFx2M.v3_EVNT.pool.root")
+        with self.assertRaises(ValueError):
+            production_did("Wenu", "standard111", "v2")
 
     def test_select_matching_job_not_first_file(self):
         with tempfile.TemporaryDirectory() as directory:
