@@ -80,13 +80,21 @@ def main():
     paths = [p for p in log_paths(LOGS/proc/cfg/ver)
              if job_key(p) is not None and job_key(p)[0] == task]
     name, registered, log, info = choose_pair(entries, paths)
-    xs = info["xs_pb"]
     outdir = ROOT/"outputs/fresh_rivet_20261124"/"pilot"/proc/cfg/ver
+    print(f"FRESH_PILOT={proc}/{cfg}/{ver} EVNT={name} LOG={log} XS_PB={info['xs_pb']}", flush=True)
+    process_file(proc, cfg, ver, ds, name, registered, log, info, outdir)
+    print("FRESH_PILOT_PASS=" + str(outdir/(name.removesuffix(".EVNT.pool.root") + ".yoda.gz")))
+    return 0
+
+
+def process_file(proc, cfg, ver, ds, name, registered, log, info, outdir):
+    """Run the same tested pilot path for one explicitly matched EVNT."""
+    xs = info["xs_pb"]
     outdir.mkdir(parents=True, exist_ok=True)
     dest = outdir/(name.removesuffix(".EVNT.pool.root") + ".yoda.gz")
     if dest.exists():
-        p.error(f"Refusing to overwrite {dest}")
-    print(f"FRESH_PILOT={proc}/{cfg}/{ver} EVNT={name} LOG={log} XS_PB={xs}", flush=True)
+        raise FileExistsError(f"Refusing to overwrite {dest}")
+    print(f"FRESH_FILE={proc}/{cfg}/{ver} EVNT={name} LOG={log} XS_PB={xs}", flush=True)
     local = ROOT/"inputs"/proc/cfg
     candidates = sorted(local.rglob(name)) if local.is_dir() else []
     jo = Path(__file__).resolve().with_name("aqp_rivet_fresh_evnt_job.py")
@@ -134,9 +142,9 @@ def main():
         with dest.open("xb") as f, output.open("rb") as src:
             shutil.copyfileobj(src, f)
         dest.with_suffix(".json").write_text(json.dumps(result, indent=2)+"\n")
-    print(f"FRESH_PILOT_PASS={dest} XS_PB={got} ENTRIES={n:g} NEFF_OVER_N={result['neff_over_n']:.6g}")
+    print(f"FRESH_FILE_PASS={dest} XS_PB={got} ENTRIES={n:g} NEFF_OVER_N={result['neff_over_n']:.6g}")
     print("PHYSICAL_XSEC_VALIDATED=NO")
-    return 0
+    return result
 
 
 if __name__ == "__main__":
