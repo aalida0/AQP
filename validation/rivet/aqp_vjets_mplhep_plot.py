@@ -48,7 +48,13 @@ plt.rcParams.update({
 })"""
 
 
-def restyle_script(original):
+FOLDING_LABELS = {"S111": "MC@NLO, folding 111",
+                  "D111": "MC@NLO-Δ, folding 111",
+                  "D221": "MC@NLO-Δ, folding 221",
+                  "D441": "MC@NLO-Δ, folding 441"}
+
+
+def restyle_script(original, folding_labels=False):
     """Retain every Rivet physics plotting statement, replacing only styling."""
     for token in (STYLE_LINE, FONT_LINE, LABEL_ANCHOR):
         if original.count(token) != 1:
@@ -86,6 +92,14 @@ def restyle_script(original):
               "fig.subplots_adjust(right=0.94, bottom=0.16)")
     restyled = restyled.replace(
         LABEL_ANCHOR, LABEL_ANCHOR + "\n" + layout + "\n" + label, 1)
+    if folding_labels:
+        # Edit rendered legend texts only, not curve keys, axes or arrays.
+        relabel = ("from matplotlib.legend import Legend\n"
+                   f"_aqp_labels = {FOLDING_LABELS!r}\n"
+                   "for _aqp_legend in ax.findobj(match=Legend):\n"
+                   "    for _aqp_text in _aqp_legend.get_texts():\n"
+                   "        _aqp_text.set_text(_aqp_labels.get(_aqp_text.get_text(), _aqp_text.get_text()))")
+        restyled = restyled.replace(LABEL_ANCHOR, relabel + "\n" + LABEL_ANCHOR, 1)
     return restyled
 
 
@@ -106,10 +120,10 @@ def inspect_script(source):
     return out
 
 
-def render_one(script, dest, check_only=False):
+def render_one(script, dest, check_only=False, folding_labels=False):
     original = script.read_text(encoding="utf-8")
     metadata = inspect_script(original)
-    restyled = restyle_script(original)
+    restyled = restyle_script(original, folding_labels=folding_labels)
     program = compile(restyled, str(script), "exec")
     if check_only:
         return metadata
@@ -128,7 +142,7 @@ def render_one(script, dest, check_only=False):
     return metadata
 
 
-def run(source, output, check_only=False):
+def run(source, output, check_only=False, folding_labels=False):
     import matplotlib
     matplotlib.use("Agg")
     if not check_only:
@@ -149,7 +163,7 @@ def run(source, output, check_only=False):
                     if not script.with_name(script.stem + "__data.py").is_file():
                         raise ValueError("Original Rivet numerical export missing")
                     meta = render_one(script, output / process / analysis,
-                                      check_only=check_only)
+                                      check_only=check_only, folding_labels=folding_labels)
                     records.append([
                         process, analysis, script.stem,
                         meta.get("ax_xLabel", ""), meta.get("ax_yLabel", ""),
@@ -195,8 +209,10 @@ def main():
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--check-only", action="store_true")
+    parser.add_argument("--folding-labels", action="store_true",
+                        help="Expand S111/D111/D221/D441 legend texts only")
     args = parser.parse_args()
-    raise SystemExit(run(args.source, args.output, args.check_only))
+    raise SystemExit(run(args.source, args.output, args.check_only, args.folding_labels))
 
 
 if __name__ == "__main__":
