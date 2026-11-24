@@ -1,0 +1,25 @@
+# Fresh one-file Rivet pilot for all eight production configurations.
+# Submit from ~/AQP/validation/rivet; mkdir -p condor_logs first.
+universe = vanilla
+executable = /bin/bash
+arguments = aqp_rivet_fresh_pilot_worker.sh $(proc) $(cfg) $(ver)
+transfer_input_files = aqp_rivet_fresh_pilot_worker.sh,aqp_rivet_fresh_pilot.py,aqp_rivet_fresh_evnt_job.py,aqp_rivet_stream.py,aqp_vjets_generator_xsec_evidence.py,aqp_vjets_v2_xsec_match.py,aqp_vjets_physics_preflight.py,aqp_vjets_xsec_per_file.py
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+getenv = True
+request_cpus = 1
+request_memory = 6000
+request_disk = 8000000
+output = condor_logs/fresh_rivet.$(ClusterId).$(ProcId).out
+error = condor_logs/fresh_rivet.$(ClusterId).$(ProcId).err
+log = condor_logs/fresh_rivet.$(ClusterId).$(ProcId).condor.log
+queue proc,cfg,ver from (
+Zee standard111 v2
+Zee delta111 v2
+Zee delta221 v2
+Zee delta441 v3
+Wenu standard111 v1
+Wenu delta111 v2
+Wenu delta221 v2
+Wenu delta441 v3
+)
