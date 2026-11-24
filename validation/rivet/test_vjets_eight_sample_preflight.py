@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from aqp_vjets_eight_sample_preflight import SAMPLES, exact_final_paths
+from aqp_vjets_eight_sample_preflight import SAMPLES, exact_final_paths, electron_paths
 
 
 class TestEightSamplePreflight(unittest.TestCase):
@@ -15,6 +15,17 @@ class TestEightSamplePreflight(unittest.TestCase):
         self.assertEqual(len(inputs), len(set(inputs)))
         self.assertIn("exclude_invalidXS", inputs[-1])
         self.assertTrue(all("v2_nominal_shapes" not in p for p in inputs))
+
+    def test_electron_aliases_are_equivalent_but_muons_are_not(self):
+        raw, normalized = electron_paths(
+            {"/MC_ZJETS/jet_HT", "/MC_ZJETS:LMODE=EL/jet_HT"},
+            "MC_ZJETS")
+        self.assertEqual(len(raw), 2)
+        self.assertEqual(normalized, {"/MC_ZJETS/jet_HT"})
+        with self.assertRaises(ValueError):
+            electron_paths({"/MC_ZJETS:LMODE=MU/jet_HT"}, "MC_ZJETS")
+        with self.assertRaises(ValueError):
+            electron_paths({"/MC_ZJETS:PTJMIN=30/jet_HT"}, "MC_ZJETS")
 
     def test_extract_exact_final_paths_without_alias_rewriting(self):
         data = """BEGIN YODA_HISTO1D_V2 /RAW/MC_ZJETS:LMODE=EL/jet_HT
