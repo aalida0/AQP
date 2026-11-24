@@ -1,0 +1,18 @@
+# Run from ~/AQP/validation/rivet after mkdir -p condor_logs
+# First submit only the two-file pilot; edit/remove the queue line after it passes.
+universe = vanilla
+executable = /bin/bash
+arguments = aqp_vjets_v2_physical_remerge_worker.sh $(sample) $(limit)
+transfer_input_files = aqp_vjets_v2_physical_remerge_worker.sh,aqp_vjets_v2_physical_remerge.py,aqp_vjets_physics_preflight.py,aqp_vjets_xsec_per_file.py
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+getenv = True
+request_cpus = 1
+request_memory = 8000
+request_disk = 4000000
+output = condor_logs/v2xsec.$(ClusterId).$(ProcId).out
+error = condor_logs/v2xsec.$(ClusterId).$(ProcId).err
+log = condor_logs/v2xsec.$(ClusterId).$(ProcId).condor.log
+queue sample,limit from (
+Zee/standard111/v2 2
+)
