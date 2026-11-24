@@ -17,6 +17,16 @@ from aqp_vjets_xsec_per_file import get_first
 
 ROOT = Path("/data/aalida/AQP_Rivet_full")
 LOGS = Path("/data/aalida/AQP/aqp_log_comparison")
+TASKS = {
+    ("Zee", "standard111", "v2"): "53564233",
+    ("Zee", "delta111", "v2"): "53564243",
+    ("Zee", "delta221", "v2"): "53564254",
+    ("Zee", "delta441", "v3"): "53652000",
+    ("Wenu", "standard111", "v1"): "53692983",
+    ("Wenu", "delta111", "v2"): "53564283",
+    ("Wenu", "delta221", "v2"): "53564290",
+    ("Wenu", "delta441", "v3"): "53651999",
+}
 ROUTINES = {
     "Zee": ("MC_ZJETS:LMODE=EL", "MC_ZINC:LMODE=EL", "MC_KTSPLITTINGS",
             "MC_ZKTSPLITTINGS:LMODE=EL", "MC_WEIGHTS", "MC_XS",
@@ -25,6 +35,13 @@ ROUTINES = {
     "Wenu": ("MC_WJETS:LMODE=EL", "MC_WINC:LMODE=EL", "MC_KTSPLITTINGS",
              "MC_WEIGHTS", "MC_XS", "ATLAS_2024_I2765017:MODE=FIDUCIAL:TYPE=SM"),
 }
+
+
+def production_did(proc, cfg, ver, suffix="EVNT.pool.root"):
+    if (proc, cfg, ver) not in TASKS:
+        raise ValueError("Unknown production")
+    seed = ".seed817263" if (proc, cfg, ver) == ("Wenu", "standard111", "v1") else ""
+    return f"user.aalida:user.aalida.AQP.{proc}.{cfg}{seed}.FxFx2M.{ver}_{suffix}"
 
 
 def choose_pair(entries, paths):
@@ -54,9 +71,15 @@ def main():
     proc, cfg, ver = a.process, a.config, a.version
     if (proc, cfg, ver) not in PLAN:
         p.error("Incorrect production version for this sample")
-    ds = f"user.aalida:user.aalida.AQP.{proc}.{cfg}.FxFx2M.{ver}_EVNT.pool.root"
+    ds = production_did(proc, cfg, ver)
+    task = TASKS[(proc, cfg, ver)]
     entries = listed_files(ds)
-    name, registered, log, info = choose_pair(entries, log_paths(LOGS/proc/cfg/ver))
+    if not entries or any(job_key(name) is None or job_key(name)[0] != task
+                          for name, _ in entries):
+        raise ValueError(f"Empty or unexpected task in {ds}; expected task {task}")
+    paths = [p for p in log_paths(LOGS/proc/cfg/ver)
+             if job_key(p) is not None and job_key(p)[0] == task]
+    name, registered, log, info = choose_pair(entries, paths)
     xs = info["xs_pb"]
     outdir = ROOT/"outputs/fresh_rivet_20261124"/"pilot"/proc/cfg/ver
     outdir.mkdir(parents=True, exist_ok=True)
