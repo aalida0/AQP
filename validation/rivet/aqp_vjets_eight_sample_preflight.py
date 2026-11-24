@@ -5,11 +5,12 @@ The physical cross section is NOT certified by this metadata check.
 Use only corrected v2 output, corrected Wenu S111 v1 and remerged D441 v3.
 """
 import argparse
+import gzip
 import json
 import math
 from pathlib import Path
 
-from aqp_vjets_physics_preflight import canonical, scan_yoda
+from aqp_vjets_physics_preflight import scan_yoda
 from aqp_vjets_xsec_per_file import get_first
 
 ROOT = Path("/data/aalida/AQP_Rivet_full/outputs")
@@ -30,6 +31,17 @@ SAMPLES = {
 }
 ANALYSES = {"Zee": ("MC_ZJETS", "MC_ZINC"),
             "Wenu": ("MC_WJETS", "MC_WINC")}
+
+
+def exact_final_paths(path):
+    """Read original YODA object identifiers without LMODE alias rewriting."""
+    opener = gzip.open if path.suffix == ".gz" else open
+    with opener(path, "rt", encoding="utf-8", errors="replace") as stream:
+        return {fields[2] for line in stream
+                if line.startswith("BEGIN YODA_")
+                for fields in (line.strip().split(maxsplit=2),)
+                if len(fields) == 3
+                and not fields[2].startswith(("/RAW/", "/TMP/", "/REF/"))}
 
 
 def audit():
@@ -59,10 +71,11 @@ def audit():
             if not good:
                 failures.append(f"{process}/{config}: invalid metadata: {meta['error']}, XS={xsec}, sumW={sw}, entries={nev}")
             paths = set(meta["canonical_final_paths"])
-            # Retrieve exact finalized paths separately: scan_yoda canonicalizes
-            # LMODE=EL aliases for overlap reporting. The existing canonical
-            # overlap is necessary but not sufficient for plotting equivalence.
+            raw_paths = exact_final_paths(path) if meta["error"] is None else set()
             for analysis in ANALYSES[process]:
+                exact_groups[analysis].append({x for x in raw_paths
+                    if x.startswith("/" + analysis + "/") or
+                    x.startswith("/" + analysis + ":")})
                 canon_groups[analysis].append({x for x in paths
                                                if x.startswith("/" + analysis + "/")})
             rows.append({"sample": f"{process}/{config}", "path": str(path),
@@ -72,9 +85,10 @@ def audit():
                          "error": meta["error"]})
         for analysis in ANALYSES[process]:
             common = set.intersection(*canon_groups[analysis])
-            overlaps[f"{process}/{analysis}"] = len(common)
-            if not common:
-                failures.append(f"{process}/{analysis}: no shared canonical finalized histograms")
+            exact = set.intersection(*exact_groups[analysis])
+            overlaps[f"{process}/{analysis}"] = {"canonical": len(common), "exact": len(exact)}
+            if not common or not exact:
+                failures.append(f"{process}/{analysis}: no common exact histogram identifiers; check LMODE aliases")
         xs = [r["xsec_pb"] for r in rows if r["sample"].startswith(process + "/")]
         if len(xs) == 4 and all(isinstance(x, (float, int)) and x > 0 for x in xs):
             spread = max(xs)/min(xs) - 1
@@ -82,7 +96,7 @@ def audit():
     for r in rows:
         print(f'{r["sample"]:12} XS_pb={r["xsec_pb"]} EVENTS={r["entries"]} RAW={r["raw_histograms"]} ERROR={r["error"]}')
     for group, count in overlaps.items():
-        print(f"CANONICAL_COMMON_HISTOGRAMS {group}={count}")
+        print(f"COMMON_HISTOGRAMS {group} canonical={count['canonical']} exact={count['exact']}")
     for failure in failures:
         print("FAIL:", failure)
     print("EIGHT_FILE_PREFLIGHT=" + ("PASS" if not failures else "FAIL"))
