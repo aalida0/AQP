@@ -94,6 +94,16 @@ class MplhepPlotTests(unittest.TestCase):
         self.assertIn("ax.text(0.97, 0.96,", result)
         self.assertEqual(restore_style_only(result), original)
 
+    def test_folding_labels_are_legend_only(self):
+        default = PLOT.restyle_script(TEMPLATE)
+        result = PLOT.restyle_script(TEMPLATE, folding_labels=True)
+        start = result.index("from matplotlib.legend import Legend\n")
+        end = result.index(PLOT.LABEL_ANCHOR, start)
+        self.assertEqual(result[:start] + result[end:], default)
+        self.assertIn("MC@NLO, folding 111", result)
+        self.assertIn("MC@NLO-Δ, folding 441", result)
+        self.assertIn("ax.set_ylim(yLims)", result)
+
     def test_rejects_non_rivet_style_script(self):
         with self.assertRaisesRegex(ValueError, "plotting anchor"):
             PLOT.restyle_script("print('not a Rivet auto-plot')")
