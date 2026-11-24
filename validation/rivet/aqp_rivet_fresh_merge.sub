@@ -1,0 +1,23 @@
+universe = vanilla
+executable = /bin/bash
+arguments = aqp_rivet_fresh_merge_worker.sh $(sample)
+transfer_input_files = aqp_rivet_fresh_merge_worker.sh,aqp_rivet_fresh_merge.py,aqp_vjets_physics_preflight.py,aqp_vjets_xsec_per_file.py
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+getenv = True
+request_cpus = 1
+request_memory = 8000
+request_disk = 4000000
+output = condor_logs/fresh_merge.$(ClusterId).$(ProcId).out
+error = condor_logs/fresh_merge.$(ClusterId).$(ProcId).err
+log = condor_logs/fresh_merge.$(ClusterId).$(ProcId).condor.log
+queue sample from (
+Zee/standard111/v2
+Zee/delta111/v2
+Zee/delta221/v2
+Zee/delta441/v3
+Wenu/standard111/v1
+Wenu/delta111/v2
+Wenu/delta221/v2
+Wenu/delta441/v3
+)
