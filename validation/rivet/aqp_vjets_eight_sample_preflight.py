@@ -10,7 +10,7 @@ import json
 import math
 from pathlib import Path
 
-from aqp_vjets_physics_preflight import scan_yoda
+from aqp_vjets_physics_preflight import canonical, scan_yoda
 from aqp_vjets_xsec_per_file import get_first
 
 ROOT = Path("/data/aalida/AQP_Rivet_full/outputs")
@@ -44,6 +44,19 @@ def exact_final_paths(path):
                 and not fields[2].startswith(("/RAW/", "/TMP/", "/REF/"))}
 
 
+def electron_paths(paths, analysis):
+    """Only the explicit electron option is equivalent to the default here."""
+    raw = {p for p in paths
+           if p.startswith("/" + analysis + "/") or
+           p.startswith("/" + analysis + ":")}
+    unsupported = {p for p in raw if not
+                   (p.startswith("/" + analysis + "/") or
+                    p.startswith("/" + analysis + ":LMODE=EL/"))}
+    if unsupported:
+        raise ValueError(f"{analysis}: unsupported analysis options: {sorted(unsupported)[:2]}")
+    return raw, {canonical(p) for p in raw}
+
+
 def audit():
     rows, overlaps, failures = [], {}, []
     for process, samples in SAMPLES.items():
@@ -73,11 +86,16 @@ def audit():
             paths = set(meta["canonical_final_paths"])
             raw_paths = exact_final_paths(path) if meta["error"] is None else set()
             for analysis in ANALYSES[process]:
-                exact_groups[analysis].append({x for x in raw_paths
-                    if x.startswith("/" + analysis + "/") or
-                    x.startswith("/" + analysis + ":")})
-                canon_groups[analysis].append({x for x in paths
-                                               if x.startswith("/" + analysis + "/")})
+                try:
+                    exact, normalized = electron_paths(raw_paths, analysis)
+                    expected = {x for x in paths if x.startswith("/" + analysis + "/")}
+                    if normalized != expected:
+                        failures.append(f"{process}/{config}/{analysis}: canonical path mismatch")
+                except ValueError as exc:
+                    failures.append(f"{process}/{config}: {exc}")
+                    exact, normalized = set(), set()
+                exact_groups[analysis].append(exact)
+                canon_groups[analysis].append(normalized)
             rows.append({"sample": f"{process}/{config}", "path": str(path),
                          "xsec_pb": xsec, "sumW": sw, "entries": nev,
                          "finalized": meta["finalized_count"],
@@ -87,8 +105,10 @@ def audit():
             common = set.intersection(*canon_groups[analysis])
             exact = set.intersection(*exact_groups[analysis])
             overlaps[f"{process}/{analysis}"] = {"canonical": len(common), "exact": len(exact)}
-            if not common or not exact:
-                failures.append(f"{process}/{analysis}: no common exact histogram identifiers; check LMODE aliases")
+            if not common:
+                failures.append(f"{process}/{analysis}: no common electron-mode histograms")
+            elif not exact:
+                print(f"EXPECTED_ALIAS {process}/{analysis}: bare analysis name vs LMODE=EL")
         xs = [r["xsec_pb"] for r in rows if r["sample"].startswith(process + "/")]
         if len(xs) == 4 and all(isinstance(x, (float, int)) and x > 0 for x in xs):
             spread = max(xs)/min(xs) - 1
