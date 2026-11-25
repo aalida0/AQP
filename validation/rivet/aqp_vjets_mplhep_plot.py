@@ -151,6 +151,11 @@ def render_one(script, dest, check_only=False, folding_labels=False):
     original = script.read_text(encoding="utf-8")
     metadata = inspect_script(original)
     restyled = restyle_script(original, folding_labels=folding_labels)
+    # Mathtext accepts \geq, not Rivet's \ge shorthand. Change only tick text.
+    restyled = "\n".join(
+        re.sub(r"\\ge(?![A-Za-z])", lambda _: r"\geq", line)
+        if line.startswith("xCustomTickLabels = ") else line
+        for line in restyled.split("\n"))
     program = compile(restyled, str(script), "exec")
     if check_only:
         return metadata
