@@ -105,6 +105,30 @@ class MplhepPlotTests(unittest.TestCase):
         self.assertIn("MC@NLO-Δ, folding 441", result)
         self.assertIn("ax.set_ylim(yLims)", result)
 
+    def test_all_rivet_legend_variants(self):
+        from matplotlib.figure import Figure
+        from matplotlib.lines import Line2D
+        fig = Figure()
+        ax = fig.subplots()
+        suffixes = ("", " [LMODE=EL]", " [LMODE=ELEL]",
+                    " [MODE=FIDUCIAL,TYPE=SM]")
+        expected = list(PLOT.FOLDING_LABELS.values())
+        legends = []
+        for suffix in suffixes:
+            labels = [name + suffix for name in PLOT.FOLDING_LABELS] + ["Data"]
+            handles = [Line2D([], []) for _ in labels]
+            legend = ax.legend(handles, labels)
+            ax.add_artist(legend)
+            legends.append(legend)
+        legends.append(fig.legend([Line2D([], [])], ["D441 [LMODE=EL]"]))
+        result = PLOT.restyle_script(TEMPLATE, folding_labels=True)
+        start = result.index("from matplotlib.legend import Legend")
+        end = result.index(PLOT.LABEL_ANCHOR, start)
+        exec(result[start:end], {"fig": fig})
+        for legend in legends[:-1]:
+            self.assertEqual([t.get_text() for t in legend.get_texts()], expected + ["Data"])
+        self.assertEqual(legends[-1].get_texts()[0].get_text(), expected[-1])
+
     def test_fresh_directory_layout(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
