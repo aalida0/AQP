@@ -19,6 +19,33 @@ from pathlib import Path
 
 ANALYSES = {"Zee": ("MC_ZJETS", "MC_ZINC"),
             "Wenu": ("MC_WJETS", "MC_WINC")}
+FRESH_ANALYSES = {
+    "Zee": (*ANALYSES["Zee"], "MC_KTSPLITTINGS", "MC_ZKTSPLITTINGS",
+            "MC_WEIGHTS", "MC_XS", "ATLAS_2017_I1514251",
+            "CMS_2018_I1667854", "ATLAS_2022_I2077570"),
+    "Wenu": (*ANALYSES["Wenu"], "MC_KTSPLITTINGS", "MC_WEIGHTS",
+             "MC_XS", "ATLAS_2024_I2765017"),
+}
+# Known inconsistent or misleading finalized observables: keep native
+# exports available, but do not include them in the validated gallery.
+DIAGNOSTICS = {("MC_XS", "XS"), ("MC_WEIGHTS", "xsfraction_neg")}
+
+
+def analysis_directory(source, process, analysis, fresh=False):
+    if not fresh:
+        return source / process / "01_four_way_common_MC_shapes" / analysis
+    base = source / process
+    matches = [p for p in base.iterdir()
+               if p.is_dir() and p.name.split(":")[0] == analysis] if base.is_dir() else []
+    if len(matches) != 1:
+        # Rivet can encode the analysis options in the directory name.
+        matches = [p for p in base.iterdir()
+                   if p.is_dir() and p.name.startswith(analysis + "_")] if base.is_dir() else []
+    if len(matches) != 1:
+        raise ValueError(f"Expected one fresh analysis directory: {base}/{analysis}; found {matches}")
+    return matches[0]
+
+
 STYLE_LINE = "plt.style.use(os.path.join(plotDir, '../default.mplstyle'))"
 FONT_LINE = "plt.rc('font', family='DejaVu Sans')"
 LABEL_ANCHOR = "fig.align_ylabels((ax, ratio0_ax))"
@@ -142,7 +169,7 @@ def render_one(script, dest, check_only=False, folding_labels=False):
     return metadata
 
 
-def run(source, output, check_only=False, folding_labels=False):
+def run(source, output, check_only=False, folding_labels=False, fresh=False):
     import matplotlib
     matplotlib.use("Agg")
     if not check_only:
@@ -150,9 +177,13 @@ def run(source, output, check_only=False, folding_labels=False):
         _ = mplhep.style.ATLAS
 
     records, gallery, failures = [], [], []
-    for process, analyses in ANALYSES.items():
+    for process, analyses in (FRESH_ANALYSES if fresh else ANALYSES).items():
         for analysis in analyses:
-            directory = source / process / "01_four_way_common_MC_shapes" / analysis
+            try:
+                directory = analysis_directory(source, process, analysis, fresh)
+            except ValueError as exc:
+                failures.append(str(exc))
+                continue
             originals = sorted(x for x in directory.glob("*.py")
                                if not x.name.endswith("__data.py"))
             if not originals:
@@ -162,6 +193,9 @@ def run(source, output, check_only=False, folding_labels=False):
                 try:
                     if not script.with_name(script.stem + "__data.py").is_file():
                         raise ValueError("Original Rivet numerical export missing")
+                    if fresh and (analysis, script.stem) in DIAGNOSTICS:
+                        print(f"SKIP_DIAGNOSTIC={script}")
+                        continue
                     meta = render_one(script, output / process / analysis,
                                       check_only=check_only, folding_labels=folding_labels)
                     records.append([
@@ -211,8 +245,9 @@ def main():
     parser.add_argument("--check-only", action="store_true")
     parser.add_argument("--folding-labels", action="store_true",
                         help="Expand S111/D111/D221/D441 legend texts only")
+    parser.add_argument("--fresh", action="store_true", help="Read fresh Rivet plots/PROCESS/ANALYSIS and render all routines")
     args = parser.parse_args()
-    raise SystemExit(run(args.source, args.output, args.check_only, args.folding_labels))
+    raise SystemExit(run(args.source, args.output, args.check_only, args.folding_labels, args.fresh))
 
 
 if __name__ == "__main__":
