@@ -26,8 +26,8 @@ FRESH_ANALYSES = {
     "Wenu": (*ANALYSES["Wenu"], "MC_KTSPLITTINGS", "MC_WEIGHTS",
              "MC_XS", "ATLAS_2024_I2765017"),
 }
-# Known inconsistent or misleading finalized observables: keep native
-# exports available, but do not include them in the validated gallery.
+# Known inconsistent or misleading finalized observables: render these too,
+# but keep them in a separate diagnostic directory.
 DIAGNOSTICS = {("MC_XS", "XS"), ("MC_WEIGHTS", "xsfraction_neg")}
 
 
@@ -123,9 +123,12 @@ def restyle_script(original, folding_labels=False):
         # Edit rendered legend texts only, not curve keys, axes or arrays.
         relabel = ("from matplotlib.legend import Legend\n"
                    f"_aqp_labels = {FOLDING_LABELS!r}\n"
-                   "for _aqp_legend in ax.findobj(match=Legend):\n"
+                   "import re as _aqp_re\n"
+                   "for _aqp_legend in fig.findobj(match=Legend):\n"
                    "    for _aqp_text in _aqp_legend.get_texts():\n"
-                   "        _aqp_text.set_text(_aqp_labels.get(_aqp_text.get_text(), _aqp_text.get_text()))")
+                   "        _aqp_match = _aqp_re.fullmatch(r'(S111|D111|D221|D441)(?:\\s*\\[[^\\]]*\\])*', _aqp_text.get_text().strip())\n"
+                   "        if _aqp_match:\n"
+                   "            _aqp_text.set_text(_aqp_labels[_aqp_match.group(1)])")
         restyled = restyled.replace(LABEL_ANCHOR, relabel + "\n" + LABEL_ANCHOR, 1)
     return restyled
 
@@ -198,10 +201,11 @@ def run(source, output, check_only=False, folding_labels=False, fresh=False):
                 try:
                     if not script.with_name(script.stem + "__data.py").is_file():
                         raise ValueError("Original Rivet numerical export missing")
-                    if fresh and (analysis, script.stem) in DIAGNOSTICS:
-                        print(f"SKIP_DIAGNOSTIC={script}")
-                        continue
-                    meta = render_one(script, output / process / analysis,
+                    diagnostic = fresh and (analysis, script.stem) in DIAGNOSTICS
+                    dest = (output / "diagnostics" if diagnostic else output) / process / analysis
+                    if diagnostic:
+                        print(f"DIAGNOSTIC_ONLY={script}")
+                    meta = render_one(script, dest,
                                       check_only=check_only, folding_labels=folding_labels)
                     records.append([
                         process, analysis, script.stem,
@@ -228,7 +232,10 @@ def run(source, output, check_only=False, folding_labels=False, fresh=False):
             page.append(f'<h2>{html.escape(process)} / {html.escape(analysis)} '
                         f'({len(plots)} plots)</h2>')
             for name in plots:
-                rel = f'{process}/{analysis}/{name}'
+                diagnostic = fresh and (analysis, name) in DIAGNOSTICS
+                rel = ("diagnostics/" if diagnostic else "") + f'{process}/{analysis}/{name}'
+                if diagnostic:
+                    page.append('<p><strong>Diagnostic only: known normalization or weight-label issue.</strong></p>')
                 page.append(f'<details><summary>{html.escape(name)}</summary>'
                             f'<a href="{html.escape(rel)}.pdf">PDF</a><br>'
                             f'<img loading="lazy" style="max-width:100%" '
