@@ -3,6 +3,7 @@ import importlib.util
 import os
 from pathlib import Path
 import unittest
+import tempfile
 
 ROOT = Path(__file__).resolve().parent
 SPEC = importlib.util.spec_from_file_location(
@@ -103,6 +104,21 @@ class MplhepPlotTests(unittest.TestCase):
         self.assertIn("MC@NLO, folding 111", result)
         self.assertIn("MC@NLO-Δ, folding 441", result)
         self.assertIn("ax.set_ylim(yLims)", result)
+
+    def test_fresh_directory_layout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            directory = root / "Zee" / "MC_ZKTSPLITTINGS"
+            directory.mkdir(parents=True)
+            self.assertEqual(PLOT.analysis_directory(
+                root, "Zee", "MC_ZKTSPLITTINGS", fresh=True), directory)
+            self.assertIn("ATLAS_2024_I2765017", PLOT.FRESH_ANALYSES["Wenu"])
+            self.assertIn(("MC_XS", "XS"), PLOT.DIAGNOSTICS)
+            self.assertIn(("MC_WEIGHTS", "xsfraction_neg"), PLOT.DIAGNOSTICS)
+            with self.assertRaises(ValueError):
+                PLOT.analysis_directory(root, "Zee", "MC_XS", fresh=True)
+            self.assertEqual(PLOT.analysis_directory(root, "Zee", "MC_ZINC"),
+                root / "Zee" / "01_four_way_common_MC_shapes" / "MC_ZINC")
 
     def test_rejects_non_rivet_style_script(self):
         with self.assertRaisesRegex(ValueError, "plotting anchor"):
