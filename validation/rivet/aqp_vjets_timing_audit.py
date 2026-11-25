@@ -10,6 +10,7 @@ import tarfile
 
 from aqp_nwf_10logs import pythia_counts, pythia_reported_efficiency
 from aqp_vjets_generator_xsec_evidence import decode_log
+from aqp_vjets_v2_xsec_match import job_key
 
 ROOT = Path("/data/aalida/AQP_Rivet_full/outputs/fresh_rivet_20261124")
 KEYS = ("gen_wall_seconds_gnu", "gen_wall_seconds",
@@ -28,11 +29,24 @@ def timing_fields(text):
     return values
 
 
-def measured_timing(path, log):
+def measured_timing(path, log, timing_path=None, expected_events=None):
     """Use the worker's actual GNU time records, never infer CPU from wall."""
     values = timing_fields(log)
     sources = ["generator_log"] if values else []
-    if tarfile.is_tarfile(path):
+    if timing_path is not None:
+        timing_text = timing_path.read_text()
+        requested = re.findall(r"(?m)^requested_accepted_events=(\d+)\s*$", timing_text)
+        if expected_events is not None and requested != [str(expected_events)]:
+            raise ValueError("Timing record event target mismatch: " + str(timing_path))
+        found = timing_fields(timing_text)
+        if found.get("gen_exit_code") != 0:
+            raise ValueError("Timing record lacks successful exit: " + str(timing_path))
+        for key, value in found.items():
+            if key in values and values[key] != value:
+                raise ValueError("Conflicting separate timing for " + key)
+            values[key] = value
+        sources.append(str(timing_path))
+    elif tarfile.is_tarfile(path):
         with tarfile.open(path, "r:*") as tf:
             for member in tf.getmembers():
                 name = Path(member.name).name
@@ -76,6 +90,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--root", type=Path, default=ROOT)
     p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--timing-root", type=Path, default=Path("/data/aalida/AQP/aqp_grid_timing"))
     a = p.parse_args()
     a.output.mkdir(parents=True, exist_ok=True)
     manifest = json.loads((a.root/"production_manifest.json").read_text())["samples"]
@@ -85,6 +100,14 @@ def main():
         if merged["metadata_check"] != "PASS":
             raise ValueError("Unvalidated merge " + sample)
         excluded = {x["evnt"] for x in merged["excluded"]}
+        timing_by_id = {}
+        for path in (a.timing_root/sample).rglob("*.generation_timing.txt"):
+            key = job_key(path)
+            if key is None:
+                continue
+            if key in timing_by_id:
+                raise ValueError("Duplicate timing record " + str(key))
+            timing_by_id[key] = path
         rows = []
         for r in data["included"]:
             if r["evnt"] in excluded:
@@ -99,7 +122,8 @@ def main():
             try:
                 path = Path(r["log"])
                 log = decode_log(path)
-                row["wall_s"], row["cpu_s"], row["timing_source"] = measured_timing(path, log)
+                row["wall_s"], row["cpu_s"], row["timing_source"] = measured_timing(
+                    path, log, timing_by_id.get(job_key(r["evnt"])), r["entries"])
                 tried, _, accepted = pythia_counts(log)
                 if tried and accepted and 0 < accepted <= tried and abs(accepted-row["entries"]) <= max(5, 0.05*row["entries"]):
                     row.update(tried=tried, accepted=accepted)
