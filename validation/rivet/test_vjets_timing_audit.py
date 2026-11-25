@@ -22,6 +22,17 @@ class TimingAuditTests(unittest.TestCase):
             self.assertEqual((wall, cpu), (124.5, 104.5))
             self.assertIn("generation_timing.txt", source)
 
+    def test_separate_grid_timing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp)/"generation_timing.txt"
+            path.write_text("requested_accepted_events=1000\ngen_wall_seconds_gnu=123.4\n"
+                            "gen_user_cpu_seconds=120\ngen_system_cpu_seconds=2\n"
+                            "gen_exit_code=0\n")
+            self.assertEqual(measured_timing(Path(tmp)/"unused", "", path, 1000),
+                             (123.4, 122.0, str(path)))
+            with self.assertRaisesRegex(ValueError, "event target mismatch"):
+                measured_timing(Path(tmp)/"unused", "", path, 5000)
+
     def test_missing_and_conflicting(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp)/"log"
